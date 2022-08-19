@@ -57,6 +57,12 @@ configurations {
   hdfsFixture
 }
 
+configurations.all {
+  resolutionStrategy {
+    force 'org.slf4j:slf4j-api:1.7.36'
+  }
+}
+
 dependencies {
   api "org.apache.hadoop:hadoop-client-api:${versions.hadoop3}"
   runtimeOnly "org.apache.hadoop:hadoop-client-runtime:${versions.hadoop3}"

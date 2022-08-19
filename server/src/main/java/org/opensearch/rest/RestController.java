@@ -398,7 +398,6 @@ public class RestController implements HttpServerTransport.Dispatcher {
                         return;
                     }
                 } else {
-
                     final Optional<String> authHeader = request.getHeaders()
                         .getOrDefault("Authorization", Collections.emptyList())
                         .stream()

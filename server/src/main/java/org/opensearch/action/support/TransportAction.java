@@ -36,6 +36,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.shiro.SecurityUtils;
 import org.apache.shiro.subject.Subject;
+import org.opensearch.OpenSearchSecurityException;
 import org.opensearch.action.ActionListener;
 import org.opensearch.action.ActionRequest;
 import org.opensearch.action.ActionRequestValidationException;
@@ -43,6 +44,7 @@ import org.opensearch.action.ActionResponse;
 import org.opensearch.common.lease.Releasable;
 import org.opensearch.common.lease.Releasables;
 import org.opensearch.common.util.concurrent.ThreadContext;
+import org.opensearch.rest.RestStatus;
 import org.opensearch.tasks.Task;
 import org.opensearch.tasks.TaskCancelledException;
 import org.opensearch.tasks.TaskId;
@@ -199,7 +201,10 @@ public abstract class TransportAction<Request extends ActionRequest, Response ex
         if (currentSubject.isPermitted(task.getAction())) {
             logger.atInfo().log(currentSubject.getPrincipal() + " is allowed to " + task.getAction());
         } else {
-            logger.atError().log(currentSubject.getPrincipal() + " is NOT allowed to " + task.getAction() + ", but is not being stopped");
+            logger.atError().log(currentSubject.getPrincipal() + " is NOT allowed to " + task.getAction() + "");
+            String err = currentSubject.getPrincipal() + " is NOT allowed to perform action: " + task.getAction();
+            listener.onFailure(new OpenSearchSecurityException(err, RestStatus.FORBIDDEN));
+            return;
         }
 
         RequestFilterChain<Request, Response> requestFilterChain = new RequestFilterChain<>(this, logger);

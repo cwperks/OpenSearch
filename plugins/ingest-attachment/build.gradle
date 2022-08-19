@@ -44,6 +44,12 @@ versions << [
   'mime4j': '0.8.3'
 ]
 
+configurations.all {
+  resolutionStrategy {
+    force 'org.slf4j:slf4j-api:1.7.36'
+  }
+}
+
 dependencies {
   // mandatory for tika
   api "org.apache.tika:tika-core:${versions.tika}"

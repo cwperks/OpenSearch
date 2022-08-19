@@ -21,7 +21,7 @@ import java.util.Collections;
 import java.util.Optional;
 
 /**
- * Prototyping use of identity management (authentication & authorization) implemented with Shiro
+ * Prototyping use of identity management (authentication &amp; authorization) implemented with Shiro
  * See more at https://shiro.apache.org/
  */
 public class MyShiroModule {
@@ -83,6 +83,8 @@ public class MyShiroModule {
     /* Super basic role management */
     private enum Roles {
         ALL_ACCESS,
+        ALL_CLUSTER,
+        ALL_INDEX,
         CLUSTER_MONITOR;
     }
 
@@ -93,7 +95,8 @@ public class MyShiroModule {
 
             /* Default account configuration */
             this.addAccount("admin", "admin", Roles.ALL_ACCESS.name());
-            this.addAccount("user", "user");
+            this.addAccount("user", "user", Roles.ALL_CLUSTER.name());
+            this.addAccount("user2", "user", Roles.ALL_INDEX.name());
 
             /* Attempt to grant access for internal accounts, but wasn't able to correlate them via
               the Just-In-Time subject creation, will need to do additional investigation */
@@ -106,8 +109,12 @@ public class MyShiroModule {
                     switch (Roles.valueOf(roleString)) {
                         case ALL_ACCESS:
                             return Collections.singleton(new AllPermission());
+                        case ALL_CLUSTER:
+                            return Collections.singleton(new WildcardPermission("cluster"));
                         case CLUSTER_MONITOR:
                             return Collections.singleton(new WildcardPermission("cluster:monitor"));
+                        case ALL_INDEX:
+                            return Collections.singleton(new WildcardPermission("indices"));
                         default:
                             throw new RuntimeException("Unknown Permission: " + roleString);
                     }

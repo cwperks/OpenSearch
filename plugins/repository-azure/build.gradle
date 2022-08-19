@@ -43,6 +43,12 @@ opensearchplugin {
   classname 'org.opensearch.repositories.azure.AzureRepositoryPlugin'
 }
 
+configurations.all {
+  resolutionStrategy {
+    force 'org.slf4j:slf4j-api:1.7.36'
+  }
+}
+
 dependencies {
   api 'com.azure:azure-core:1.27.0'
   api 'com.azure:azure-storage-common:12.16.0'
@@ -135,7 +141,7 @@ thirdPartyAudit {
     'javax.xml.bind.annotation.XmlAccessOrder',
     'javax.xml.bind.annotation.XmlAccessType',
     'javax.xml.bind.annotation.XmlAccessorOrder',
-    'javax.xml.bind.annotation.XmlAccessorType', 
+    'javax.xml.bind.annotation.XmlAccessorType',
     'javax.xml.bind.annotation.XmlAttribute',
     'javax.xml.bind.annotation.XmlElement',
     'javax.xml.bind.annotation.XmlElement$DEFAULT',
