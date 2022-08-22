@@ -47,9 +47,9 @@ public class MyShiroModule {
         final StackTraceElement current = e.getStackTrace()[1];
         final String sourceAnnotation = current.getFileName() + "." + current.getMethodName() + "@" + current.getLineNumber();
 
+        SimplePrincipalCollection spc = new SimplePrincipalCollection("INTERNAL", "OpenSearch");
         final Subject internalSubject = new Subject.Builder().authenticated(true)
-            .principals(new SimplePrincipalCollection("INTERNAL-" + sourceAnnotation, "OpenSearch")) // How can we ensure the roles this
-                                                                                                     // princpal resolves?
+            .principals(spc) // How can we ensure the roles this             // princpal resolves?
             .contextAttribute("NodeId", "???") // Can we use this to source the originating node in a cluster?
             .buildSubject();
         return internalSubject;
@@ -112,7 +112,7 @@ public class MyShiroModule {
                         case ALL_CLUSTER:
                             return Collections.singleton(new WildcardPermission("cluster"));
                         case CLUSTER_MONITOR:
-                            return Collections.singleton(new WildcardPermission("cluster:monitor"));
+                            return Collections.singleton(new OpenSearchWildcardPermission("cluster,indices:monitor"));
                         case ALL_INDEX:
                             return Collections.singleton(new WildcardPermission("indices"));
                         default:
