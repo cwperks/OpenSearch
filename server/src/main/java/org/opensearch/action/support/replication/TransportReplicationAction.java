@@ -68,6 +68,7 @@ import org.opensearch.common.settings.Setting;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.common.unit.TimeValue;
 import org.opensearch.common.util.concurrent.AbstractRunnable;
+import org.opensearch.identity.MyShiroModule;
 import org.opensearch.index.IndexNotFoundException;
 import org.opensearch.index.IndexService;
 import org.opensearch.index.seqno.SequenceNumbers;
@@ -502,7 +503,7 @@ public abstract class TransportReplicationAction<
 
                         if (syncGlobalCheckpointAfterOperation) {
                             try {
-                                primaryShardReference.indexShard.maybeSyncGlobalCheckpoint("post-operation");
+                                MyShiroModule.getSubjectOrInternal().execute(() -> { primaryShardReference.indexShard.maybeSyncGlobalCheckpoint("post-operation"); });
                             } catch (final Exception e) {
                                 // only log non-closed exceptions
                                 if (ExceptionsHelper.unwrap(e, AlreadyClosedException.class, IndexShardClosedException.class) == null) {

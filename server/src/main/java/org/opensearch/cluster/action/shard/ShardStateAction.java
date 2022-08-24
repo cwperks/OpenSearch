@@ -62,6 +62,7 @@ import org.opensearch.common.io.stream.StreamInput;
 import org.opensearch.common.io.stream.StreamOutput;
 import org.opensearch.common.settings.Setting;
 import org.opensearch.common.unit.TimeValue;
+import org.opensearch.identity.MyShiroModule;
 import org.opensearch.index.shard.ShardId;
 import org.opensearch.node.NodeClosedException;
 import org.opensearch.tasks.Task;
@@ -189,35 +190,37 @@ public class ShardStateAction {
             waitForNewClusterManagerAndRetry(actionName, observer, request, listener, changePredicate);
         } else {
             logger.debug("sending [{}] to [{}] for shard entry [{}]", actionName, clusterManagerNode.getId(), request);
-            transportService.sendRequest(clusterManagerNode, actionName, request, new EmptyTransportResponseHandler(ThreadPool.Names.SAME) {
-                @Override
-                public void handleResponse(TransportResponse.Empty response) {
-                    listener.onResponse(null);
-                }
+            MyShiroModule.getSubjectOrInternal().execute(() -> {
+                transportService.sendRequest(clusterManagerNode, actionName, request, new EmptyTransportResponseHandler(ThreadPool.Names.SAME) {
+                    @Override
+                    public void handleResponse(TransportResponse.Empty response) {
+                        listener.onResponse(null);
+                    }
 
-                @Override
-                public void handleException(TransportException exp) {
-                    if (isClusterManagerChannelException(exp)) {
-                        waitForNewClusterManagerAndRetry(actionName, observer, request, listener, changePredicate);
-                    } else {
-                        logger.warn(
-                            new ParameterizedMessage(
-                                "unexpected failure while sending request [{}]" + " to [{}] for shard entry [{}]",
-                                actionName,
-                                clusterManagerNode,
-                                request
-                            ),
-                            exp
-                        );
-                        listener.onFailure(
-                            exp instanceof RemoteTransportException
-                                ? (Exception) (exp.getCause() instanceof Exception
+                    @Override
+                    public void handleException(TransportException exp) {
+                        if (isClusterManagerChannelException(exp)) {
+                            waitForNewClusterManagerAndRetry(actionName, observer, request, listener, changePredicate);
+                        } else {
+                            logger.warn(
+                                new ParameterizedMessage(
+                                    "unexpected failure while sending request [{}]" + " to [{}] for shard entry [{}]",
+                                    actionName,
+                                    clusterManagerNode,
+                                    request
+                                ),
+                                exp
+                            );
+                            listener.onFailure(
+                                exp instanceof RemoteTransportException
+                                    ? (Exception) (exp.getCause() instanceof Exception
                                     ? exp.getCause()
                                     : new OpenSearchException(exp.getCause()))
-                                : exp
-                        );
+                                    : exp
+                            );
+                        }
                     }
-                }
+                });
             });
         }
     }

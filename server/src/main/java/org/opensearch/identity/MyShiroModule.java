@@ -18,6 +18,7 @@ import org.opensearch.common.Strings;
 import java.util.Base64;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -52,6 +53,8 @@ public class MyShiroModule {
             .principals(spc) // How can we ensure the roles this             // princpal resolves?
             .contextAttribute("NodeId", "???") // Can we use this to source the originating node in a cluster?
             .buildSubject();
+        // Session for INTERNAL subject should not expire
+        internalSubject.getSession().setTimeout(-1);
         return internalSubject;
     }
 
@@ -85,7 +88,9 @@ public class MyShiroModule {
         ALL_ACCESS,
         ALL_CLUSTER,
         ALL_INDEX,
-        CLUSTER_MONITOR;
+        CLUSTER_MONITOR,
+        INTERNAL,
+        KIBANA_USER
     }
 
     /** Very basic user pool and permissions ecosystem */
@@ -95,12 +100,12 @@ public class MyShiroModule {
 
             /* Default account configuration */
             this.addAccount("admin", "admin", Roles.ALL_ACCESS.name());
-            this.addAccount("user", "user", Roles.ALL_CLUSTER.name());
-            this.addAccount("user2", "user", Roles.ALL_INDEX.name());
+            this.addAccount("user", "user", Roles.KIBANA_USER.name());
+            this.addAccount("user2", "user", Roles.KIBANA_USER.name());
 
             /* Attempt to grant access for internal accounts, but wasn't able to correlate them via
               the Just-In-Time subject creation, will need to do additional investigation */
-            this.addAccount("INTERNAL", "INTERNAL", Roles.CLUSTER_MONITOR.name());
+            this.addAccount("INTERNAL", "INTERNAL", Roles.INTERNAL.name());
 
             /* Looking at how roles can be translated into permissions */
             this.setRolePermissionResolver(new RolePermissionResolver() {
@@ -111,8 +116,22 @@ public class MyShiroModule {
                             return Collections.singleton(new AllPermission());
                         case ALL_CLUSTER:
                             return Collections.singleton(new WildcardPermission("cluster"));
+                        case INTERNAL:
+                            return Collections.singleton(new OpenSearchWildcardPermission("cluster,indices,internal"));
                         case CLUSTER_MONITOR:
-                            return Collections.singleton(new OpenSearchWildcardPermission("cluster,indices:monitor"));
+                            return Collections.singleton(new OpenSearchWildcardPermission("cluster,indices"));
+                        case KIBANA_USER:
+                            return List.of(
+                                new OpenSearchWildcardPermission("indices:data/write/*"),
+                                new OpenSearchWildcardPermission("indices:data/admin/aliases*"),
+                                new OpenSearchWildcardPermission("indices:data/admin/mapping/put"),
+                                new OpenSearchWildcardPermission("indices:data/admin/mappings/fields/get*"),
+                                new OpenSearchWildcardPermission("indices:data/admin/resolve/index"),
+                                new OpenSearchWildcardPermission("indices:data/read/*"),
+                                new OpenSearchWildcardPermission("indices:admin/*"),
+                                new OpenSearchWildcardPermission("indices:monitor/*"),
+                                new OpenSearchWildcardPermission("cluster:monitor/*")
+                            );
                         case ALL_INDEX:
                             return Collections.singleton(new WildcardPermission("indices"));
                         default:
