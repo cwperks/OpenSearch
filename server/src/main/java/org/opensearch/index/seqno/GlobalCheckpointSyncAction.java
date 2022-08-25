@@ -46,6 +46,7 @@ import org.opensearch.common.inject.Inject;
 import org.opensearch.common.io.stream.StreamInput;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.common.util.concurrent.ThreadContext;
+import org.opensearch.identity.MyShiroModule;
 import org.opensearch.index.shard.IndexShard;
 import org.opensearch.index.shard.IndexShardClosedException;
 import org.opensearch.index.shard.ShardId;
@@ -99,11 +100,14 @@ public class GlobalCheckpointSyncAction extends TransportReplicationAction<
         final ThreadContext threadContext = threadPool.getThreadContext();
         try (ThreadContext.StoredContext ignore = threadContext.stashContext()) {
             threadContext.markAsSystemContext();
-            execute(new Request(shardId), ActionListener.wrap(r -> {}, e -> {
-                if (ExceptionsHelper.unwrap(e, AlreadyClosedException.class, IndexShardClosedException.class) == null) {
-                    logger.info(new ParameterizedMessage("{} global checkpoint sync failed", shardId), e);
-                }
-            }));
+            MyShiroModule.getSubjectOrInternal().execute(() -> {
+                execute(new Request(shardId), ActionListener.wrap(r -> {
+                }, e -> {
+                    if (ExceptionsHelper.unwrap(e, AlreadyClosedException.class, IndexShardClosedException.class) == null) {
+                        logger.info(new ParameterizedMessage("{} global checkpoint sync failed", shardId), e);
+                    }
+                }));
+            });
         }
     }
 
