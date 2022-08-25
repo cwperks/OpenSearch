@@ -64,6 +64,8 @@ import org.opensearch.action.search.MultiSearchResponse;
 import org.opensearch.action.search.SearchRequest;
 import org.opensearch.action.search.SearchResponse;
 import org.opensearch.action.search.SearchScrollRequest;
+import org.opensearch.action.security.permissions.PermissionsRequest;
+import org.opensearch.action.security.permissions.PermissionsResponse;
 import org.opensearch.action.support.master.AcknowledgedResponse;
 import org.opensearch.action.update.UpdateRequest;
 import org.opensearch.action.update.UpdateResponse;
@@ -1362,6 +1364,41 @@ public class RestHighLevelClient implements Closeable {
     public final Cancellable explainAsync(ExplainRequest explainRequest, RequestOptions options, ActionListener<ExplainResponse> listener) {
         return performRequestAsync(explainRequest, RequestConverters::explain, options, response -> {
             CheckedFunction<XContentParser, ExplainResponse, IOException> entityParser = parser -> ExplainResponse.fromXContent(
+                parser,
+                convertExistsResponse(response)
+            );
+            return parseEntity(response.getEntity(), entityParser);
+        }, listener, singleton(404));
+    }
+
+    /**
+     * Executes a request using the Explain API.
+     *
+     * @param permissionsRequest the request
+     * @param options the request options (e.g. headers), use {@link RequestOptions#DEFAULT} if nothing needs to be customized
+     * @return the response
+     */
+    public final PermissionsResponse permissions(PermissionsRequest permissionsRequest, RequestOptions options) throws IOException {
+        return performRequest(permissionsRequest, RequestConverters::permissions, options, response -> {
+            CheckedFunction<XContentParser, PermissionsResponse, IOException> entityParser = parser -> PermissionsResponse.fromXContent(
+                parser,
+                convertExistsResponse(response)
+            );
+            return parseEntity(response.getEntity(), entityParser);
+        }, singleton(404));
+    }
+
+    /**
+     * Asynchronously executes a request using the Explain API.
+     *
+     * @param permissionsRequest the request
+     * @param options the request options (e.g. headers), use {@link RequestOptions#DEFAULT} if nothing needs to be customized
+     * @param listener the listener to be notified upon request completion
+     * @return cancellable that may be used to cancel the request
+     */
+    public final Cancellable permissionsAsync(PermissionsRequest permissionsRequest, RequestOptions options, ActionListener<PermissionsResponse> listener) {
+        return performRequestAsync(permissionsRequest, RequestConverters::permissions, options, response -> {
+            CheckedFunction<XContentParser, PermissionsResponse, IOException> entityParser = parser -> PermissionsResponse.fromXContent(
                 parser,
                 convertExistsResponse(response)
             );

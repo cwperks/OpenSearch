@@ -70,6 +70,9 @@ import org.opensearch.action.search.SearchRequestBuilder;
 import org.opensearch.action.search.SearchResponse;
 import org.opensearch.action.search.SearchScrollRequest;
 import org.opensearch.action.search.SearchScrollRequestBuilder;
+import org.opensearch.action.security.permissions.PermissionsRequest;
+import org.opensearch.action.security.permissions.PermissionsRequestBuilder;
+import org.opensearch.action.security.permissions.PermissionsResponse;
 import org.opensearch.action.termvectors.MultiTermVectorsRequest;
 import org.opensearch.action.termvectors.MultiTermVectorsRequestBuilder;
 import org.opensearch.action.termvectors.MultiTermVectorsResponse;
@@ -419,6 +422,29 @@ public interface Client extends OpenSearchClient, Releasable {
      * @param listener A listener to be notified of the result
      */
     void explain(ExplainRequest request, ActionListener<ExplainResponse> listener);
+
+    /**
+     * Computes a score explanation for the specified request.
+     *
+     * @param index The index this explain is targeted for
+     * @param id    The document identifier this explain is targeted for
+     */
+    PermissionsRequestBuilder preparePermissions(String index, String id);
+
+    /**
+     * Computes a score explanation for the specified request.
+     *
+     * @param request The request encapsulating the query and document identifier to compute a score explanation for
+     */
+    ActionFuture<PermissionsResponse> permissions(PermissionsRequest request);
+
+    /**
+     * Computes a score explanation for the specified request.
+     *
+     * @param request  The request encapsulating the query and document identifier to compute a score explanation for
+     * @param listener A listener to be notified of the result
+     */
+    void permissions(PermissionsRequest request, ActionListener<PermissionsResponse> listener);
 
     /**
      * Clears the search contexts associated with specified scroll ids.

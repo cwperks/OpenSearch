@@ -57,6 +57,7 @@ import org.opensearch.action.search.ClearScrollRequest;
 import org.opensearch.action.search.MultiSearchRequest;
 import org.opensearch.action.search.SearchRequest;
 import org.opensearch.action.search.SearchScrollRequest;
+import org.opensearch.action.security.permissions.PermissionsRequest;
 import org.opensearch.action.support.ActiveShardCount;
 import org.opensearch.action.support.IndicesOptions;
 import org.opensearch.action.support.WriteRequest;
@@ -543,6 +544,20 @@ final class RequestConverters {
         params.withPreference(explainRequest.preference());
         request.addParameters(params.asMap());
         request.setEntity(createEntity(explainRequest, REQUEST_BODY_CONTENT_TYPE));
+        return request;
+    }
+
+    static Request permissions(PermissionsRequest permissionsRequest) throws IOException {
+        String endpoint = endpoint(permissionsRequest.index(), "_permissions", permissionsRequest.id());
+        Request request = new Request(HttpGet.METHOD_NAME, endpoint);
+
+        Params params = new Params();
+        params.withStoredFields(permissionsRequest.storedFields());
+        params.withFetchSourceContext(permissionsRequest.fetchSourceContext());
+        params.withRouting(permissionsRequest.routing());
+        params.withPreference(permissionsRequest.preference());
+        request.addParameters(params.asMap());
+        request.setEntity(createEntity(permissionsRequest, REQUEST_BODY_CONTENT_TYPE));
         return request;
     }
 

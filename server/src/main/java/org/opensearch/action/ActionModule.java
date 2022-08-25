@@ -245,6 +245,8 @@ import org.opensearch.action.search.TransportGetAllPitsAction;
 import org.opensearch.action.search.TransportMultiSearchAction;
 import org.opensearch.action.search.TransportSearchAction;
 import org.opensearch.action.search.TransportSearchScrollAction;
+import org.opensearch.action.security.permissions.PermissionsAction;
+import org.opensearch.action.security.permissions.TransportPermissionsAction;
 import org.opensearch.action.support.ActionFilters;
 import org.opensearch.action.support.AutoCreateIndex;
 import org.opensearch.action.support.DestructiveOperations;
@@ -404,6 +406,7 @@ import org.opensearch.rest.action.search.RestClearScrollAction;
 import org.opensearch.rest.action.search.RestCountAction;
 import org.opensearch.rest.action.search.RestExplainAction;
 import org.opensearch.rest.action.search.RestMultiSearchAction;
+import org.opensearch.rest.action.search.RestPermissionsAction;
 import org.opensearch.rest.action.search.RestSearchAction;
 import org.opensearch.rest.action.search.RestSearchScrollAction;
 import org.opensearch.tasks.Task;
@@ -614,6 +617,7 @@ public class ActionModule extends AbstractModule {
         actions.register(SearchScrollAction.INSTANCE, TransportSearchScrollAction.class);
         actions.register(MultiSearchAction.INSTANCE, TransportMultiSearchAction.class);
         actions.register(ExplainAction.INSTANCE, TransportExplainAction.class);
+        actions.register(PermissionsAction.INSTANCE, TransportPermissionsAction.class);
         actions.register(ClearScrollAction.INSTANCE, TransportClearScrollAction.class);
         actions.register(RecoveryAction.INSTANCE, TransportRecoveryAction.class);
         actions.register(NodesReloadSecureSettingsAction.INSTANCE, TransportNodesReloadSecureSettingsAction.class);
@@ -780,6 +784,8 @@ public class ActionModule extends AbstractModule {
         registerHandler.accept(new RestValidateQueryAction());
 
         registerHandler.accept(new RestExplainAction());
+
+        registerHandler.accept(new RestPermissionsAction());
 
         registerHandler.accept(new RestRecoveryAction());
 

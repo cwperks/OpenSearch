@@ -341,6 +341,10 @@ import org.opensearch.action.search.SearchResponse;
 import org.opensearch.action.search.SearchScrollAction;
 import org.opensearch.action.search.SearchScrollRequest;
 import org.opensearch.action.search.SearchScrollRequestBuilder;
+import org.opensearch.action.security.permissions.PermissionsAction;
+import org.opensearch.action.security.permissions.PermissionsRequest;
+import org.opensearch.action.security.permissions.PermissionsRequestBuilder;
+import org.opensearch.action.security.permissions.PermissionsResponse;
 import org.opensearch.action.support.PlainActionFuture;
 import org.opensearch.action.support.master.AcknowledgedResponse;
 import org.opensearch.action.termvectors.MultiTermVectorsAction;
@@ -653,6 +657,21 @@ public abstract class AbstractClient implements Client {
     @Override
     public void explain(ExplainRequest request, ActionListener<ExplainResponse> listener) {
         execute(ExplainAction.INSTANCE, request, listener);
+    }
+
+    @Override
+    public PermissionsRequestBuilder preparePermissions(String index, String id) {
+        return new PermissionsRequestBuilder(this, PermissionsAction.INSTANCE, index, id);
+    }
+
+    @Override
+    public ActionFuture<PermissionsResponse> permissions(PermissionsRequest request) {
+        return execute(PermissionsAction.INSTANCE, request);
+    }
+
+    @Override
+    public void permissions(PermissionsRequest request, ActionListener<PermissionsResponse> listener) {
+        execute(PermissionsAction.INSTANCE, request, listener);
     }
 
     @Override
