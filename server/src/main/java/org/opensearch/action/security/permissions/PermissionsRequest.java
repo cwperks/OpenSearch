@@ -35,6 +35,8 @@ package org.opensearch.action.security.permissions;
 import org.opensearch.Version;
 import org.opensearch.action.ActionRequestValidationException;
 import org.opensearch.action.ValidateActions;
+import org.opensearch.action.admin.indices.alias.IndicesAliasesRequest;
+import org.opensearch.action.support.clustermanager.ClusterManagerNodeRequest;
 import org.opensearch.action.support.single.shard.SingleShardRequest;
 import org.opensearch.common.ParseField;
 import org.opensearch.common.Strings;
@@ -56,26 +58,18 @@ import static org.opensearch.action.ValidateActions.addValidationError;
  *
  * @opensearch.internal
  */
-public class PermissionsRequest extends SingleShardRequest<PermissionsRequest> implements ToXContentObject {
+public class PermissionsRequest extends ClusterManagerNodeRequest<PermissionsRequest> implements ToXContentObject {
 
     private static final ParseField QUERY_FIELD = new ParseField("query");
 
-    private String id;
-    private String routing;
-    private String preference;
-    private QueryBuilder query;
-    private String[] storedFields;
-    private FetchSourceContext fetchSourceContext;
-
-    private AliasFilter filteringAlias = new AliasFilter(null, Strings.EMPTY_ARRAY);
+    private String userId;
 
     long nowInMillis;
 
     public PermissionsRequest() {}
 
-    public PermissionsRequest(String index, String id) {
-        this.index = index;
-        this.id = id;
+    public PermissionsRequest(String userId) {
+        this.userId = userId;
     }
 
     PermissionsRequest(StreamInput in) throws IOException {
@@ -83,101 +77,32 @@ public class PermissionsRequest extends SingleShardRequest<PermissionsRequest> i
         if (in.getVersion().before(Version.V_2_0_0)) {
             in.readString();
         }
-        id = in.readString();
-        routing = in.readOptionalString();
-        preference = in.readOptionalString();
-        query = in.readNamedWriteable(QueryBuilder.class);
-        filteringAlias = new AliasFilter(in);
-        storedFields = in.readOptionalStringArray();
-        fetchSourceContext = in.readOptionalWriteable(FetchSourceContext::new);
+        userId = in.readString();
         nowInMillis = in.readVLong();
     }
 
-    public String id() {
-        return id;
+    public String userId() {
+        return userId;
     }
 
-    public PermissionsRequest id(String id) {
-        this.id = id;
-        return this;
-    }
-
-    public String routing() {
-        return routing;
-    }
-
-    public PermissionsRequest routing(String routing) {
-        this.routing = routing;
-        return this;
-    }
-
-    /**
-     * Simple sets the routing. Since the parent is only used to get to the right shard.
-     */
-    public PermissionsRequest parent(String parent) {
-        this.routing = parent;
-        return this;
-    }
-
-    public String preference() {
-        return preference;
-    }
-
-    public PermissionsRequest preference(String preference) {
-        this.preference = preference;
-        return this;
-    }
-
-    public QueryBuilder query() {
-        return query;
-    }
-
-    public PermissionsRequest query(QueryBuilder query) {
-        this.query = query;
-        return this;
-    }
-
-    /**
-     * Allows setting the {@link FetchSourceContext} for this request, controlling if and how _source should be returned.
-     */
-    public PermissionsRequest fetchSourceContext(FetchSourceContext context) {
-        this.fetchSourceContext = context;
-        return this;
-    }
-
-    public FetchSourceContext fetchSourceContext() {
-        return fetchSourceContext;
-    }
-
-    public String[] storedFields() {
-        return storedFields;
-    }
-
-    public PermissionsRequest storedFields(String[] fields) {
-        this.storedFields = fields;
-        return this;
-    }
-
-    public AliasFilter filteringAlias() {
-        return filteringAlias;
-    }
-
-    public PermissionsRequest filteringAlias(AliasFilter filteringAlias) {
-        if (filteringAlias != null) {
-            this.filteringAlias = filteringAlias;
-        }
-
+    public PermissionsRequest userId(String userId) {
+        this.userId = userId;
         return this;
     }
 
     @Override
+    public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
+        builder.startObject();
+        builder.field("_user_id", userId);
+        builder.endObject();
+        return builder;
+    }
+
+    @Override
     public ActionRequestValidationException validate() {
-        ActionRequestValidationException validationException = super.validateNonNullIndex();
-        if (Strings.isEmpty(id)) {
-            validationException = addValidationError("id is missing", validationException);
-        }
-        if (query == null) {
-            validationException = ValidateActions.addValidationError("query is missing", validationException);
+        ActionRequestValidationException validationException = null;
+        if (Strings.isEmpty(userId)) {
+            return addValidationError("userId is missing", validationException);
         }
         return validationException;
     }
@@ -188,21 +113,7 @@ public class PermissionsRequest extends SingleShardRequest<PermissionsRequest> i
         if (out.getVersion().before(Version.V_2_0_0)) {
             out.writeString(MapperService.SINGLE_MAPPING_NAME);
         }
-        out.writeString(id);
-        out.writeOptionalString(routing);
-        out.writeOptionalString(preference);
-        out.writeNamedWriteable(query);
-        filteringAlias.writeTo(out);
-        out.writeOptionalStringArray(storedFields);
-        out.writeOptionalWriteable(fetchSourceContext);
+        out.writeString(userId);
         out.writeVLong(nowInMillis);
-    }
-
-    @Override
-    public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
-        builder.startObject();
-        builder.field(QUERY_FIELD.getPreferredName(), query);
-        builder.endObject();
-        return builder;
     }
 }

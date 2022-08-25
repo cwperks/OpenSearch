@@ -35,6 +35,7 @@ package org.opensearch.action.security.permissions;
 import org.apache.lucene.search.Explanation;
 import org.opensearch.Version;
 import org.opensearch.action.ActionResponse;
+import org.opensearch.action.explain.ExplainResponse;
 import org.opensearch.common.ParseField;
 import org.opensearch.common.io.stream.StreamInput;
 import org.opensearch.common.io.stream.StreamOutput;
@@ -60,172 +61,57 @@ import static org.opensearch.common.lucene.Lucene.writeExplanation;
  */
 public class PermissionsResponse extends ActionResponse implements StatusToXContentObject {
 
-    private static final ParseField _INDEX = new ParseField("_index");
-    private static final ParseField _ID = new ParseField("_id");
-    private static final ParseField MATCHED = new ParseField("matched");
-    private static final ParseField EXPLANATION = new ParseField("explanation");
-    private static final ParseField VALUE = new ParseField("value");
-    private static final ParseField DESCRIPTION = new ParseField("description");
-    private static final ParseField DETAILS = new ParseField("details");
-    private static final ParseField GET = new ParseField("get");
+    private static final ParseField _USER_ID = new ParseField("_user_id");
 
-    private String index;
-    private String id;
+    private String userId;
+
     private boolean exists;
-    private Explanation explanation;
-    private GetResult getResult;
-
-    public PermissionsResponse(String index, String id, boolean exists) {
-        this.index = index;
-        this.id = id;
+    public PermissionsResponse(String userId, boolean exists) {
+        this.userId = userId;
         this.exists = exists;
-    }
-
-    public PermissionsResponse(String index, String id, boolean exists, Explanation explanation) {
-        this(index, id, exists);
-        this.explanation = explanation;
-    }
-
-    public PermissionsResponse(String index, String id, boolean exists, Explanation explanation, GetResult getResult) {
-        this(index, id, exists, explanation);
-        this.getResult = getResult;
     }
 
     public PermissionsResponse(StreamInput in) throws IOException {
         super(in);
-        index = in.readString();
+        userId = in.readString();
         if (in.getVersion().before(Version.V_2_0_0)) {
             in.readString();
         }
-        id = in.readString();
-        exists = in.readBoolean();
-        if (in.readBoolean()) {
-            explanation = readExplanation(in);
-        }
-        if (in.readBoolean()) {
-            getResult = new GetResult(in);
-        }
     }
 
-    public String getIndex() {
-        return index;
-    }
-
-    public String getId() {
-        return id;
-    }
-
-    public Explanation getExplanation() {
-        return explanation;
-    }
-
-    public boolean isMatch() {
-        return explanation != null && explanation.isMatch();
-    }
-
-    public boolean hasExplanation() {
-        return explanation != null;
-    }
-
-    public boolean isExists() {
-        return exists;
-    }
-
-    public GetResult getGetResult() {
-        return getResult;
-    }
-
-    @Override
-    public RestStatus status() {
-        return exists ? RestStatus.OK : RestStatus.NOT_FOUND;
+    public String getUserId() {
+        return userId;
     }
 
     @Override
     public void writeTo(StreamOutput out) throws IOException {
-        out.writeString(index);
+        out.writeString(userId);
         if (out.getVersion().before(Version.V_2_0_0)) {
             out.writeString(MapperService.SINGLE_MAPPING_NAME);
         }
-        out.writeString(id);
         out.writeBoolean(exists);
-        if (explanation == null) {
-            out.writeBoolean(false);
-        } else {
-            out.writeBoolean(true);
-            writeExplanation(out, explanation);
-        }
-        if (getResult == null) {
-            out.writeBoolean(false);
-        } else {
-            out.writeBoolean(true);
-            getResult.writeTo(out);
-        }
     }
 
-    private static final ConstructingObjectParser<PermissionsResponse, Boolean> PARSER = new ConstructingObjectParser<>(
+    private static final ConstructingObjectParser<ExplainResponse, Boolean> PARSER = new ConstructingObjectParser<>(
         "explain",
         true,
-        (arg, exists) -> new PermissionsResponse((String) arg[0], (String) arg[1], exists, (Explanation) arg[2], (GetResult) arg[3])
+        (arg, exists) -> new ExplainResponse((String) arg[0], (String) arg[1], exists, (Explanation) arg[2], (GetResult) arg[3])
     );
 
     static {
-        PARSER.declareString(ConstructingObjectParser.constructorArg(), _INDEX);
-        PARSER.declareString(ConstructingObjectParser.constructorArg(), _ID);
-        final ConstructingObjectParser<Explanation, Boolean> explanationParser = new ConstructingObjectParser<>(
-            "explanation",
-            true,
-            arg -> {
-                if ((float) arg[0] > 0) {
-                    return Explanation.match((float) arg[0], (String) arg[1], (Collection<Explanation>) arg[2]);
-                } else {
-                    return Explanation.noMatch((String) arg[1], (Collection<Explanation>) arg[2]);
-                }
-            }
-        );
-        explanationParser.declareFloat(ConstructingObjectParser.constructorArg(), VALUE);
-        explanationParser.declareString(ConstructingObjectParser.constructorArg(), DESCRIPTION);
-        explanationParser.declareObjectArray(ConstructingObjectParser.constructorArg(), explanationParser, DETAILS);
-        PARSER.declareObject(ConstructingObjectParser.optionalConstructorArg(), explanationParser, EXPLANATION);
-        PARSER.declareObject(ConstructingObjectParser.optionalConstructorArg(), (p, c) -> GetResult.fromXContentEmbedded(p), GET);
+        PARSER.declareString(ConstructingObjectParser.constructorArg(), _USER_ID);
     }
 
-    public static PermissionsResponse fromXContent(XContentParser parser, boolean exists) {
+    public static ExplainResponse fromXContent(XContentParser parser, boolean exists) {
         return PARSER.apply(parser, exists);
     }
 
     @Override
     public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
         builder.startObject();
-        builder.field(_INDEX.getPreferredName(), index);
-        builder.field(_ID.getPreferredName(), id);
-        builder.field(MATCHED.getPreferredName(), isMatch());
-        if (hasExplanation()) {
-            builder.startObject(EXPLANATION.getPreferredName());
-            buildExplanation(builder, explanation);
-            builder.endObject();
-        }
-        if (getResult != null) {
-            builder.startObject(GET.getPreferredName());
-            getResult.toXContentEmbedded(builder, params);
-            builder.endObject();
-        }
+        builder.field(_USER_ID.getPreferredName(), userId);
         builder.endObject();
         return builder;
-    }
-
-    private void buildExplanation(XContentBuilder builder, Explanation explanation) throws IOException {
-        builder.field(VALUE.getPreferredName(), explanation.getValue());
-        builder.field(DESCRIPTION.getPreferredName(), explanation.getDescription());
-        Explanation[] innerExps = explanation.getDetails();
-        if (innerExps != null) {
-            builder.startArray(DETAILS.getPreferredName());
-            for (Explanation exp : innerExps) {
-                builder.startObject();
-                buildExplanation(builder, exp);
-                builder.endObject();
-            }
-            builder.endArray();
-        }
     }
 
     @Override
@@ -237,16 +123,16 @@ public class PermissionsResponse extends ActionResponse implements StatusToXCont
             return false;
         }
         PermissionsResponse other = (PermissionsResponse) obj;
-        return index.equals(other.index)
-            && id.equals(other.id)
-            && Objects.equals(explanation, other.explanation)
-            && getResult.isExists() == other.getResult.isExists()
-            && Objects.equals(getResult.sourceAsMap(), other.getResult.sourceAsMap())
-            && Objects.equals(getResult.getFields(), other.getResult.getFields());
+        return userId.equals(other.userId);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(index, id, explanation, getResult.isExists(), getResult.sourceAsMap(), getResult.getFields());
+        return Objects.hash(userId);
+    }
+
+    @Override
+    public RestStatus status() {
+        return exists ? RestStatus.OK : RestStatus.NOT_FOUND;
     }
 }

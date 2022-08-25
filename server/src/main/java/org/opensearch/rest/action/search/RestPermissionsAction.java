@@ -41,6 +41,7 @@ import org.opensearch.rest.BaseRestHandler;
 import org.opensearch.rest.RestRequest;
 import org.opensearch.rest.action.RestActions;
 import org.opensearch.rest.action.RestStatusToXContentListener;
+import org.opensearch.rest.action.RestToXContentListener;
 import org.opensearch.search.fetch.subphase.FetchSourceContext;
 
 import java.io.IOException;
@@ -60,7 +61,7 @@ public class RestPermissionsAction extends BaseRestHandler {
 
     @Override
     public List<Route> routes() {
-        return unmodifiableList(asList(new Route(GET, "/{index}/_permissions/{id}"), new Route(POST, "/{index}/_permissions/{id}")));
+        return unmodifiableList(asList(new Route(GET, "/_permissions/{user_id}"), new Route(POST, "/_permissions/{user_id}")));
     }
 
     @Override
@@ -70,35 +71,7 @@ public class RestPermissionsAction extends BaseRestHandler {
 
     @Override
     public RestChannelConsumer prepareRequest(final RestRequest request, final NodeClient client) throws IOException {
-        PermissionsRequest permissionsRequest = new PermissionsRequest(request.param("index"), request.param("id"));
-        permissionsRequest.parent(request.param("parent"));
-        permissionsRequest.routing(request.param("routing"));
-        permissionsRequest.preference(request.param("preference"));
-        String queryString = request.param("q");
-        request.withContentOrSourceParamParserOrNull(parser -> {
-            if (parser != null) {
-                permissionsRequest.query(RestActions.getQueryContent(parser));
-            } else if (queryString != null) {
-                QueryBuilder query = RestActions.urlParamsToQueryBuilder(request);
-                permissionsRequest.query(query);
-            }
-        });
-
-        if (request.param("fields") != null) {
-            throw new IllegalArgumentException(
-                "The parameter [fields] is no longer supported, " + "please use [stored_fields] to retrieve stored fields"
-            );
-        }
-        String sField = request.param("stored_fields");
-        if (sField != null) {
-            String[] sFields = Strings.splitStringByCommaToArray(sField);
-            if (sFields != null) {
-                permissionsRequest.storedFields(sFields);
-            }
-        }
-
-        permissionsRequest.fetchSourceContext(FetchSourceContext.parseFromRestRequest(request));
-
-        return channel -> client.permissions(permissionsRequest, new RestStatusToXContentListener<>(channel));
+        PermissionsRequest permissionsRequest = new PermissionsRequest(request.param("user_id"));
+        return channel -> client.permissions(permissionsRequest, new RestToXContentListener<>(channel));
     }
 }

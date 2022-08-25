@@ -660,8 +660,8 @@ public abstract class AbstractClient implements Client {
     }
 
     @Override
-    public PermissionsRequestBuilder preparePermissions(String index, String id) {
-        return new PermissionsRequestBuilder(this, PermissionsAction.INSTANCE, index, id);
+    public PermissionsRequestBuilder preparePermissions(String userId) {
+        return new PermissionsRequestBuilder(this, PermissionsAction.INSTANCE, userId);
     }
 
     @Override

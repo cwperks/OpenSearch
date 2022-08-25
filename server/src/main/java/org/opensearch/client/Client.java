@@ -426,10 +426,9 @@ public interface Client extends OpenSearchClient, Releasable {
     /**
      * Computes a score explanation for the specified request.
      *
-     * @param index The index this explain is targeted for
-     * @param id    The document identifier this explain is targeted for
+     * @param userId The userId this permissions is targeted for
      */
-    PermissionsRequestBuilder preparePermissions(String index, String id);
+    PermissionsRequestBuilder preparePermissions(String userId);
 
     /**
      * Computes a score explanation for the specified request.

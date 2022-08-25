@@ -25,36 +25,12 @@
  * under the License.
  */
 
+/**
+ * Explain action.
+ */
 /*
  * Modifications Copyright OpenSearch Contributors. See
  * GitHub history for details.
  */
 
 package org.opensearch.action.security.permissions;
-
-import org.opensearch.action.support.clustermanager.ClusterManagerNodeOperationRequestBuilder;
-import org.opensearch.client.OpenSearchClient;
-
-/**
- * A builder for {@link PermissionsRequest}.
- *
- * @opensearch.internal
- */
-public class PermissionsRequestBuilder extends ClusterManagerNodeOperationRequestBuilder<PermissionsRequest, PermissionsResponse, PermissionsRequestBuilder> {
-
-    PermissionsRequestBuilder(OpenSearchClient client, PermissionsAction action) {
-        super(client, action, new PermissionsRequest());
-    }
-
-    public PermissionsRequestBuilder(OpenSearchClient client, PermissionsAction action, String userId) {
-        super(client, action, new PermissionsRequest().userId(userId));
-    }
-
-    /**
-     * Sets the id to get a score explanation for.
-     */
-    public PermissionsRequestBuilder setUserId(String userId) {
-        request().userId(userId);
-        return this;
-    }
-}
