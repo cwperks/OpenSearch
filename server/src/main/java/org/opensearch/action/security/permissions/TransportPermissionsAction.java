@@ -35,7 +35,9 @@ package org.opensearch.action.security.permissions;
 import com.carrotsearch.hppc.cursors.ObjectCursor;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.shiro.subject.SimplePrincipalCollection;
 import org.apache.shiro.subject.Subject;
+import org.opensearch.ResourceNotFoundException;
 import org.opensearch.action.ActionListener;
 import org.opensearch.action.RequestValidators;
 import org.opensearch.action.support.ActionFilters;
@@ -126,10 +128,16 @@ public class TransportPermissionsAction extends TransportClusterManagerNodeActio
         final ActionListener<PermissionsResponse> listener
     ) {
         String userId = request.userId();
-        Subject mySubject = MyShiroModule.getSubjectOrInternal();
-        List<String> myPermissions = MyShiroModule.getPermissionsForUser(mySubject);
-        Map<String, List<String>> rolePermissions = MyShiroModule.getRolesAndPermissionsForUser(mySubject);
-        String callingUserId = mySubject.getPrincipal() != null ? mySubject.getPrincipal().toString() : "cwperx";
-        listener.onResponse(new PermissionsResponse(callingUserId, myPermissions, rolePermissions, true));
+        boolean accountExists = MyShiroModule.doesPrincipalExist(new SimplePrincipalCollection(userId, MyShiroModule.REALM_NAME));
+        if (!accountExists) {
+            listener.onFailure(new ResourceNotFoundException(userId + " does not exist in realm '" + MyShiroModule.REALM_NAME + "'"));
+        }
+        System.out.println("accountExists: " + accountExists);
+        if (request.userId() == null || request.userId().isBlank()) {
+            userId = MyShiroModule.getSubjectOrInternal().getPrincipal().toString();
+        }
+        List<String> myPermissions = MyShiroModule.getPermissionsForUser(new SimplePrincipalCollection(userId, MyShiroModule.REALM_NAME));
+        Map<String, List<String>> rolePermissions = MyShiroModule.getRolesAndPermissionsForUser(new SimplePrincipalCollection(userId, MyShiroModule.REALM_NAME));
+        listener.onResponse(new PermissionsResponse(userId, myPermissions, rolePermissions, accountExists));
     }
 }

@@ -152,6 +152,7 @@ public class PermissionsResponse extends ActionResponse implements StatusToXCont
 
     @Override
     public RestStatus status() {
+        System.out.println("exists: " + exists);
         return exists ? RestStatus.OK : RestStatus.NOT_FOUND;
     }
 }

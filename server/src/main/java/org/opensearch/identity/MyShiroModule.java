@@ -34,6 +34,8 @@ import java.util.stream.Collectors;
  */
 public class MyShiroModule {
 
+    public static String REALM_NAME = "OpenSearch";
+
     public static MyRealm realm = new MyRealm();
 
     public MyShiroModule() {
@@ -56,7 +58,7 @@ public class MyShiroModule {
         final StackTraceElement current = e.getStackTrace()[1];
         final String sourceAnnotation = current.getFileName() + "." + current.getMethodName() + "@" + current.getLineNumber();
 
-        SimplePrincipalCollection spc = new SimplePrincipalCollection("INTERNAL", "OpenSearch");
+        SimplePrincipalCollection spc = new SimplePrincipalCollection("INTERNAL", REALM_NAME);
         final Subject internalSubject = new Subject.Builder().authenticated(true)
             .principals(spc) // How can we ensure the roles this             // princpal resolves?
             .contextAttribute("NodeId", "???") // Can we use this to source the originating node in a cluster?
@@ -91,19 +93,23 @@ public class MyShiroModule {
         throw new AuthenticationException("Unable to authenticate user!");
     }
 
-    public static List<String> getPermissionsForUser(Subject currentUser) {
+    public static boolean doesPrincipalExist(PrincipalCollection principalCollection) {
+        return realm.accountExists(principalCollection.getPrimaryPrincipal().toString());
+    }
+
+    public static List<String> getPermissionsForUser(PrincipalCollection principalCollection) {
         List<String> myPermissions = new ArrayList<>();
-        AuthorizationInfo authInfo = realm.getAuthorizationInfo(currentUser.getPrincipals());
-        if (authInfo.getStringPermissions() != null) {
+        AuthorizationInfo authInfo = realm.getAuthorizationInfo(principalCollection);
+        if (authInfo != null && authInfo.getStringPermissions() != null) {
             myPermissions.addAll(authInfo.getStringPermissions());
         }
         return myPermissions;
     }
 
-    public static Map<String, List<String>> getRolesAndPermissionsForUser(Subject currentUser) {
+    public static Map<String, List<String>> getRolesAndPermissionsForUser(PrincipalCollection principalCollection) {
         Map<String, List<String>> rolesAndPermissions = new HashMap<>();
-        AuthorizationInfo authInfo = realm.getAuthorizationInfo(currentUser.getPrincipals());
-        if (authInfo.getRoles() != null) {
+        AuthorizationInfo authInfo = realm.getAuthorizationInfo(principalCollection);
+        if (authInfo != null && authInfo.getRoles() != null) {
             for (String role : authInfo.getRoles()) {
                 Collection<Permission> rolePermissions = realm.getRolePermissionResolver().resolvePermissionsInRole(role);
                 if (rolePermissions != null) {
@@ -128,7 +134,7 @@ public class MyShiroModule {
     /** Very basic user pool and permissions ecosystem */
     private static class MyRealm extends SimpleAccountRealm {
         private MyRealm() {
-            super("OpenSearch");
+            super(REALM_NAME);
 
             /* Default account configuration */
             this.addAccount("admin", "admin", Roles.ALL_ACCESS.name());
