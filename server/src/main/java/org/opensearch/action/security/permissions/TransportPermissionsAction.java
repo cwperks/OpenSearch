@@ -35,6 +35,7 @@ package org.opensearch.action.security.permissions;
 import com.carrotsearch.hppc.cursors.ObjectCursor;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.shiro.subject.Subject;
 import org.opensearch.action.ActionListener;
 import org.opensearch.action.RequestValidators;
 import org.opensearch.action.support.ActionFilters;
@@ -54,6 +55,7 @@ import org.opensearch.cluster.service.ClusterService;
 import org.opensearch.common.collect.ImmutableOpenMap;
 import org.opensearch.common.inject.Inject;
 import org.opensearch.common.io.stream.StreamInput;
+import org.opensearch.identity.MyShiroModule;
 import org.opensearch.index.Index;
 import org.opensearch.rest.action.admin.indices.AliasesNotFoundException;
 import org.opensearch.threadpool.ThreadPool;
@@ -64,9 +66,11 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import static java.util.Collections.unmodifiableList;
 
@@ -121,6 +125,11 @@ public class TransportPermissionsAction extends TransportClusterManagerNodeActio
         final ClusterState state,
         final ActionListener<PermissionsResponse> listener
     ) {
-        listener.onResponse(new PermissionsResponse("cwperx", true));
+        String userId = request.userId();
+        Subject mySubject = MyShiroModule.getSubjectOrInternal();
+        List<String> myPermissions = MyShiroModule.getPermissionsForUser(mySubject);
+        Map<String, List<String>> rolePermissions = MyShiroModule.getRolesAndPermissionsForUser(mySubject);
+        String callingUserId = mySubject.getPrincipal() != null ? mySubject.getPrincipal().toString() : "cwperx";
+        listener.onResponse(new PermissionsResponse(callingUserId, myPermissions, rolePermissions, true));
     }
 }

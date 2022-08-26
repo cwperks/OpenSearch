@@ -49,6 +49,8 @@ import org.opensearch.rest.RestStatus;
 
 import java.io.IOException;
 import java.util.Collection;
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 import static org.opensearch.common.lucene.Lucene.readExplanation;
@@ -63,17 +65,29 @@ public class PermissionsResponse extends ActionResponse implements StatusToXCont
 
     private static final ParseField _USER_ID = new ParseField("_user_id");
 
+    private static final ParseField _PERMISSIONS = new ParseField("_permissions");
+
+    private static final ParseField _ROLES = new ParseField("_roles");
+
     private String userId;
 
+    private List<String> permissions;
+
+    private Map<String, List<String>> roles;
+
     private boolean exists;
-    public PermissionsResponse(String userId, boolean exists) {
+    public PermissionsResponse(String userId, List<String> permissions, Map<String, List<String>> roles, boolean exists) {
         this.userId = userId;
+        this.permissions = permissions;
+        this.roles = roles;
         this.exists = exists;
     }
 
     public PermissionsResponse(StreamInput in) throws IOException {
         super(in);
         userId = in.readString();
+        permissions = in.readStringList();
+        roles = in.readMapOfLists(StreamInput::readString, StreamInput::readString);
         if (in.getVersion().before(Version.V_2_0_0)) {
             in.readString();
         }
@@ -86,23 +100,26 @@ public class PermissionsResponse extends ActionResponse implements StatusToXCont
     @Override
     public void writeTo(StreamOutput out) throws IOException {
         out.writeString(userId);
+        // TODO Write Permissions
+        out.writeCollection(permissions, StreamOutput::writeString);
+        out.writeMapOfLists(roles, StreamOutput::writeString, StreamOutput::writeString);
         if (out.getVersion().before(Version.V_2_0_0)) {
             out.writeString(MapperService.SINGLE_MAPPING_NAME);
         }
         out.writeBoolean(exists);
     }
 
-    private static final ConstructingObjectParser<ExplainResponse, Boolean> PARSER = new ConstructingObjectParser<>(
-        "explain",
+    private static final ConstructingObjectParser<PermissionsResponse, Boolean> PARSER = new ConstructingObjectParser<>(
+        "permissions",
         true,
-        (arg, exists) -> new ExplainResponse((String) arg[0], (String) arg[1], exists, (Explanation) arg[2], (GetResult) arg[3])
+        (arg, exists) -> new PermissionsResponse((String) arg[0], (List<String>) arg[1], (Map<String, List<String>>) arg[2], exists)
     );
 
     static {
         PARSER.declareString(ConstructingObjectParser.constructorArg(), _USER_ID);
     }
 
-    public static ExplainResponse fromXContent(XContentParser parser, boolean exists) {
+    public static PermissionsResponse fromXContent(XContentParser parser, boolean exists) {
         return PARSER.apply(parser, exists);
     }
 
@@ -110,6 +127,8 @@ public class PermissionsResponse extends ActionResponse implements StatusToXCont
     public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
         builder.startObject();
         builder.field(_USER_ID.getPreferredName(), userId);
+        builder.field(_PERMISSIONS.getPreferredName(), permissions);
+        builder.field(_ROLES.getPreferredName(), roles);
         builder.endObject();
         return builder;
     }

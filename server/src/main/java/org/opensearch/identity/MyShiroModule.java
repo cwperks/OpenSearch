@@ -2,6 +2,7 @@ package org.opensearch.identity;
 
 import org.apache.shiro.authc.AuthenticationException;
 import org.apache.shiro.authc.UsernamePasswordToken;
+import org.apache.shiro.authz.AuthorizationInfo;
 import org.apache.shiro.authz.Permission;
 import org.apache.shiro.authz.permission.AllPermission;
 import org.apache.shiro.authz.permission.RolePermissionResolver;
@@ -11,15 +12,21 @@ import org.apache.shiro.SecurityUtils;
 import org.apache.shiro.realm.Realm;
 import org.apache.shiro.realm.SimpleAccountRealm;
 import org.apache.shiro.mgt.DefaultSecurityManager;
+import org.apache.shiro.subject.PrincipalCollection;
 import org.apache.shiro.subject.SimplePrincipalCollection;
 import org.apache.shiro.subject.Subject;
 import org.opensearch.common.Strings;
 
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * Prototyping use of identity management (authentication &amp; authorization) implemented with Shiro
@@ -27,8 +34,9 @@ import java.util.Optional;
  */
 public class MyShiroModule {
 
+    public static MyRealm realm = new MyRealm();
+
     public MyShiroModule() {
-        final Realm realm = new MyRealm();
         final SecurityManager securityManager = new DefaultSecurityManager(realm);
         // Note; this sets up security for the JVM, if we are crossing a JVM boundary will need to look at how this is made available
         SecurityUtils.setSecurityManager(securityManager);
@@ -81,6 +89,30 @@ public class MyShiroModule {
         }
 
         throw new AuthenticationException("Unable to authenticate user!");
+    }
+
+    public static List<String> getPermissionsForUser(Subject currentUser) {
+        List<String> myPermissions = new ArrayList<>();
+        AuthorizationInfo authInfo = realm.getAuthorizationInfo(currentUser.getPrincipals());
+        if (authInfo.getStringPermissions() != null) {
+            myPermissions.addAll(authInfo.getStringPermissions());
+        }
+        return myPermissions;
+    }
+
+    public static Map<String, List<String>> getRolesAndPermissionsForUser(Subject currentUser) {
+        Map<String, List<String>> rolesAndPermissions = new HashMap<>();
+        AuthorizationInfo authInfo = realm.getAuthorizationInfo(currentUser.getPrincipals());
+        if (authInfo.getRoles() != null) {
+            for (String role : authInfo.getRoles()) {
+                Collection<Permission> rolePermissions = realm.getRolePermissionResolver().resolvePermissionsInRole(role);
+                if (rolePermissions != null) {
+                    List<String> rolePermissionStrings = rolePermissions.stream().map(p -> p.toString()).collect(Collectors.toList());
+                    rolesAndPermissions.put(role, rolePermissionStrings);
+                }
+            }
+        }
+        return rolesAndPermissions;
     }
 
     /* Super basic role management */
@@ -139,6 +171,11 @@ public class MyShiroModule {
                     }
                 }
             });
+        }
+
+        public AuthorizationInfo getAuthorizationInfo(PrincipalCollection principalCollection) {
+            AuthorizationInfo authInfo = doGetAuthorizationInfo(principalCollection);
+            return authInfo;
         }
     }
 }
