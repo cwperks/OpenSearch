@@ -140,6 +140,7 @@ public class MyShiroModule {
             this.addAccount("admin", "admin", Roles.ALL_ACCESS.name());
             this.addAccount("user", "user", Roles.KIBANA_USER.name());
             this.addAccount("user2", "user", Roles.KIBANA_USER.name());
+            this.addAccount("user3", "user", Roles.ALL_CLUSTER.name());
 
             /* Attempt to grant access for internal accounts, but wasn't able to correlate them via
               the Just-In-Time subject creation, will need to do additional investigation */

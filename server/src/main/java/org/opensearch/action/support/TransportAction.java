@@ -41,9 +41,15 @@ import org.opensearch.action.ActionListener;
 import org.opensearch.action.ActionRequest;
 import org.opensearch.action.ActionRequestValidationException;
 import org.opensearch.action.ActionResponse;
+import org.opensearch.action.IndicesRequest;
+import org.opensearch.action.admin.indices.mapping.put.PutMappingRequest;
+import org.opensearch.action.get.TransportGetAction;
+import org.opensearch.action.support.single.shard.TransportSingleShardAction;
+import org.opensearch.cluster.metadata.IndexNameExpressionResolver;
 import org.opensearch.common.lease.Releasable;
 import org.opensearch.common.lease.Releasables;
 import org.opensearch.common.util.concurrent.ThreadContext;
+import org.opensearch.identity.ClusterInfoHolder;
 import org.opensearch.rest.RestStatus;
 import org.opensearch.tasks.Task;
 import org.opensearch.tasks.TaskCancelledException;
@@ -192,12 +198,41 @@ public abstract class TransportAction<Request extends ActionRequest, Response ex
 
         // Ensure that we have an authenticated subject!
         final Subject currentSubject = SecurityUtils.getSubject();
+        System.out.println("Principals: " + currentSubject.getPrincipals());
         if (!currentSubject.isAuthenticated()) {
             listener.onFailure(new RuntimeException("Not allowed without authentication, action name: " + task.getAction()));
             return;
         }
 
         // Check the current subject has access, don't block just log
+        System.out.println("Task ID: " + task.getId());
+        System.out.println("Task Parent ID: " + task.getParentTaskId());
+        System.out.println("Task Action: " + task.getAction());
+        System.out.println("Request: " + request);
+
+//        if (this instanceof TransportSingleShardAction) {
+//            final IndexNameExpressionResolver resolver = ((TransportSingleShardAction)this).
+//            final IndexNameExpressionResolver resolver = new IndexNameExpressionResolver(threadPool.getThreadContext());
+//            final ClusterInfoHolder cih = new ClusterInfoHolder();
+//        }
+
+        if (request instanceof PutMappingRequest) {
+            System.out.println("Put Mapping Request");
+            String[] indices = ((PutMappingRequest)request).indices();
+            if (indices != null) {
+                for (String idx : indices) {
+                    System.out.println("Index: " + idx);
+                }
+            }
+        } else if (request instanceof IndicesRequest) {
+            System.out.println("Index Request");
+            String[] indices = ((IndicesRequest)request).indices();
+            if (indices != null) {
+                for (String idx : indices) {
+                    System.out.println("Index: " + idx);
+                }
+            }
+        }
         if (currentSubject.isPermitted(task.getAction())) {
             logger.atInfo().log(currentSubject.getPrincipal() + " is allowed to " + task.getAction());
         } else {

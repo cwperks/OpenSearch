@@ -896,6 +896,8 @@ public class TransportService extends AbstractLifecycleComponent
         if (connection == null) {
             throw new IllegalStateException("can't send request to a null connection");
         }
+        logger.info("sendRequestInternal");
+        logger.info("Action: " + action + ", as Subject: " + SecurityUtils.getSubject().getPrincipal());
         DiscoveryNode node = connection.getNode();
 
         Supplier<ThreadContext.StoredContext> storedContextSupplier = threadPool.getThreadContext().newRestorableContext(true);

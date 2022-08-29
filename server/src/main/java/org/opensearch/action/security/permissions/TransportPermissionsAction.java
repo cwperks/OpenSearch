@@ -132,7 +132,6 @@ public class TransportPermissionsAction extends TransportClusterManagerNodeActio
         if (!accountExists) {
             listener.onFailure(new ResourceNotFoundException(userId + " does not exist in realm '" + MyShiroModule.REALM_NAME + "'"));
         }
-        System.out.println("accountExists: " + accountExists);
         if (request.userId() == null || request.userId().isBlank()) {
             userId = MyShiroModule.getSubjectOrInternal().getPrincipal().toString();
         }
