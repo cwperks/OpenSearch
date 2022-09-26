@@ -39,6 +39,7 @@ import org.opensearch.common.transport.TransportAddress;
 import org.opensearch.discovery.InitializeExtensionsRequest;
 import org.opensearch.discovery.InitializeExtensionsResponse;
 import org.opensearch.extensions.ExtensionsSettings.Extension;
+import org.opensearch.extensions.rest.AuthorizationRequest;
 import org.opensearch.extensions.rest.RegisterRestActionsRequest;
 import org.opensearch.extensions.rest.RestActionsRequestHandler;
 import org.opensearch.extensions.settings.CustomSettingsRequestHandler;
@@ -83,6 +84,7 @@ public class ExtensionsOrchestrator implements ReportingService<PluginsAndModule
     public static final String REQUEST_OPENSEARCH_PARSE_NAMED_WRITEABLE = "internal:discovery/parsenamedwriteable";
     public static final String REQUEST_EXTENSION_ACTION_LISTENER_ON_FAILURE = "internal:extensions/actionlisteneronfailure";
     public static final String REQUEST_REST_EXECUTE_ON_EXTENSION_ACTION = "internal:extensions/restexecuteonextensiontaction";
+    public static final String REQUEST_EXTENSION_AUTHORIZE_ACTION = "internal:extensions/authorize";
 
     private static final Logger logger = LogManager.getLogger(ExtensionsOrchestrator.class);
 
@@ -254,6 +256,14 @@ public class ExtensionsOrchestrator implements ReportingService<PluginsAndModule
             false,
             RegisterTransportActionsRequest::new,
             ((request, channel, task) -> channel.sendResponse(handleRegisterTransportActionsRequest(request)))
+        );
+        transportService.registerRequestHandler(
+            REQUEST_EXTENSION_AUTHORIZE_ACTION,
+            ThreadPool.Names.GENERIC,
+            false,
+            false,
+            AuthorizationRequest::new,
+            ((request, channel, task) -> channel.sendResponse(restActionsRequestHandler.handleAuthorizationRequest(request)))
         );
     }
 

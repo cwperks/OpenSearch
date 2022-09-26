@@ -60,4 +60,20 @@ public class RestActionsRequestHandler {
             "Registered extension " + restActionsRequest.getUniqueId() + " to handle REST Actions " + restActionsRequest.getRestActions()
         );
     }
+
+    /**
+     * Handles a {@link RegisterRestActionsRequest}.
+     *
+     * @param authRequest  The request to handle.
+     * @return A {@link AuthorizationResponse} indicating GRANTED OR DENIED.
+     * @throws Exception if the request is not handled properly.
+     */
+    public TransportResponse handleAuthorizationRequest(AuthorizationRequest authRequest) throws Exception {
+        // TODO Implement privilege evaluation
+
+        return new AuthorizationResponse(
+            "Authorized",
+            AuthorizationStatus.GRANTED
+        );
+    }
 }
