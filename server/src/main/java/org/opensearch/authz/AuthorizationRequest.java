@@ -6,7 +6,7 @@
  * compatible open source license.
  */
 
-package org.opensearch.extensions.rest;
+package org.opensearch.authz;
 
 import org.opensearch.common.io.stream.StreamInput;
 import org.opensearch.common.io.stream.StreamOutput;
@@ -18,19 +18,18 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * Request to evaluate user privileges for extension actions
+ * Request to evaluate user privileges for actions
  *
- * @opensearch.internal
+ * This object encapsulates all that is needed to perform authorization on a request
+ *
+ * @opensearch.experimental
  */
 public class AuthorizationRequest extends TransportRequest {
-
-    private String extensionUniqueId;
     private PrincipalIdentifierToken requestIssuerIdentity;
     private String permissionId;
-    private Map<String, Object> params;
+    private Map<String, CheckableParameter> params;
 
-    public AuthorizationRequest(String extensionUniqueId, PrincipalIdentifierToken requestIssuerIdentity, String permissionId, Map<String, Object> params) {
-        this.extensionUniqueId = extensionUniqueId;
+    public AuthorizationRequest(PrincipalIdentifierToken requestIssuerIdentity, String permissionId, Map<String, CheckableParameter> params) {
         this.requestIssuerIdentity = requestIssuerIdentity;
         this.permissionId = permissionId;
         this.params = params;
@@ -38,29 +37,30 @@ public class AuthorizationRequest extends TransportRequest {
 
     public AuthorizationRequest(StreamInput in) throws IOException {
         super(in);
-        extensionUniqueId = in.readString();
         requestIssuerIdentity = in.readNamedWriteable(PrincipalIdentifierToken.class);
         permissionId = in.readString();
         if (in.readBoolean()) {
-            params = in.readMap();
+            params = in.readMap(StreamInput::readString, i -> {
+                try {
+                    return CheckableParameter.readParameterFromStream(i);
+                } catch (ClassNotFoundException e) {
+                    // Should not happen, CheckableParameter writes its type to StreamOutput
+                    throw new RuntimeException(e);
+                }
+            });
         }
     }
 
     @Override
     public void writeTo(StreamOutput out) throws IOException {
         super.writeTo(out);
-        out.writeString(extensionUniqueId);
         out.writeNamedWriteable(requestIssuerIdentity);
         out.writeString(permissionId);
         boolean hasParams = params != null;
         out.writeBoolean(hasParams);
         if (hasParams) {
-            out.writeMap(params);
+            out.writeMap(params, StreamOutput::writeString, (o, s) -> CheckableParameter.writeParameterToStream(s, o));
         }
-    }
-
-    public String getExtensionUniqueId() {
-        return extensionUniqueId;
     }
 
     public PrincipalIdentifierToken getRequestIssuerIdentity() {
@@ -71,13 +71,13 @@ public class AuthorizationRequest extends TransportRequest {
         return permissionId;
     }
 
-    public Map<String, Object> getParams() {
+    public Map<String, CheckableParameter> getParams() {
         return params;
     }
 
     @Override
     public String toString() {
-        return "AuthorizationRequest{extensionUniqueId=" + extensionUniqueId + ", requestIssuerIdentity=" + requestIssuerIdentity + ", permissionId=" + permissionId + ", params=" + params + "}";
+        return "AuthorizationRequest{requestIssuerIdentity=" + requestIssuerIdentity + ", permissionId=" + permissionId + ", params=" + params + "}";
     }
 
     @Override
@@ -85,11 +85,11 @@ public class AuthorizationRequest extends TransportRequest {
         if (this == obj) return true;
         if (obj == null || getClass() != obj.getClass()) return false;
         AuthorizationRequest that = (AuthorizationRequest) obj;
-        return Objects.equals(extensionUniqueId, that.extensionUniqueId) && Objects.equals(requestIssuerIdentity, that.requestIssuerIdentity) && Objects.equals(permissionId, that.permissionId);
+        return Objects.equals(requestIssuerIdentity, that.requestIssuerIdentity) && Objects.equals(permissionId, that.permissionId);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(extensionUniqueId, requestIssuerIdentity, permissionId);
+        return Objects.hash(requestIssuerIdentity, permissionId);
     }
 }

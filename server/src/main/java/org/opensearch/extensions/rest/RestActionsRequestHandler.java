@@ -8,6 +8,11 @@
 
 package org.opensearch.extensions.rest;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.opensearch.authz.AuthorizationRequest;
+import org.opensearch.authz.AuthorizationResponse;
+import org.opensearch.authz.AuthorizationStatus;
 import org.opensearch.extensions.DiscoveryExtension;
 import org.opensearch.extensions.ExtensionStringResponse;
 import org.opensearch.rest.RestController;
@@ -24,6 +29,7 @@ import java.util.Map;
  */
 public class RestActionsRequestHandler {
 
+    protected final Logger logger = LogManager.getLogger(getClass());
     private final RestController restController;
     private final Map<String, DiscoveryExtension> extensionIdMap;
     private final TransportService transportService;
@@ -69,7 +75,18 @@ public class RestActionsRequestHandler {
      * @throws Exception if the request is not handled properly.
      */
     public TransportResponse handleAuthorizationRequest(AuthorizationRequest authRequest) throws Exception {
-        // TODO Implement privilege evaluation
+        // TODO Implement privilege evaluation - This is implemented as a separate request here, but
+        // should be moved to a central location like RestSendToExtensionAction.prepareRequest or similar
+        // to the SecurityFilter today
+
+        // 1. Get subject of the request
+        // 2. Verify isAuthenticated
+        // 3. Resolve subject -> List<Permission>
+        // 4. Evaluate privileges
+
+        logger.info("AuthorizationRequest Permission ID: " + authRequest.getPermissionId());
+        logger.info("AuthorizationRequest Request Issuer Identity: " + authRequest.getRequestIssuerIdentity());
+        logger.info("AuthorizationRequest Checkable Parameters: " + authRequest.getParams());
 
         return new AuthorizationResponse(
             "Authorized",

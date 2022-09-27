@@ -6,7 +6,7 @@
  * compatible open source license.
  */
 
-package org.opensearch.extensions.rest;
+package org.opensearch.authz;
 
 import org.opensearch.common.io.stream.StreamInput;
 import org.opensearch.common.io.stream.StreamOutput;
@@ -17,7 +17,7 @@ import java.io.IOException;
 /**
  * Response to evaluate user privileges for extension actions.
  *
- * @opensearch.internal
+ * @opensearch.experimental
  */
 public class AuthorizationResponse extends TransportResponse {
     private String response;

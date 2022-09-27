@@ -166,6 +166,8 @@ public class RestSendToExtensionAction extends BaseRestHandler {
             final ExtensionTokenProcessor extensionTokenProcessor = new ExtensionTokenProcessor(discoveryExtension.getId());
             final PrincipalIdentifierToken requestIssuerIdentity = extensionTokenProcessor.generateToken(DEFAULT_PRINCIPAL);
 
+            // Authorize request before sending it to the extension
+
             transportService.sendRequest(
                 discoveryExtension,
                 ExtensionsOrchestrator.REQUEST_REST_EXECUTE_ON_EXTENSION_ACTION,
