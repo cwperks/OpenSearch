@@ -17,14 +17,17 @@ import org.opensearch.client.Client;
 import org.opensearch.cluster.metadata.IndexNameExpressionResolver;
 import org.opensearch.cluster.service.ClusterService;
 import org.opensearch.common.io.stream.NamedWriteableRegistry;
+import org.opensearch.common.settings.Setting;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.common.util.concurrent.ThreadContext;
 import org.opensearch.common.xcontent.NamedXContentRegistry;
 import org.opensearch.env.Environment;
 import org.opensearch.env.NodeEnvironment;
+import org.opensearch.indices.SystemIndexDescriptor;
 import org.opensearch.plugins.ActionPlugin;
 import org.opensearch.plugins.NetworkPlugin;
 import org.opensearch.plugins.Plugin;
+import org.opensearch.plugins.SystemIndexPlugin;
 import org.opensearch.repositories.RepositoriesService;
 import org.opensearch.rest.RestHandler;
 import org.opensearch.script.ScriptService;
@@ -34,12 +37,13 @@ import org.opensearch.watcher.ResourceWatcherService;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 
-public final class IdentityPlugin extends Plugin implements ActionPlugin, NetworkPlugin {
+public final class IdentityPlugin extends Plugin implements ActionPlugin, NetworkPlugin, SystemIndexPlugin {
     private volatile Logger log = LogManager.getLogger(this.getClass());
 
     private volatile SecurityRestFilter securityRestHandler;
@@ -75,6 +79,21 @@ public final class IdentityPlugin extends Plugin implements ActionPlugin, Networ
         List<ActionFilter> filters = new ArrayList<>(1);
         filters.add(Objects.requireNonNull(sf));
         return filters;
+    }
+
+    @Override
+    public Collection<SystemIndexDescriptor> getSystemIndexDescriptors(Settings settings) {
+        final String indexPattern = settings.get(ConfigConstants.IDENTITY_CONFIG_INDEX_NAME, ConfigConstants.IDENTITY_DEFAULT_CONFIG_INDEX);
+        final SystemIndexDescriptor systemIndexDescriptor = new SystemIndexDescriptor(indexPattern, "Identity index");
+        return Collections.singletonList(systemIndexDescriptor);
+    }
+
+    @Override
+    public List<Setting<?>> getSettings() {
+        List<Setting<?>> settings = new ArrayList<Setting<?>>();
+        settings.addAll(super.getSettings());
+        settings.add(Setting.simpleString(ConfigConstants.IDENTITY_CONFIG_INDEX_NAME, Setting.Property.NodeScope, Setting.Property.Filtered));
+        return settings;
     }
 
     @Override
