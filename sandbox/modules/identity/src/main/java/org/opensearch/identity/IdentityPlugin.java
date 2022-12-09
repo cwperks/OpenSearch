@@ -12,6 +12,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.opensearch.action.support.ActionFilter;
 import org.opensearch.authn.AuthenticationManager;
+import org.opensearch.authn.Identity;
 import org.opensearch.authn.internal.InternalAuthenticationManager;
 import org.opensearch.client.Client;
 import org.opensearch.cluster.metadata.IndexNameExpressionResolver;
@@ -25,6 +26,7 @@ import org.opensearch.env.Environment;
 import org.opensearch.env.NodeEnvironment;
 import org.opensearch.indices.SystemIndexDescriptor;
 import org.opensearch.plugins.ActionPlugin;
+import org.opensearch.plugins.ClusterPlugin;
 import org.opensearch.plugins.NetworkPlugin;
 import org.opensearch.plugins.Plugin;
 import org.opensearch.plugins.SystemIndexPlugin;
@@ -43,7 +45,7 @@ import java.util.Objects;
 import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 
-public final class IdentityPlugin extends Plugin implements ActionPlugin, NetworkPlugin, SystemIndexPlugin {
+public final class IdentityPlugin extends Plugin implements ActionPlugin, NetworkPlugin, SystemIndexPlugin, ClusterPlugin {
     private volatile Logger log = LogManager.getLogger(this.getClass());
 
     private volatile SecurityRestFilter securityRestHandler;
@@ -52,6 +54,8 @@ public final class IdentityPlugin extends Plugin implements ActionPlugin, Networ
     private volatile Path configPath;
     private volatile SecurityFilter sf;
     private volatile ThreadPool threadPool;
+
+    private volatile ConfigurationRepository cr;
     private volatile ClusterService cs;
     private volatile Client localClient;
     private volatile NamedXContentRegistry namedXContentRegistry = null;
@@ -97,6 +101,12 @@ public final class IdentityPlugin extends Plugin implements ActionPlugin, Networ
     }
 
     @Override
+    public void onNodeStarted() {
+        log.info("Node started");
+        cr.initOnNodeStart();
+    }
+
+    @Override
     public Collection<Object> createComponents(
         Client localClient,
         ClusterService clusterService,
@@ -124,6 +134,8 @@ public final class IdentityPlugin extends Plugin implements ActionPlugin, Networ
         sf = new SecurityFilter(localClient, settings, threadPool, cs);
 
         securityRestHandler = new SecurityRestFilter(threadPool, settings, configPath);
+
+        cr = ConfigurationRepository.create(settings, this.configPath, threadPool, localClient, clusterService);
 
         return components;
     }
