@@ -216,10 +216,6 @@ public class RestClientSingleHostIntegTests extends RestClientTestCase {
         httpServer = null;
     }
 
-    /**
-     * Tests sending a bunch of async requests works well (e.g. no TimeoutException from the leased pool)
-     * See https://github.com/elastic/elasticsearch/issues/24069
-     */
     public void testManyAsyncRequests() throws Exception {
         int iters = randomIntBetween(500, 1000);
         final CountDownLatch latch = new CountDownLatch(iters);
