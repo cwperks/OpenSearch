@@ -8,6 +8,7 @@
 
 package org.opensearch.identity.configuration;
 
+import java.io.Reader;
 import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -28,10 +29,11 @@ import org.opensearch.action.DocWriteRequest;
 import org.opensearch.action.index.IndexRequest;
 import org.opensearch.action.index.IndexResponse;
 import org.opensearch.action.support.WriteRequest;
-import org.opensearch.authn.DefaultObjectMapper;
-import org.opensearch.authn.realm.InternalRealm;
+import org.opensearch.common.xcontent.XContentHelper;
 import org.opensearch.common.xcontent.XContentType;
 import org.opensearch.identity.ConfigConstants;
+import org.opensearch.identity.DefaultObjectMapper;
+import org.opensearch.identity.User;
 import org.opensearch.identity.exception.ConfigUpdateAlreadyInProgressException;
 import org.opensearch.identity.exception.ExceptionUtils;
 import org.opensearch.identity.exception.InvalidConfigException;
@@ -57,6 +59,8 @@ import org.opensearch.env.Environment;
 import org.opensearch.identity.utils.Hasher;
 import org.opensearch.index.engine.VersionConflictEngineException;
 import org.opensearch.threadpool.ThreadPool;
+
+import static org.opensearch.identity.support.ConfigHelper.readXContent;
 
 /**
  * This class loads identity configuration on startup and initializes the identity system index if it does not exist
@@ -119,14 +123,34 @@ public class ConfigurationRepository {
                                     LOGGER.always().log("Generated a random admin password: {}", adminPassword);
                                     char [] clearAdminPassword = adminPassword.toCharArray();
                                     String hashedAdminPassword = Hasher.hash(clearAdminPassword);
-                                    Map<String, Object> adminUserMap = Map.of("admin", Map.of("hash", hashedAdminPassword));
-                                    final IndexRequest indexRequest = new IndexRequest(identityIndex).id(CType.INTERNALUSERS.toLCString())
-                                        .opType(DocWriteRequest.OpType.INDEX)
-                                        .setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE)
-                                        .source(CType.INTERNALUSERS.toLCString(), ConfigHelper.readXContent(new StringReader(DefaultObjectMapper.writeValueAsString(adminUserMap, false)), XContentType.JSON));
-                                    IndexResponse response = client.index(indexRequest).actionGet();
-                                    System.out.println(response);
-                                    InternalRealm.INSTANCE.createUser("admin", hashedAdminPassword, null);
+                                    // TODO Figure out jackson deserialization issues with username being StringPrincipal
+                                    User admin = new User();
+                                    admin.setBcryptHash(hashedAdminPassword);
+
+                                    SecurityDynamicConfiguration<User> ium = ConfigHelper.fromYamlFile(confFile.toString(), CType.INTERNALUSERS, DEFAULT_CONFIG_VERSION, 0, 0);
+                                    if (ium.exists("admin")) {
+                                        LOGGER.warn("internal_users.yml file should not contain an entry for admin");
+                                    }
+                                    ium.putCObject("admin", admin);
+                                    final String userConfigType = CType.INTERNALUSERS.toLCString();
+                                    try {
+
+                                        final IndexRequest indexRequest = new IndexRequest(identityIndex).id(userConfigType)
+                                            .opType(DocWriteRequest.OpType.CREATE)
+                                            .setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE)
+                                            .source(userConfigType, XContentHelper.toXContent(ium, XContentType.JSON, false));
+                                        IndexResponse response = client.index(indexRequest).actionGet();
+                                        final String res = response.getId();
+
+                                        if (!userConfigType.equals(res)) {
+                                            throw new Exception(
+                                                "   FAIL: Configuration for '" + userConfigType + "' failed for unknown reasons. Pls. consult logfile of opensearch"
+                                            );
+                                        }
+                                        LOGGER.info("Doc with id '{}' and version {} is updated in {} index.", userConfigType, DEFAULT_CONFIG_VERSION, identityIndex);
+                                    } catch (VersionConflictEngineException versionConflictEngineException) {
+                                        LOGGER.info("Index {} already contains doc with id {}, skipping update.", identityIndex, userConfigType);
+                                    }
 
 //                                    ConfigHelper.uploadFile(
 //                                        client,
