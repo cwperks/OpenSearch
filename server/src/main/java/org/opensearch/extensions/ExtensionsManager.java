@@ -495,6 +495,7 @@ public class ExtensionsManager {
             public void handleResponse(IndicesModuleResponse response) {
                 logger.info("received {}", response);
                 if (response.getIndexEventListener() == true) {
+                    logger.info("indexModule.addIndexEventListener");
                     indexModule.addIndexEventListener(new IndexEventListener() {
                         @Override
                         public void beforeIndexRemoved(
@@ -524,7 +525,9 @@ public class ExtensionsManager {
                             }
                         }
                     });
+                    inProgressFuture.complete(response);
                 } else {
+                    logger.info("Probably shouldn't be here");
                     inProgressFuture.complete(response);
                 }
             }
