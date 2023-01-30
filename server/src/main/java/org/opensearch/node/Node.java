@@ -428,16 +428,17 @@ public class Node implements Closeable {
                 classpathPlugins
             );
 
-            if (FeatureFlags.isEnabled(FeatureFlags.EXTENSIONS)) {
-                this.extensionsManager = new ExtensionsManager(tmpSettings, initialEnvironment.extensionDir());
-            } else {
-                this.extensionsManager = new NoopExtensionsManager();
-            }
-
             final Settings settings = pluginsService.updatedSettings();
-
             // Ensure to initialize Feature Flags via the settings from opensearch.yml
             FeatureFlags.initializeFeatureFlags(settings);
+
+            if (FeatureFlags.isEnabled(FeatureFlags.EXTENSIONS)) {
+                System.out.println("Extensions enabled");
+                this.extensionsManager = new ExtensionsManager(tmpSettings, initialEnvironment.extensionDir());
+            } else {
+                System.out.println("Using NoopExtensionsManager");
+                this.extensionsManager = new NoopExtensionsManager();
+            }
 
             final Set<DiscoveryNodeRole> additionalRoles = pluginsService.filterPlugins(Plugin.class)
                 .stream()
