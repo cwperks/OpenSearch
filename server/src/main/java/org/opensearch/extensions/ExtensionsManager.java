@@ -394,6 +394,8 @@ public class ExtensionsManager {
                 return ThreadPool.Names.GENERIC;
             }
         };
+        // TODO Generate secret for extension
+
         try {
             logger.info("Sending extension request type: " + REQUEST_EXTENSION_ACTION_NAME);
             transportService.connectToExtensionNode(extension);
