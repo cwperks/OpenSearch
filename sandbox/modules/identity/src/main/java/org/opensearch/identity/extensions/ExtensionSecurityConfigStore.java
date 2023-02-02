@@ -9,6 +9,7 @@
 package org.opensearch.identity.extensions;
 
 import org.greenrobot.eventbus.Subscribe;
+import org.opensearch.identity.configuration.SecurityDynamicConfiguration;
 
 /**
  * @opensearch.experimental
@@ -17,7 +18,7 @@ public class ExtensionSecurityConfigStore {
 
     private static ExtensionSecurityConfigStore INSTANCE;
 
-    private ExtensionSecurityConfigModel extensionsSecurityConfigModel;
+    private SecurityDynamicConfiguration<ExtensionSecurityConfig> extensionsSecurityConfig;
 
     private ExtensionSecurityConfigStore() {}
 
@@ -29,12 +30,19 @@ public class ExtensionSecurityConfigStore {
         return INSTANCE;
     }
 
-    ExtensionSecurityConfigModel getExtensionsSecurityConfigModel() {
-        return this.extensionsSecurityConfigModel;
+    public String getSigningKeyForExtension(String extensionId) {
+        String signingKey = null;
+        if (this.extensionsSecurityConfig != null && this.extensionsSecurityConfig.getCEntries() != null) {
+            if (this.extensionsSecurityConfig.exists(extensionId)) {
+                ExtensionSecurityConfig extensionSecurityConfig = this.extensionsSecurityConfig.getCEntry(extensionId);
+                signingKey = extensionSecurityConfig.getSigningKey();
+            }
+        }
+        return signingKey;
     }
 
     @Subscribe
-    public void onExtensionsSecurityConfigModelChanged(ExtensionSecurityConfigModel esm) {
-        this.extensionsSecurityConfigModel = esm;
+    public void onExtensionsSecurityConfigChanged(SecurityDynamicConfiguration<ExtensionSecurityConfig> esm) {
+        this.extensionsSecurityConfig = esm;
     }
 }

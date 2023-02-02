@@ -80,6 +80,7 @@ public class DynamicConfigFactory implements ConfigurationChangeListener {
         ium = new InternalUsersModelV1((SecurityDynamicConfiguration<User>) internalusers);
 
         eventBus.post(ium);
+        eventBus.post(cr.getConfiguration(CType.EXTENSIONSECURITY));
 
         if (!isInitialized()) {
             initialized.set(true);
