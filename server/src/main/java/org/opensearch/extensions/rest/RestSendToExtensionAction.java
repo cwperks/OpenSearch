@@ -167,7 +167,6 @@ public class RestSendToExtensionAction extends BaseRestHandler {
             String jwt = client.threadPool().getThreadContext().getHeader("_opensearch_auth_token");
             System.out.println("_opensearch_auth_token: " + jwt);
 
-
             transportService.sendRequest(
                 discoveryExtensionNode,
                 ExtensionsManager.REQUEST_REST_EXECUTE_ON_EXTENSION_ACTION,

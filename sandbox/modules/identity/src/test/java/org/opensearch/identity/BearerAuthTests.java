@@ -10,7 +10,6 @@ package org.opensearch.identity;
 
 import org.apache.cxf.rs.security.jose.jwt.JwtToken;
 import org.hamcrest.MatcherAssert;
-import org.junit.Before;
 import org.opensearch.identity.jwt.BadCredentialsException;
 import org.opensearch.identity.jwt.JwtVendor;
 import org.opensearch.identity.jwt.JwtVerifier;
@@ -22,7 +21,6 @@ import org.opensearch.rest.RestStatus;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -32,6 +30,7 @@ import static org.hamcrest.Matchers.equalTo;
 public class BearerAuthTests extends AbstractIdentityTestCase {
 
     private JwtVerifier verifier = new JwtVerifier(JwtVendorTestUtils.SIGNING_KEY);
+
     public void testExpiredValidJwt() {
 
         Map<String, String> jwtClaims = new HashMap<>();

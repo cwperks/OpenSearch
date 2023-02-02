@@ -12,8 +12,6 @@ import org.apache.cxf.rs.security.jose.jwt.JwtToken;
 import org.opensearch.identity.JwtVendorTestUtils;
 import org.opensearch.test.OpenSearchTestCase;
 
-import java.nio.charset.StandardCharsets;
-import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 

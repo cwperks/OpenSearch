@@ -15,5 +15,3 @@ public abstract class ExtensionSecurityConfigModel {
     public abstract boolean exists(String extensionId);
 
 }
-
-

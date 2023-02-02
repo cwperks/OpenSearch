@@ -23,6 +23,7 @@ public class ExtensionSecurityConfig {
     // Base64 Encoded HS512 signingKey
     @JsonProperty(value = "signingKey")
     private String signingKey;
+
     @JsonProperty(value = "signingKey")
     public String getSigningKey() {
         return signingKey;
@@ -32,6 +33,7 @@ public class ExtensionSecurityConfig {
     public void setSigningKey(String signingKey) {
         this.signingKey = signingKey;
     }
+
     @Override
     public String toString() {
         return "ExtensionSecurity [signingKey=" + signingKey + "]";

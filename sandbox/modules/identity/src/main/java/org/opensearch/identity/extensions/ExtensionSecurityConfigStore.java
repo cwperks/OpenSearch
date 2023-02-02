@@ -38,4 +38,3 @@ public class ExtensionSecurityConfigStore {
         this.extensionsSecurityConfigModel = esm;
     }
 }
-

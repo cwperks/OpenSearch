@@ -121,11 +121,17 @@ public class ConfigurationRepository {
                                         DEFAULT_CONFIG_VERSION
                                     );
 
-                                    SecurityDynamicConfiguration<ExtensionSecurityConfig> extensionsSecurityConfig = SecurityDynamicConfiguration.empty();
-                                    final IndexRequest indexRequest = new IndexRequest(identityIndex).id(CType.EXTENSIONSECURITY.toLCString())
+                                    SecurityDynamicConfiguration<ExtensionSecurityConfig> extensionsSecurityConfig =
+                                        SecurityDynamicConfiguration.empty();
+                                    final IndexRequest indexRequest = new IndexRequest(identityIndex).id(
+                                        CType.EXTENSIONSECURITY.toLCString()
+                                    )
                                         .opType(DocWriteRequest.OpType.CREATE)
                                         .setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE)
-                                        .source(CType.EXTENSIONSECURITY.toLCString(), XContentHelper.toXContent(extensionsSecurityConfig, XContentType.JSON, false));
+                                        .source(
+                                            CType.EXTENSIONSECURITY.toLCString(),
+                                            XContentHelper.toXContent(extensionsSecurityConfig, XContentType.JSON, false)
+                                        );
                                     client.index(indexRequest).actionGet();
                                 }
                             } else {
@@ -350,10 +356,7 @@ public class ConfigurationRepository {
                 final String res = response.getId();
 
                 if (!configType.equals(res)) {
-                    LOGGER.warn(
-                        "FAIL: Configuration for '{}' failed for unknown reasons. Pls. consult logfile of opensearch",
-                        configType
-                    );
+                    LOGGER.warn("FAIL: Configuration for '{}' failed for unknown reasons. Pls. consult logfile of opensearch", configType);
                 }
             } catch (IOException e) {
                 throw ExceptionsHelper.convertToOpenSearchException(e);

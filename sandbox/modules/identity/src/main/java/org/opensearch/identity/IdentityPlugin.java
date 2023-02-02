@@ -34,7 +34,6 @@ import org.opensearch.identity.configuration.ClusterInfoHolder;
 import org.opensearch.identity.configuration.ConfigurationRepository;
 import org.opensearch.identity.configuration.DynamicConfigFactory;
 import org.opensearch.identity.jwt.IdentityJwtVerifier;
-import org.opensearch.identity.jwt.JwtVerifier;
 import org.opensearch.index.IndexModule;
 import org.opensearch.indices.SystemIndexDescriptor;
 import org.opensearch.plugins.ActionPlugin;
@@ -137,9 +136,7 @@ public final class IdentityPlugin extends Plugin implements ActionPlugin, Networ
                 Setting.Property.Filtered
             )
         );
-        settings.add(
-            Setting.simpleString(ConfigConstants.IDENTITY_SIGNING_KEY, Setting.Property.NodeScope, Setting.Property.Filtered)
-        );
+        settings.add(Setting.simpleString(ConfigConstants.IDENTITY_SIGNING_KEY, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(
             Setting.simpleString(ConfigConstants.IDENTITY_CONFIG_INDEX_NAME, Setting.Property.NodeScope, Setting.Property.Filtered)
         );
@@ -157,7 +154,7 @@ public final class IdentityPlugin extends Plugin implements ActionPlugin, Networ
 
     @Override
     public void onIndexModule(IndexModule indexModule) {
-        //called for every index!
+        // called for every index!
 
         if (enabled) {
 

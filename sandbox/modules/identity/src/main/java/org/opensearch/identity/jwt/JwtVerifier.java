@@ -8,23 +8,8 @@
 
 package org.opensearch.identity.jwt;
 
-import org.apache.commons.lang.StringEscapeUtils;
-import org.apache.cxf.rs.security.jose.jwa.SignatureAlgorithm;
-import org.apache.cxf.rs.security.jose.jwk.JsonWebKey;
-import org.apache.cxf.rs.security.jose.jwk.KeyType;
-import org.apache.cxf.rs.security.jose.jwk.PublicKeyUse;
-import org.apache.cxf.rs.security.jose.jws.JwsJwtCompactConsumer;
-import org.apache.cxf.rs.security.jose.jws.JwsSignatureVerifier;
-import org.apache.cxf.rs.security.jose.jws.JwsUtils;
-import org.apache.cxf.rs.security.jose.jwt.JwtClaims;
-import org.apache.cxf.rs.security.jose.jwt.JwtException;
-import org.apache.cxf.rs.security.jose.jwt.JwtToken;
-import org.apache.cxf.rs.security.jose.jwt.JwtUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.opensearch.identity.ConfigConstants;
-import org.opensearch.identity.configuration.model.InternalUsersModel;
-import org.opensearch.identity.realm.InternalUsersStore;
 
 public class JwtVerifier extends AbstractJwtVerifier {
     private final static Logger log = LogManager.getLogger(JwtVerifier.class);

@@ -24,14 +24,12 @@ import org.apache.shiro.authz.SimpleAuthorizationInfo;
 
 import org.apache.shiro.realm.AuthorizingRealm;
 import org.apache.shiro.subject.PrincipalCollection;
-import org.opensearch.authn.Identity;
 import org.opensearch.authn.StringPrincipal;
 import org.opensearch.identity.User;
 import org.opensearch.identity.authz.OpenSearchPermission;
 import org.opensearch.identity.configuration.model.InternalUsersModel;
 import org.opensearch.identity.jwt.BadCredentialsException;
 import org.opensearch.identity.jwt.IdentityJwtVerifier;
-import org.opensearch.identity.jwt.JwtVerifier;
 
 import java.util.Objects;
 import java.util.Set;
