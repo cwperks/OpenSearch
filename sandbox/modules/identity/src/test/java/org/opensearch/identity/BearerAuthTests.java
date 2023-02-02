@@ -10,6 +10,7 @@ package org.opensearch.identity;
 
 import org.apache.cxf.rs.security.jose.jwt.JwtToken;
 import org.hamcrest.MatcherAssert;
+import org.junit.Before;
 import org.opensearch.identity.jwt.BadCredentialsException;
 import org.opensearch.identity.jwt.JwtVendor;
 import org.opensearch.identity.jwt.JwtVerifier;
@@ -29,9 +30,11 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 
 public class BearerAuthTests extends AbstractIdentityTestCase {
-
-    String signingKey = Base64.getEncoder().encodeToString("signingKey".getBytes(StandardCharsets.UTF_8));
-
+    @Before
+    public void setup() {
+        JwtVerifier instance = JwtVerifier.getInstance();
+        instance.init(JwtVendorTestUtils.SIGNING_KEY);
+    }
     public void testExpiredValidJwt() {
 
         Map<String, String> jwtClaims = new HashMap<>();
@@ -39,7 +42,7 @@ public class BearerAuthTests extends AbstractIdentityTestCase {
         String encodedToken = JwtVendorTestUtils.createExpiredJwt(jwtClaims);
 
         try {
-            JwtToken verifiedJwt = JwtVerifier.getVerifiedJwtToken(encodedToken);
+            JwtToken verifiedJwt = JwtVerifier.getInstance().getVerifiedJwtToken(encodedToken);
         } catch (BadCredentialsException ex) {
             assertFalse(ex.getMessage().isEmpty());
             assertEquals("The token has expired", ex.getMessage());
@@ -54,7 +57,7 @@ public class BearerAuthTests extends AbstractIdentityTestCase {
         String headerBody = "Bearer " + encodedToken;
 
         try {
-            JwtToken verifiedJwt = JwtVerifier.getVerifiedJwtToken(encodedToken);
+            JwtToken verifiedJwt = JwtVerifier.getInstance().getVerifiedJwtToken(encodedToken);
         } catch (BadCredentialsException ex) {
             assertFalse(ex.getMessage().isEmpty());
             assertEquals("The token cannot be accepted yet", ex.getMessage());
@@ -65,11 +68,11 @@ public class BearerAuthTests extends AbstractIdentityTestCase {
 
         Map<String, String> jwtClaims = new HashMap<>();
         jwtClaims.put("sub", "testSubject");
-        String encodedToken = JwtVendor.createJwt(jwtClaims, signingKey);
+        String encodedToken = JwtVendor.createJwt(jwtClaims, JwtVendorTestUtils.SIGNING_KEY);
         JwtToken verifiedJwt = null;
 
         try {
-            verifiedJwt = JwtVerifier.getVerifiedJwtToken(encodedToken);
+            verifiedJwt = JwtVerifier.getInstance().getVerifiedJwtToken(encodedToken);
             assertEquals("testSubject", verifiedJwt.getClaim("sub"));
         } catch (BadCredentialsException ex) {
             throw new Error(ex);
@@ -86,7 +89,7 @@ public class BearerAuthTests extends AbstractIdentityTestCase {
 
         String encodedToken = JwtVendorTestUtils.createInvalidJwt(jwtClaims);
         try {
-            JwtToken token = JwtVerifier.getVerifiedJwtToken(encodedToken);
+            JwtToken token = JwtVerifier.getInstance().getVerifiedJwtToken(encodedToken);
         } catch (BadCredentialsException ex) {
             assertFalse(ex.getMessage().isEmpty());
             assertEquals("Algorithm of JWT does not match algorithm of JWK (HS512 != HS256)", ex.getMessage().trim());
@@ -96,7 +99,7 @@ public class BearerAuthTests extends AbstractIdentityTestCase {
     public void testClusterHealthWithValidBearerAuthenticationHeader() throws IOException {
         Map<String, String> jwtClaims = new HashMap<>();
         jwtClaims.put("sub", "testSubject");
-        String encodedToken = JwtVendor.createJwt(jwtClaims, signingKey);
+        String encodedToken = JwtVendor.createJwt(jwtClaims, JwtVendorTestUtils.SIGNING_KEY);
         String headerBody = "Bearer " + encodedToken;
 
         Request request = new Request("GET", "/_cluster/health");

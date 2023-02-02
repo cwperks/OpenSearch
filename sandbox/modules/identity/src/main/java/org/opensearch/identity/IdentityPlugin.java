@@ -33,6 +33,7 @@ import org.opensearch.identity.authz.IndexNameExpressionResolverHolder;
 import org.opensearch.identity.configuration.ClusterInfoHolder;
 import org.opensearch.identity.configuration.ConfigurationRepository;
 import org.opensearch.identity.configuration.DynamicConfigFactory;
+import org.opensearch.identity.jwt.JwtVerifier;
 import org.opensearch.index.IndexModule;
 import org.opensearch.indices.SystemIndexDescriptor;
 import org.opensearch.plugins.ActionPlugin;
@@ -283,6 +284,10 @@ public final class IdentityPlugin extends Plugin implements ActionPlugin, Networ
         // dcf.registerDCFListener(securityRestHandler);
 
         cr.setDynamicConfigFactory(dcf);
+
+        String signingKey = this.settings.get(ConfigConstants.IDENTITY_SIGNING_KEY);
+        JwtVerifier instance = JwtVerifier.getInstance();
+        instance.init(signingKey);
 
         return components;
     }

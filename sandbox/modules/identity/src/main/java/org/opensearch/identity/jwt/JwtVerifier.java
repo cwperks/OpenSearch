@@ -22,11 +22,34 @@ import org.apache.cxf.rs.security.jose.jwt.JwtToken;
 import org.apache.cxf.rs.security.jose.jwt.JwtUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.opensearch.identity.ConfigConstants;
+import org.opensearch.identity.configuration.model.InternalUsersModel;
+import org.opensearch.identity.realm.InternalUsersStore;
 
 public class JwtVerifier {
     private final static Logger log = LogManager.getLogger(JwtVerifier.class);
 
-    public static JwtToken getVerifiedJwtToken(String encodedJwt) throws BadCredentialsException {
+    private static JwtVerifier INSTANCE;
+
+    private String signingKey;
+
+    private JwtVerifier() {}
+
+    public static JwtVerifier getInstance() {
+        if (INSTANCE == null) {
+            INSTANCE = new JwtVerifier();
+        }
+
+        return INSTANCE;
+    }
+
+    public void init(String signingKey) {
+        if (this.signingKey == null) {
+            this.signingKey = signingKey;
+        }
+    }
+
+    public JwtToken getVerifiedJwtToken(String encodedJwt) throws BadCredentialsException {
         try {
             JwsJwtCompactConsumer jwtConsumer = new JwsJwtCompactConsumer(encodedJwt);
             JwtToken jwt = jwtConsumer.getJwtToken();
@@ -36,7 +59,9 @@ public class JwtVerifier {
             if (!(kid == null || kid.isBlank())) {
                 kid = StringEscapeUtils.unescapeJava(escapedKid);
             }
-            JsonWebKey key = JwtVendor.getDefaultJsonWebKey();
+            System.out.println("signingKey");
+            System.out.println(signingKey);
+            JsonWebKey key = JwtVendor.getDefaultJsonWebKeyWithSigningKey(signingKey);
 
             // Algorithm is not mandatory for the key material, so we set it to the same as the JWT
             if (key.getAlgorithm() == null && key.getPublicKeyUse() == PublicKeyUse.SIGN && key.getKeyType() == KeyType.RSA) {

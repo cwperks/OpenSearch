@@ -129,7 +129,7 @@ public class InternalRealm extends AuthorizingRealm {
 
             // Verify the validity of JWT token
             try {
-                jwtToken = JwtVerifier.getVerifiedJwtToken(((BearerToken) token).getToken());
+                jwtToken = JwtVerifier.getInstance().getVerifiedJwtToken(((BearerToken) token).getToken());
             } catch (BadCredentialsException e) {
                 throw new IncorrectCredentialsException(e.getMessage()); // Invalid Token
             }

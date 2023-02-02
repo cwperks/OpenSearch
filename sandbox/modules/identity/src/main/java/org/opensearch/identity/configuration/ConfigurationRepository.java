@@ -331,9 +331,6 @@ public class ConfigurationRepository {
 
     public void initializeExtensionsSecurity() {
         SecurityDynamicConfiguration<ExtensionSecurity> extensionsSecurityConfig = SecurityDynamicConfiguration.empty();
-        System.out.println("DynamicConfigFactory initialized");
-        System.out.println(IdentityPlugin.GuiceHolder.getExtensionsManager());
-        System.out.println("Extensions: " + IdentityPlugin.GuiceHolder.getExtensionsManager().getExtensionIdMap());
         Map<String, DiscoveryExtensionNode> extensionIdMap = IdentityPlugin.GuiceHolder.getExtensionsManager().getExtensionIdMap();
         if (extensionIdMap != null) {
             for (String extensionId : extensionIdMap.keySet()) {
@@ -341,33 +338,33 @@ public class ConfigurationRepository {
                 es.setSigningKey(ExtensionsSecretsGenerator.generateSigningKey());
                 extensionsSecurityConfig.putCObject(extensionId, es);
             }
-        }
 
-        String configType = CType.EXTENSIONSECURITY.toLCString();
+            String configType = CType.EXTENSIONSECURITY.toLCString();
 
-        try {
-            final IndexRequest indexRequest = new IndexRequest(this.identityIndex).id(configType)
-                .opType(DocWriteRequest.OpType.INDEX)
-                .setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE)
-                .source(configType, XContentHelper.toXContent(extensionsSecurityConfig, XContentType.JSON, false));
-            IndexResponse response = client.index(indexRequest).actionGet();
-            final String res = response.getId();
+            try {
+                final IndexRequest indexRequest = new IndexRequest(this.identityIndex).id(configType)
+                    .opType(DocWriteRequest.OpType.INDEX)
+                    .setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE)
+                    .source(configType, XContentHelper.toXContent(extensionsSecurityConfig, XContentType.JSON, false));
+                IndexResponse response = client.index(indexRequest).actionGet();
+                final String res = response.getId();
 
-            if (!configType.equals(res)) {
-                LOGGER.warn(
-                    "FAIL: Configuration for '{}' failed for unknown reasons. Pls. consult logfile of opensearch",
-                    configType
-                );
+                if (!configType.equals(res)) {
+                    LOGGER.warn(
+                        "FAIL: Configuration for '{}' failed for unknown reasons. Pls. consult logfile of opensearch",
+                        configType
+                    );
+                }
+            } catch (IOException e) {
+                throw ExceptionsHelper.convertToOpenSearchException(e);
             }
-        } catch (IOException e) {
-            throw ExceptionsHelper.convertToOpenSearchException(e);
-        }
 
-        try {
-            LOGGER.debug("Try to reload config ...");
-            reloadConfiguration(Arrays.asList(CType.values()));
-        } catch (Exception e) {
-            LOGGER.debug("Unable to load configuration due to {}", String.valueOf(ExceptionUtils.getRootCause(e)));
+            try {
+                LOGGER.debug("Try to reload config ...");
+                reloadConfiguration(Arrays.asList(CType.values()));
+            } catch (Exception e) {
+                LOGGER.debug("Unable to load configuration due to {}", String.valueOf(ExceptionUtils.getRootCause(e)));
+            }
         }
     }
 }
