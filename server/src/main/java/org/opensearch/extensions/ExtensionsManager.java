@@ -375,6 +375,8 @@ public class ExtensionsManager {
             public void handleResponse(InitializeExtensionResponse response) {
                 for (DiscoveryExtensionNode extension : extensionIdMap.values()) {
                     if (extension.getName().equals(response.getName())) {
+                        // TODO Generate secret for extension
+
                         extensions.add(extension);
                         logger.info("Initialized extension: " + extension.getName());
                         break;
@@ -394,7 +396,6 @@ public class ExtensionsManager {
                 return ThreadPool.Names.GENERIC;
             }
         };
-        // TODO Generate secret for extension
 
         try {
             logger.info("Sending extension request type: " + REQUEST_EXTENSION_ACTION_NAME);

@@ -280,6 +280,7 @@ import org.opensearch.common.inject.AbstractModule;
 import org.opensearch.common.inject.TypeLiteral;
 import org.opensearch.common.inject.multibindings.MapBinder;
 import org.opensearch.common.settings.ClusterSettings;
+import org.opensearch.discovery.InitializeExtensionResponse;
 import org.opensearch.extensions.action.ExtensionProxyAction;
 import org.opensearch.extensions.action.ExtensionTransportAction;
 import org.opensearch.common.settings.IndexScopedSettings;
@@ -438,6 +439,7 @@ import org.opensearch.rest.action.search.RestSearchAction;
 import org.opensearch.rest.action.search.RestSearchScrollAction;
 import org.opensearch.tasks.Task;
 import org.opensearch.threadpool.ThreadPool;
+import org.opensearch.transport.TransportResponseHandler;
 import org.opensearch.usage.UsageService;
 
 import java.util.ArrayList;

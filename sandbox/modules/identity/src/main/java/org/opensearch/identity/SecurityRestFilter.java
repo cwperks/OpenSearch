@@ -14,6 +14,8 @@ import org.apache.shiro.authc.AuthenticationException;
 import org.opensearch.OpenSearchException;
 import org.opensearch.authn.Identity;
 import org.opensearch.authn.Subject;
+import org.opensearch.extensions.ExtensionRequest;
+import org.opensearch.extensions.rest.ExtensionRestRequest;
 import org.opensearch.identity.jwt.JwtVendor;
 import org.opensearch.authn.tokens.AuthenticationToken;
 import org.opensearch.authn.tokens.BasicAuthToken;
@@ -30,8 +32,10 @@ import org.opensearch.rest.RestStatus;
 import org.opensearch.threadpool.ThreadPool;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.time.Instant;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Locale;
@@ -63,6 +67,40 @@ public class SecurityRestFilter {
             public void handleRequest(RestRequest request, RestChannel channel, NodeClient client) throws Exception {
                 org.apache.logging.log4j.ThreadContext.clearAll();
                 if (checkAndAuthenticateRequest(request, channel, client)) {
+                    String authTokenHeader = threadContext.getHeader(ThreadContextConstants.OPENSEARCH_AUTHENTICATION_TOKEN_HEADER);
+                    Map<String, String> jwtClaims = new HashMap<>();
+                    String encodedJwt = null;
+
+                    if (authTokenHeader == null) {
+                        Subject currentSubject = Identity.getAuthManager().getSubject();
+                        jwtClaims.put("sub", currentSubject.getPrincipal().getName());
+                        jwtClaims.put("iat", Instant.now().toString());
+                    }
+
+                    if (request.path().startsWith("/_extensions/")) {
+                        System.out.println("Identity - Received extensions rest request");
+                    } else {
+                        String signingKey = settings.get(ConfigConstants.IDENTITY_SIGNING_KEY);
+                        if (signingKey != null) {
+                            encodedJwt = JwtVendor.createJwt(jwtClaims, settings.get(ConfigConstants.IDENTITY_SIGNING_KEY));
+                        }
+                    }
+
+                    String requestInfo = String.format(
+                        Locale.ROOT,
+                        "(nodeName=%s, requestId=%s, path=%s, jwtClaims=%s checkAndAuthenticateRequest)",
+                        client.getLocalNodeId(),
+                        request.getRequestId(),
+                        request.path(),
+                        jwtClaims
+                    );
+
+                    if (log.isDebugEnabled()) {
+                        log.debug(requestInfo);
+                        String logMsg = String.format(Locale.ROOT, "Created internal access token %s", encodedJwt);
+                        log.debug("{} {}", requestInfo, logMsg);
+                    }
+                    threadContext.putHeader(ThreadContextConstants.OPENSEARCH_AUTHENTICATION_TOKEN_HEADER, encodedJwt);
                     original.handleRequest(request, channel, client);
                 }
             }
@@ -77,26 +115,6 @@ public class SecurityRestFilter {
             return false;
         }
 
-        if (threadContext.getHeader(ThreadContextConstants.OPENSEARCH_AUTHENTICATION_TOKEN_HEADER) == null) {
-            Map<String, String> jwtClaims = new HashMap<>();
-            jwtClaims.put("sub", "subject");
-            jwtClaims.put("iat", Instant.now().toString());
-            String encodedJwt = JwtVendor.createJwt(jwtClaims);
-            String requestInfo = String.format(
-                Locale.ROOT,
-                "(nodeName=%s, requestId=%s, path=%s, jwtClaims=%s checkAndAuthenticateRequest)",
-                client.getLocalNodeId(),
-                request.getRequestId(),
-                request.path(),
-                jwtClaims
-            );
-            if (log.isDebugEnabled()) {
-                log.debug(requestInfo);
-                String logMsg = String.format(Locale.ROOT, "Created internal access token %s", encodedJwt);
-                log.debug("{} {}", requestInfo, logMsg);
-            }
-            threadContext.putHeader(ThreadContextConstants.OPENSEARCH_AUTHENTICATION_TOKEN_HEADER, encodedJwt);
-        }
         return true;
     }
 

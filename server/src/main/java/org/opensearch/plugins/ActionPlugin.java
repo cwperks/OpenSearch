@@ -49,9 +49,11 @@ import org.opensearch.common.settings.IndexScopedSettings;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.common.settings.SettingsFilter;
 import org.opensearch.common.util.concurrent.ThreadContext;
+import org.opensearch.discovery.InitializeExtensionResponse;
 import org.opensearch.rest.RestController;
 import org.opensearch.rest.RestHandler;
 import org.opensearch.rest.RestHeaderDefinition;
+import org.opensearch.transport.TransportResponseHandler;
 
 import java.util.Collection;
 import java.util.Collections;

@@ -12,12 +12,16 @@ import java.nio.file.Path;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.opensearch.extensions.DiscoveryExtensionNode;
+import org.opensearch.identity.IdentityPlugin;
 import org.opensearch.identity.User;
 import org.opensearch.identity.configuration.model.InternalUsersModel;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.LogManager;
 import org.opensearch.client.Client;
 import org.opensearch.common.settings.Settings;
+import org.opensearch.identity.extensions.ExtensionSecurity;
+import org.opensearch.identity.extensions.ExtensionsSecretsGenerator;
 import org.opensearch.identity.realm.InternalUsersStore;
 import org.opensearch.threadpool.ThreadPool;
 import org.greenrobot.eventbus.EventBus;
@@ -77,7 +81,10 @@ public class DynamicConfigFactory implements ConfigurationChangeListener {
 
         eventBus.post(ium);
 
-        initialized.set(true);
+        if (!isInitialized()) {
+            initialized.set(true);
+            cr.initializeExtensionsSecurity();
+        }
 
     }
 

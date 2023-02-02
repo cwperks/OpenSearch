@@ -21,6 +21,7 @@ import org.opensearch.rest.RestStatus;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -28,6 +29,8 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 
 public class BearerAuthTests extends AbstractIdentityTestCase {
+
+    String signingKey = Base64.getEncoder().encodeToString("signingKey".getBytes(StandardCharsets.UTF_8));
 
     public void testExpiredValidJwt() {
 
@@ -62,7 +65,7 @@ public class BearerAuthTests extends AbstractIdentityTestCase {
 
         Map<String, String> jwtClaims = new HashMap<>();
         jwtClaims.put("sub", "testSubject");
-        String encodedToken = JwtVendor.createJwt(jwtClaims);
+        String encodedToken = JwtVendor.createJwt(jwtClaims, signingKey);
         JwtToken verifiedJwt = null;
 
         try {
@@ -93,7 +96,7 @@ public class BearerAuthTests extends AbstractIdentityTestCase {
     public void testClusterHealthWithValidBearerAuthenticationHeader() throws IOException {
         Map<String, String> jwtClaims = new HashMap<>();
         jwtClaims.put("sub", "testSubject");
-        String encodedToken = JwtVendor.createJwt(jwtClaims);
+        String encodedToken = JwtVendor.createJwt(jwtClaims, signingKey);
         String headerBody = "Bearer " + encodedToken;
 
         Request request = new Request("GET", "/_cluster/health");
