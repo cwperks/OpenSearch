@@ -16,6 +16,9 @@ import org.opensearch.authn.Identity;
 import org.opensearch.authn.Subject;
 import org.opensearch.extensions.ExtensionRequest;
 import org.opensearch.extensions.rest.ExtensionRestRequest;
+import org.opensearch.identity.configuration.SecurityDynamicConfiguration;
+import org.opensearch.identity.extensions.ExtensionSecurityConfig;
+import org.opensearch.identity.extensions.ExtensionSecurityConfigStore;
 import org.opensearch.identity.jwt.JwtVendor;
 import org.opensearch.authn.tokens.AuthenticationToken;
 import org.opensearch.authn.tokens.BasicAuthToken;
@@ -73,11 +76,16 @@ public class SecurityRestFilter {
 
                     if (authTokenHeader == null) {
                         Subject currentSubject = Identity.getAuthManager().getSubject();
+                        // TODO replace with Principal Identifier Token if destination is extension
                         jwtClaims.put("sub", currentSubject.getPrincipal().getName());
                         jwtClaims.put("iat", Instant.now().toString());
                     }
 
                     if (request.path().startsWith("/_extensions/")) {
+                        // TODO Figure out better way of extracting extensionId
+                        String extensionRoute = request.path().replace("/_extensions/", "");
+                        String extensionId = extensionRoute.substring(0, extensionRoute.indexOf("/"));
+
                         System.out.println("Identity - Received extensions rest request");
                     } else {
                         String signingKey = settings.get(ConfigConstants.IDENTITY_SIGNING_KEY);

@@ -26,10 +26,24 @@ import org.opensearch.identity.ConfigConstants;
 import org.opensearch.identity.configuration.model.InternalUsersModel;
 import org.opensearch.identity.realm.InternalUsersStore;
 
-public class JwtVerifier extends AbstractJwtVerifier {
+public class IdentityJwtVerifier extends AbstractJwtVerifier {
     private final static Logger log = LogManager.getLogger(JwtVerifier.class);
 
-    public JwtVerifier(String signingKey) {
-        this.signingKey = signingKey;
+    private static IdentityJwtVerifier INSTANCE;
+
+    private IdentityJwtVerifier() { }
+
+    public static IdentityJwtVerifier getInstance() {
+        if (INSTANCE == null) {
+            INSTANCE = new IdentityJwtVerifier();
+        }
+
+        return INSTANCE;
+    }
+
+    public void init(String signingKey) {
+        if (this.signingKey == null) {
+            this.signingKey = signingKey;
+        }
     }
 }

@@ -16,10 +16,11 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  * @opensearch.experimental
  */
 
-public class ExtensionSecurity {
+public class ExtensionSecurityConfig {
 
-    public ExtensionSecurity() {}
+    public ExtensionSecurityConfig() {}
 
+    // Base64 Encoded HS512 signingKey
     @JsonProperty(value = "signingKey")
     private String signingKey;
     @JsonProperty(value = "signingKey")

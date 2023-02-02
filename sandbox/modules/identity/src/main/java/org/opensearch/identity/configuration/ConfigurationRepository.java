@@ -35,7 +35,7 @@ import org.opensearch.identity.IdentityPlugin;
 import org.opensearch.identity.exception.ConfigUpdateAlreadyInProgressException;
 import org.opensearch.identity.exception.ExceptionUtils;
 import org.opensearch.identity.exception.InvalidConfigException;
-import org.opensearch.identity.extensions.ExtensionSecurity;
+import org.opensearch.identity.extensions.ExtensionSecurityConfig;
 import org.opensearch.identity.extensions.ExtensionsSecretsGenerator;
 import org.opensearch.identity.support.ConfigHelper;
 import org.apache.logging.log4j.Logger;
@@ -121,7 +121,7 @@ public class ConfigurationRepository {
                                         DEFAULT_CONFIG_VERSION
                                     );
 
-                                    SecurityDynamicConfiguration<ExtensionSecurity> extensionsSecurityConfig = SecurityDynamicConfiguration.empty();
+                                    SecurityDynamicConfiguration<ExtensionSecurityConfig> extensionsSecurityConfig = SecurityDynamicConfiguration.empty();
                                     final IndexRequest indexRequest = new IndexRequest(identityIndex).id(CType.EXTENSIONSECURITY.toLCString())
                                         .opType(DocWriteRequest.OpType.CREATE)
                                         .setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE)
@@ -330,11 +330,11 @@ public class ConfigurationRepository {
     }
 
     public void initializeExtensionsSecurity() {
-        SecurityDynamicConfiguration<ExtensionSecurity> extensionsSecurityConfig = SecurityDynamicConfiguration.empty();
+        SecurityDynamicConfiguration<ExtensionSecurityConfig> extensionsSecurityConfig = SecurityDynamicConfiguration.empty();
         Map<String, DiscoveryExtensionNode> extensionIdMap = IdentityPlugin.GuiceHolder.getExtensionsManager().getExtensionIdMap();
         if (extensionIdMap != null) {
             for (String extensionId : extensionIdMap.keySet()) {
-                ExtensionSecurity es = new ExtensionSecurity();
+                ExtensionSecurityConfig es = new ExtensionSecurityConfig();
                 es.setSigningKey(ExtensionsSecretsGenerator.generateSigningKey());
                 extensionsSecurityConfig.putCObject(extensionId, es);
             }

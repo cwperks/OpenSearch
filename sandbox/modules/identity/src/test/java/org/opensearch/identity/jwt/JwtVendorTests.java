@@ -25,11 +25,10 @@ public class JwtVendorTests extends OpenSearchTestCase {
 
         String encodedToken = JwtVendor.createJwt(jwtClaims, JwtVendorTestUtils.SIGNING_KEY);
 
-        JwtVerifier instance = JwtVerifier.getInstance();
-        instance.init(JwtVendorTestUtils.SIGNING_KEY);
+        JwtVerifier verifier = new JwtVerifier(JwtVendorTestUtils.SIGNING_KEY);
 
         try {
-            JwtToken token = JwtVerifier.getInstance().getVerifiedJwtToken(encodedToken);
+            JwtToken token = verifier.getVerifiedJwtToken(encodedToken);
             assertTrue(token.getClaims().getClaim("sub").equals("testSubject"));
         } catch (BadCredentialsException e) {
             fail("Unexpected BadCredentialsException thrown");

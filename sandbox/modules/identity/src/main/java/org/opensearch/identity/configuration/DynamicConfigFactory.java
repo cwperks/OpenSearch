@@ -12,16 +12,15 @@ import java.nio.file.Path;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import org.opensearch.extensions.DiscoveryExtensionNode;
-import org.opensearch.identity.IdentityPlugin;
 import org.opensearch.identity.User;
 import org.opensearch.identity.configuration.model.InternalUsersModel;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.LogManager;
 import org.opensearch.client.Client;
 import org.opensearch.common.settings.Settings;
-import org.opensearch.identity.extensions.ExtensionSecurity;
-import org.opensearch.identity.extensions.ExtensionsSecretsGenerator;
+import org.opensearch.identity.extensions.ExtensionSecurityConfig;
+import org.opensearch.identity.extensions.ExtensionSecurityConfigStore;
+import org.opensearch.identity.extensions.ExtensionSecurityConfigModel;
 import org.opensearch.identity.realm.InternalUsersStore;
 import org.opensearch.threadpool.ThreadPool;
 import org.greenrobot.eventbus.EventBus;
@@ -54,6 +53,7 @@ public class DynamicConfigFactory implements ConfigurationChangeListener {
         this.configPath = configPath;
 
         registerDCFListener(InternalUsersStore.getInstance());
+        registerDCFListener(ExtensionSecurityConfigStore.getInstance());
         this.cr.subscribeOnChange(this);
     }
 
@@ -102,33 +102,53 @@ public class DynamicConfigFactory implements ConfigurationChangeListener {
 
     private static class InternalUsersModelV1 extends InternalUsersModel {
 
-        private final SecurityDynamicConfiguration<User> internalUserSecurityDynamicConfiguration;
+        private final SecurityDynamicConfiguration<User> internalUserSecurityDC;
 
-        public InternalUsersModelV1(SecurityDynamicConfiguration<User> internalUserSecurityDynamicConfiguration) {
+        public InternalUsersModelV1(SecurityDynamicConfiguration<User> internalUserSecurityDC) {
             super();
-            this.internalUserSecurityDynamicConfiguration = internalUserSecurityDynamicConfiguration;
+            this.internalUserSecurityDC = internalUserSecurityDC;
         }
 
         @Override
         public User getUser(String username) {
-            return internalUserSecurityDynamicConfiguration.getCEntry(username);
+            return internalUserSecurityDC.getCEntry(username);
         }
 
         @Override
         public boolean exists(String username) {
-            return internalUserSecurityDynamicConfiguration.exists(username);
+            return internalUserSecurityDC.exists(username);
         }
 
         @Override
         public Map<String, String> getAttributes(String username) {
-            User tmp = internalUserSecurityDynamicConfiguration.getCEntry(username);
+            User tmp = internalUserSecurityDC.getCEntry(username);
             return tmp == null ? null : tmp.getAttributes();
         }
 
         @Override
         public String getHash(String username) {
-            User tmp = internalUserSecurityDynamicConfiguration.getCEntry(username);
+            User tmp = internalUserSecurityDC.getCEntry(username);
             return tmp == null ? null : tmp.getBcryptHash();
+        }
+    }
+
+    private static class ExtensionsSecurityConfigModelV1 extends ExtensionSecurityConfigModel {
+
+        private final SecurityDynamicConfiguration<ExtensionSecurityConfig> extensionsSecurityConfigDC;
+
+        public ExtensionsSecurityConfigModelV1(SecurityDynamicConfiguration<ExtensionSecurityConfig> extensionsSecurityConfigDC) {
+            super();
+            this.extensionsSecurityConfigDC = extensionsSecurityConfigDC;
+        }
+
+        @Override
+        public ExtensionSecurityConfig getExtensionSecurityConfig(String extensionId) {
+            return extensionsSecurityConfigDC.getCEntry(extensionId);
+        }
+
+        @Override
+        public boolean exists(String extensionId) {
+            return extensionsSecurityConfigDC.exists(extensionId);
         }
     }
 }
