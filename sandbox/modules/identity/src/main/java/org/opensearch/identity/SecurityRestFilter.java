@@ -84,6 +84,8 @@ public class SecurityRestFilter {
                             encodedJwt = JwtVendor.createJwt(jwtClaims, extensionSigningKey);
                         }
                         System.out.println("Identity - Received extensions rest request");
+                        System.out.println("extensionId: " + extensionId);
+                        System.out.println("extensionSigningKey: " + extensionSigningKey);
                     } else {
                         String signingKey = settings.get(ConfigConstants.IDENTITY_SIGNING_KEY);
                         if (signingKey != null) {
