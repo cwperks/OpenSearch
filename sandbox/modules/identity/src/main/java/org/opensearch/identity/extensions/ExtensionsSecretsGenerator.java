@@ -10,12 +10,13 @@ package org.opensearch.identity.extensions;
 
 import org.apache.commons.lang.RandomStringUtils;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 
 public class ExtensionsSecretsGenerator {
     public static String generateSigningKey() {
         final String signingKey = RandomStringUtils.randomAlphanumeric(256);
-        String signingKeyB64 = Base64.getEncoder().encodeToString(signingKey.getBytes());
+        String signingKeyB64 = Base64.getEncoder().encodeToString(signingKey.getBytes(StandardCharsets.UTF_8));
         return signingKeyB64;
     }
 }

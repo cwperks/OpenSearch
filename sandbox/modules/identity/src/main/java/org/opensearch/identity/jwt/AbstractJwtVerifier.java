@@ -34,8 +34,6 @@ public class AbstractJwtVerifier {
             if (!(kid == null || kid.isBlank())) {
                 kid = StringEscapeUtils.unescapeJava(escapedKid);
             }
-            System.out.println("signingKey");
-            System.out.println(signingKey);
             JsonWebKey key = JwtVendor.getDefaultJsonWebKeyWithSigningKey(signingKey);
 
             // Algorithm is not mandatory for the key material, so we set it to the same as the JWT
