@@ -8,6 +8,7 @@
 
 package org.opensearch.identity;
 
+import org.apache.commons.lang.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.shiro.authc.AuthenticationException;
@@ -77,15 +78,15 @@ public class SecurityRestFilter {
 
                     if (request.path().startsWith("/_extensions/")) {
                         // TODO Figure out better way of extracting extensionId
+                        // Extension routes look like: /_extensions/_opensearch-sdk-java-1/hello where
+                        // opensearch-sdk-java-1 is the extensionId
                         String extensionRoute = request.path().replace("/_extensions/", "");
                         String extensionId = extensionRoute.substring(0, extensionRoute.indexOf("/"));
+                        extensionId = StringUtils.strip(extensionId, "_");
                         String extensionSigningKey = ExtensionSecurityConfigStore.getInstance().getSigningKeyForExtension(extensionId);
                         if (extensionSigningKey != null) {
                             encodedJwt = JwtVendor.createJwt(jwtClaims, extensionSigningKey);
                         }
-                        System.out.println("Identity - Received extensions rest request");
-                        System.out.println("extensionId: " + extensionId);
-                        System.out.println("extensionSigningKey: " + extensionSigningKey);
                     } else {
                         String signingKey = settings.get(ConfigConstants.IDENTITY_SIGNING_KEY);
                         if (signingKey != null) {
