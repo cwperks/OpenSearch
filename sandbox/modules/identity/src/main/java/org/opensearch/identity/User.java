@@ -35,7 +35,13 @@ public class User {
      * @param attributes A map of custom attributes
      * @throws IllegalArgumentException if username or bcryptHash is null or empty
      */
-    public User(final String username, final String bcryptHash, Map<String, String> attributes, List<String> permissions, List<String> backendRoles) {
+    public User(
+        final String username,
+        final String bcryptHash,
+        Map<String, String> attributes,
+        List<String> permissions,
+        List<String> backendRoles
+    ) {
         Objects.requireNonNull(username);
         Objects.requireNonNull(bcryptHash);
         this.username = new StringPrincipal(username);

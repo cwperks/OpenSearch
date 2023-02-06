@@ -60,7 +60,9 @@ public class SecurityFilter implements ActionFilter {
      * @return parsed user object
      */
     public static org.opensearch.commons.authuser.User getUserContext(Client client) {
-        String userStr = client.threadPool().getThreadContext().getTransient(org.opensearch.commons.ConfigConstants.OPENSEARCH_SECURITY_USER_INFO_THREAD_CONTEXT);
+        String userStr = client.threadPool()
+            .getThreadContext()
+            .getTransient(org.opensearch.commons.ConfigConstants.OPENSEARCH_SECURITY_USER_INFO_THREAD_CONTEXT);
         return org.opensearch.commons.authuser.User.parse(userStr);
     }
 

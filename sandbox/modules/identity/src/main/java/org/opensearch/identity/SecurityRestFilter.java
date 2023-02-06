@@ -26,7 +26,6 @@ import org.opensearch.client.node.NodeClient;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.common.util.concurrent.ThreadContext;
 import org.opensearch.identity.realm.InternalUsersStore;
-import org.opensearch.identity.utils.Base64Helper;
 import org.opensearch.rest.BytesRestResponse;
 import org.opensearch.rest.RestChannel;
 import org.opensearch.rest.RestHandler;
@@ -121,7 +120,12 @@ public class SecurityRestFilter {
                     }
                     threadContext.putHeader(ThreadContextConstants.OPENSEARCH_AUTHENTICATION_TOKEN_HEADER, encodedJwt);
                     System.out.println("identity backendRoles: " + backendRoles);
-                    org.opensearch.commons.authuser.User user = new org.opensearch.commons.authuser.User(username, backendRoles, backendRoles, List.of());
+                    org.opensearch.commons.authuser.User user = new org.opensearch.commons.authuser.User(
+                        username,
+                        backendRoles,
+                        backendRoles,
+                        List.of()
+                    );
                     if (threadContext.getTransient("_opendistro_security_identity_user_info") == null) {
                         StringJoiner joiner = new StringJoiner("|");
                         joiner.add(user.getName());

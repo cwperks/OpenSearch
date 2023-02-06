@@ -37,12 +37,7 @@ import java.util.regex.Pattern;
 
 public class Base64Helper {
 
-    private static final Set<Class<?>> SAFE_CLASSES = Set.of(
-        String.class,
-        SocketAddress.class,
-        InetSocketAddress.class,
-        Pattern.class
-    );
+    private static final Set<Class<?>> SAFE_CLASSES = Set.of(String.class, SocketAddress.class, InetSocketAddress.class, Pattern.class);
 
     private static final List<Class<?>> SAFE_ASSIGNABLE_FROM_CLASSES = List.of(
         InetAddress.class,
@@ -52,15 +47,13 @@ public class Base64Helper {
         Enum.class
     );
 
-    private static final Set<String> SAFE_CLASS_NAMES = Collections.singleton(
-        "org.ldaptive.LdapAttribute$LdapAttributeValues"
-    );
+    private static final Set<String> SAFE_CLASS_NAMES = Collections.singleton("org.ldaptive.LdapAttribute$LdapAttributeValues");
 
     private static boolean isSafeClass(Class<?> cls) {
-        return cls.isArray() ||
-            SAFE_CLASSES.contains(cls) ||
-            SAFE_CLASS_NAMES.contains(cls.getName()) ||
-            SAFE_ASSIGNABLE_FROM_CLASSES.stream().anyMatch(c -> c.isAssignableFrom(cls));
+        return cls.isArray()
+            || SAFE_CLASSES.contains(cls)
+            || SAFE_CLASS_NAMES.contains(cls.getName())
+            || SAFE_ASSIGNABLE_FROM_CLASSES.stream().anyMatch(c -> c.isAssignableFrom(cls));
     }
 
     private final static class SafeObjectOutputStream extends ObjectOutputStream {
@@ -74,7 +67,7 @@ public class Base64Helper {
                 try {
                     sm.checkPermission(new SpecialPermission());
 
-                    AccessController.doPrivileged((PrivilegedAction<Void>)() -> {
+                    AccessController.doPrivileged((PrivilegedAction<Void>) () -> {
                         AccessController.checkPermission(SUBSTITUTION_PERMISSION);
                         return null;
                     });
@@ -105,9 +98,7 @@ public class Base64Helper {
                 sm.checkPermission(new SpecialPermission());
             }
 
-            AccessController.doPrivileged(
-                (PrivilegedAction<Boolean>) () -> enableReplaceObject(true)
-            );
+            AccessController.doPrivileged((PrivilegedAction<Boolean>) () -> enableReplaceObject(true));
         }
 
         @Override
@@ -165,4 +156,3 @@ public class Base64Helper {
         }
     }
 }
-
