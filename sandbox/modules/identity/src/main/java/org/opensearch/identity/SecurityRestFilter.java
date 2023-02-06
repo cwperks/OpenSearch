@@ -15,6 +15,7 @@ import org.apache.shiro.authc.AuthenticationException;
 import org.opensearch.OpenSearchException;
 import org.opensearch.authn.Identity;
 import org.opensearch.authn.Subject;
+import org.opensearch.common.Strings;
 import org.opensearch.identity.extensions.ExtensionSecurityConfigStore;
 import org.opensearch.identity.jwt.JwtVendor;
 import org.opensearch.authn.tokens.AuthenticationToken;
@@ -24,6 +25,8 @@ import org.opensearch.authn.tokens.HttpHeaderToken;
 import org.opensearch.client.node.NodeClient;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.common.util.concurrent.ThreadContext;
+import org.opensearch.identity.realm.InternalUsersStore;
+import org.opensearch.identity.utils.Base64Helper;
 import org.opensearch.rest.BytesRestResponse;
 import org.opensearch.rest.RestChannel;
 import org.opensearch.rest.RestHandler;
@@ -36,9 +39,11 @@ import java.nio.file.Path;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.StringJoiner;
 
 public class SecurityRestFilter {
 
@@ -68,11 +73,17 @@ public class SecurityRestFilter {
                     String authTokenHeader = threadContext.getHeader(ThreadContextConstants.OPENSEARCH_AUTHENTICATION_TOKEN_HEADER);
                     Map<String, String> jwtClaims = new HashMap<>();
                     String encodedJwt = null;
-
+                    Subject currentSubject = Identity.getAuthManager().getSubject();
+                    String username = "temp"; // TODO remove this default after completing sec plugin compatibility testing
+                    if (currentSubject != null) {
+                        username = currentSubject.getPrincipal().getName();
+                    }
+                    User loggedInUser = InternalUsersStore.getInstance().getInternalUsersModel().getUser(username);
+                    List<String> backendRoles = loggedInUser.getBackendRoles() != null ? loggedInUser.getBackendRoles() : List.of();
                     if (authTokenHeader == null) {
-                        Subject currentSubject = Identity.getAuthManager().getSubject();
+
                         // TODO replace with Principal Identifier Token if destination is extension
-                        jwtClaims.put("sub", currentSubject.getPrincipal().getName());
+                        jwtClaims.put("sub", username);
                         jwtClaims.put("iat", Instant.now().toString());
                     }
 
@@ -109,6 +120,22 @@ public class SecurityRestFilter {
                         log.debug("{} {}", requestInfo, logMsg);
                     }
                     threadContext.putHeader(ThreadContextConstants.OPENSEARCH_AUTHENTICATION_TOKEN_HEADER, encodedJwt);
+                    System.out.println("identity backendRoles: " + backendRoles);
+                    org.opensearch.commons.authuser.User user = new org.opensearch.commons.authuser.User(username, backendRoles, backendRoles, List.of());
+                    if (threadContext.getTransient("_opendistro_security_identity_user_info") == null) {
+                        StringJoiner joiner = new StringJoiner("|");
+                        joiner.add(user.getName());
+                        joiner.add(String.join(",", user.getRoles()));
+                        joiner.add("");
+                        String requestedTenant = user.getRequestedTenant();
+                        if (!Strings.isNullOrEmpty(requestedTenant)) {
+                            joiner.add(requestedTenant);
+                        }
+                        threadContext.putTransient("_opendistro_security_identity_user_info", joiner.toString());
+                    }
+
+                    threadContext.putTransient("_opendistro_security_origin", "REST");
+
                     original.handleRequest(request, channel, client);
                 }
             }

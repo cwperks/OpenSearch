@@ -19,6 +19,8 @@ opensearchplugin {
 dependencies {
   implementation project(':sandbox:libs:opensearch-authn')
 
+  implementation "org.opensearch:common-utils:2.5.0.0"
+
   implementation 'org.apache.shiro:shiro-core:1.9.1'
   // Needed for shiro
   implementation "org.slf4j:slf4j-api:${versions.slf4j}"

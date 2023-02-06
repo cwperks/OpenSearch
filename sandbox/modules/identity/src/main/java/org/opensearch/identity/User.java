@@ -35,13 +35,14 @@ public class User {
      * @param attributes A map of custom attributes
      * @throws IllegalArgumentException if username or bcryptHash is null or empty
      */
-    public User(final String username, final String bcryptHash, Map<String, String> attributes, List<String> permissions) {
+    public User(final String username, final String bcryptHash, Map<String, String> attributes, List<String> permissions, List<String> backendRoles) {
         Objects.requireNonNull(username);
         Objects.requireNonNull(bcryptHash);
         this.username = new StringPrincipal(username);
         this.bcryptHash = bcryptHash;
         this.attributes = attributes;
         this.permissions = permissions;
+        this.backendRoles = backendRoles;
     }
 
     @JsonProperty(value = "username")
@@ -55,6 +56,9 @@ public class User {
 
     @JsonProperty(value = "permissions")
     private List<String> permissions = Collections.emptyList();
+
+    @JsonProperty(value = "backend_roles")
+    private List<String> backendRoles = Collections.emptyList();
 
     @JsonProperty(value = "username")
     public StringPrincipal getUsername() {
@@ -84,6 +88,16 @@ public class User {
     @JsonProperty(value = "permissions")
     public void setPermissions(List<String> permissions) {
         this.permissions = permissions;
+    }
+
+    @JsonProperty(value = "backend_roles")
+    public List<String> getBackendRoles() {
+        return backendRoles;
+    }
+
+    @JsonProperty(value = "backend_roles")
+    public void setBackendRoles(List<String> backendRoles) {
+        this.backendRoles = backendRoles;
     }
 
     @JsonProperty(value = "attributes")

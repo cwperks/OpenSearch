@@ -315,6 +315,7 @@ public class RestController implements HttpServerTransport.Dispatcher {
             }
 
             handler.handleRequest(request, responseChannel, client);
+            System.out.println("RestController - threadContextHeaders: " + client.threadPool().getThreadContext().getHeaders());
         } catch (Exception e) {
             responseChannel.sendResponse(new BytesRestResponse(responseChannel, e));
         }

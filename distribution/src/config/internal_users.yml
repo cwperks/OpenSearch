@@ -2,6 +2,11 @@
 # The hash value is a bcrypt hash and can be generated with plugin/tools/hash.sh
 
 # Define your internal users here
+identity-user:
+  hash: "$2y$12$Iq/yHpipN9z1AvN3AjG/ceRu9oVlJPubAan6QxngnFQ3bx1UM8xqK"
+  backend_roles:
+    - "identityrole"
+
 new-user:
   hash: "$2y$12$Iq/yHpipN9z1AvN3AjG/ceRu9oVlJPubAan6QxngnFQ3bx1UM8xqK"
   attributes:

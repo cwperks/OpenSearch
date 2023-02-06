@@ -51,6 +51,19 @@ public class SecurityFilter implements ActionFilter {
         return Integer.MIN_VALUE;
     }
 
+    /**
+     * Generates a user string formed by the username, backend roles, roles and requested tenants separated by '|'
+     * (e.g., john||own_index,testrole|__user__, no backend role so you see two verticle line after john.).
+     * This is the user string format used internally in the OPENSEARCH_SECURITY_USER_INFO_THREAD_CONTEXT and may be
+     * parsed using User.parse(string).
+     * @param client Client containing user info. A public API request will fill in the user info in the thread context.
+     * @return parsed user object
+     */
+    public static org.opensearch.commons.authuser.User getUserContext(Client client) {
+        String userStr = client.threadPool().getThreadContext().getTransient(org.opensearch.commons.ConfigConstants.OPENSEARCH_SECURITY_USER_INFO_THREAD_CONTEXT);
+        return org.opensearch.commons.authuser.User.parse(userStr);
+    }
+
     @Override
     public <Request extends ActionRequest, Response extends ActionResponse> void apply(
         Task task,
@@ -72,6 +85,8 @@ public class SecurityFilter implements ActionFilter {
         ActionListener<Response> listener,
         ActionFilterChain<Request, Response> chain
     ) {
+        // Object securityUser = threadContext.getHeader("_opendistro_security_user");
+        org.opensearch.commons.authuser.User securityUser = getUserContext(this.client);
         // TODO The section below shows permission check working for index create and index search, but needs
         // to be expanded to work for all actions
         Subject currentSubject = Identity.getAuthManager().getSubject();

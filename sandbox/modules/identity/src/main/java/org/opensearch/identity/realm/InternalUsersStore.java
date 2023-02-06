@@ -88,7 +88,7 @@ public class InternalUsersStore {
         return internalUsersMap;
     }
 
-    InternalUsersModel getInternalUsersModel() {
+    public InternalUsersModel getInternalUsersModel() {
         return this.internalUsersModel;
     }
 
