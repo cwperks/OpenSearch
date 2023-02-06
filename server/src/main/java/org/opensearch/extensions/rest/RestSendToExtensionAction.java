@@ -164,8 +164,8 @@ public class RestSendToExtensionAction extends BaseRestHandler {
             // Will be replaced with ExtensionTokenProcessor and PrincipalIdentifierToken classes from feature/identity
             final String extensionTokenProcessor = "placeholder_token_processor";
             final String requestIssuerIdentity = "placeholder_request_issuer_identity";
+            // TODO Token is currently generated in SecurityRestFilter of Identity module. Should that be moved here?
             String jwt = client.threadPool().getThreadContext().getHeader("_opensearch_auth_token");
-            System.out.println("_opensearch_auth_token: " + jwt);
 
             transportService.sendRequest(
                 discoveryExtensionNode,

@@ -433,10 +433,8 @@ public class Node implements Closeable {
             FeatureFlags.initializeFeatureFlags(settings);
 
             if (FeatureFlags.isEnabled(FeatureFlags.EXTENSIONS)) {
-                System.out.println("Extensions enabled");
                 this.extensionsManager = new ExtensionsManager(tmpSettings, initialEnvironment.extensionDir());
             } else {
-                System.out.println("Using NoopExtensionsManager");
                 this.extensionsManager = new NoopExtensionsManager();
             }
 
@@ -868,7 +866,8 @@ public class Node implements Closeable {
             final SearchBackpressureService searchBackpressureService = new SearchBackpressureService(
                 searchBackpressureSettings,
                 taskResourceTrackingService,
-                threadPool
+                threadPool,
+                transportService.getTaskManager()
             );
 
             final RecoverySettings recoverySettings = new RecoverySettings(settings, settingsModule.getClusterSettings());
@@ -1007,9 +1006,7 @@ public class Node implements Closeable {
                 b.bind(Client.class).toInstance(client);
                 b.bind(NodeClient.class).toInstance(client);
                 b.bind(Environment.class).toInstance(this.environment);
-                if (FeatureFlags.isEnabled(FeatureFlags.EXTENSIONS)) {
-                    b.bind(ExtensionsManager.class).toInstance(this.extensionsManager);
-                }
+                b.bind(ExtensionsManager.class).toInstance(this.extensionsManager);
                 b.bind(ThreadPool.class).toInstance(threadPool);
                 b.bind(NodeEnvironment.class).toInstance(nodeEnvironment);
                 b.bind(ResourceWatcherService.class).toInstance(resourceWatcherService);

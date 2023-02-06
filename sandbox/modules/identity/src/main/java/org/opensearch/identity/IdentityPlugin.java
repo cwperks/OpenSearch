@@ -34,7 +34,6 @@ import org.opensearch.identity.configuration.ClusterInfoHolder;
 import org.opensearch.identity.configuration.ConfigurationRepository;
 import org.opensearch.identity.configuration.DynamicConfigFactory;
 import org.opensearch.identity.jwt.IdentityJwtVerifier;
-import org.opensearch.index.IndexModule;
 import org.opensearch.indices.SystemIndexDescriptor;
 import org.opensearch.plugins.ActionPlugin;
 import org.opensearch.plugins.ClusterPlugin;
@@ -149,15 +148,6 @@ public final class IdentityPlugin extends Plugin implements ActionPlugin, Networ
         log.info("Node started");
         if (enabled) {
             cr.initOnNodeStart();
-        }
-    }
-
-    @Override
-    public void onIndexModule(IndexModule indexModule) {
-        // called for every index!
-
-        if (enabled) {
-
         }
     }
 
