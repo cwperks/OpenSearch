@@ -50,6 +50,7 @@ import org.opensearch.common.xcontent.XContentBuilder;
 import org.opensearch.common.xcontent.XContentType;
 import org.opensearch.core.internal.io.Streams;
 import org.opensearch.http.HttpServerTransport;
+import org.opensearch.http.NoopResponseCollectingRestChannel;
 import org.opensearch.indices.breaker.CircuitBreakerService;
 import org.opensearch.usage.UsageService;
 
@@ -206,9 +207,17 @@ public class RestController implements HttpServerTransport.Dispatcher {
         if (handler instanceof BaseRestHandler) {
             usageService.addRestHandler((BaseRestHandler) handler);
         }
+//        UnaryOperator <String> twoOfMe = s -> s + s;
+//        Function <String, Integer> convertMe = s -> Integer.parseInt (s);
+//        UnaryOperator <Integer> twiceMe = n -> 2*n;
+//        int a = twoOfMe.andThen(convertMe).andThen(twiceMe).apply ("2");
         UnaryOperator<RestHandler> mergedHandlerWrapper = handlerWrappers.stream()
             .reduce((l, r) -> (RestHandler) -> l.andThen(r).apply(RestHandler))
             .orElseGet(UnaryOperator::identity);
+
+        for (UnaryOperator<RestHandler> wrapper : handlerWrappers) {
+
+        }
         registerHandlerNoWrap(method, path, mergedHandlerWrapper.apply(handler));
     }
 
@@ -314,8 +323,9 @@ public class RestController implements HttpServerTransport.Dispatcher {
                 client.threadPool().getThreadContext().putHeader(SYSTEM_INDEX_ACCESS_CONTROL_HEADER_KEY, Boolean.FALSE.toString());
             }
 
-            handler.handleRequest(request, responseChannel, client);
-            System.out.println("RestController - threadContextHeaders: " + client.threadPool().getThreadContext().getHeaders());
+            NoopResponseCollectingRestChannel noopFilter = new NoopResponseCollectingRestChannel(responseChannel);
+
+            handler.handleRequest(request, noopFilter, client);
         } catch (Exception e) {
             responseChannel.sendResponse(new BytesRestResponse(responseChannel, e));
         }

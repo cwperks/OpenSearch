@@ -295,6 +295,7 @@ import org.opensearch.persistent.StartPersistentTaskAction;
 import org.opensearch.persistent.UpdatePersistentTaskStatusAction;
 import org.opensearch.plugins.ActionPlugin;
 import org.opensearch.plugins.ActionPlugin.ActionHandler;
+import org.opensearch.rest.AuthorizationRestFilter;
 import org.opensearch.rest.RestController;
 import org.opensearch.rest.RestHandler;
 import org.opensearch.rest.RestHeaderDefinition;
@@ -523,6 +524,10 @@ public class ActionModule extends AbstractModule {
                     throw new IllegalArgumentException("Cannot have more than two plugins implementing a REST wrapper");
                 }
             }
+        }
+        AuthorizationRestFilter authzFilter = new AuthorizationRestFilter();
+        if (wrappers.size() > 0) {
+            wrappers.addFirst((rh) -> authzFilter.wrap(rh));
         }
 
         List<UnaryOperator<RestHandler>> restWrappers = wrappers.stream().collect(Collectors.toList());

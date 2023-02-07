@@ -68,18 +68,24 @@ public class SecurityRestFilter {
             @Override
             public void handleRequest(RestRequest request, RestChannel channel, NodeClient client) throws Exception {
                 System.out.println("IdentityPlugin - SecurityRestFilter");
+                boolean previouslyAuthenticatedViaSecurityPlugin = threadContext.getTransient("_opendistro_security_user") != null;
+                if (previouslyAuthenticatedViaSecurityPlugin) {
+                    System.out.println("previouslyAuthenticatedViaSecurityPlugin");
+                    original.handleRequest(request, channel, client);
+                    return;
+                }
                 org.apache.logging.log4j.ThreadContext.clearAll();
                 if (checkAndAuthenticateRequest(request, channel, client)) {
                     String authTokenHeader = threadContext.getHeader(ThreadContextConstants.OPENSEARCH_AUTHENTICATION_TOKEN_HEADER);
                     Map<String, String> jwtClaims = new HashMap<>();
                     String encodedJwt = null;
                     Subject currentSubject = Identity.getAuthManager().getSubject();
-                    String username = "temp"; // TODO remove this default after completing sec plugin compatibility testing
-                    if (currentSubject != null) {
-                        username = currentSubject.getPrincipal().getName();
+                    if (currentSubject == null || currentSubject.getPrincipal() == null) {
+                        final OpenSearchException exc = new OpenSearchException("Authentication failed");
+                        channel.sendResponse(new BytesRestResponse(channel, RestStatus.UNAUTHORIZED, exc));
+                        return;
                     }
-                    User loggedInUser = InternalUsersStore.getInstance().getInternalUsersModel().getUser(username);
-                    List<String> backendRoles = loggedInUser.getBackendRoles() != null ? loggedInUser.getBackendRoles() : List.of();
+                    String username = currentSubject.getPrincipal().getName();
                     if (authTokenHeader == null) {
 
                         // TODO replace with Principal Identifier Token if destination is extension
@@ -120,14 +126,18 @@ public class SecurityRestFilter {
                         log.debug("{} {}", requestInfo, logMsg);
                     }
                     threadContext.putHeader(ThreadContextConstants.OPENSEARCH_AUTHENTICATION_TOKEN_HEADER, encodedJwt);
-                    System.out.println("identity backendRoles: " + backendRoles);
-                    org.opensearch.commons.authuser.User user = new org.opensearch.commons.authuser.User(
-                        username,
-                        backendRoles,
-                        backendRoles,
-                        List.of()
-                    );
+
+                    User loggedInUser = InternalUsersStore.getInstance().getInternalUsersModel().getUser(username);
+                    List<String> backendRoles = loggedInUser.getBackendRoles() != null ? loggedInUser.getBackendRoles() : List.of();
+
                     if (threadContext.getTransient("_opendistro_security_identity_user_info") == null) {
+                        org.opensearch.commons.authuser.User user = new org.opensearch.commons.authuser.User(
+                            username,
+                            backendRoles,
+                            backendRoles,
+                            List.of()
+                        );
+
                         StringJoiner joiner = new StringJoiner("|");
                         joiner.add(user.getName());
                         joiner.add(String.join(",", user.getRoles()));
@@ -139,21 +149,18 @@ public class SecurityRestFilter {
                         threadContext.putTransient("_opendistro_security_identity_user_info", joiner.toString());
                     }
 
-                    System.out.println("_opendistro_security_origin: " + threadContext.getTransient("_opendistro_security_origin"));
                     if (threadContext.getTransient("_opendistro_security_origin") == null) {
                         threadContext.putTransient("_opendistro_security_origin", "REST");
                     }
-
-                    original.handleRequest(request, channel, client);
                 }
+                original.handleRequest(request, channel, client);
             }
         };
     }
 
     // True is authenticated, false if not - this is opposite of the Security plugin
     private boolean checkAndAuthenticateRequest(RestRequest request, RestChannel channel, NodeClient client) throws Exception {
-        boolean previouslyAuthenticated = threadContext.getTransient("_opendistro_security_identity_user") != null;
-        if (!(authenticate(request, channel) || previouslyAuthenticated)) {
+        if (!authenticate(request, channel)) {
             final OpenSearchException exc = new OpenSearchException("Authentication failed");
             channel.sendResponse(new BytesRestResponse(channel, RestStatus.UNAUTHORIZED, exc));
 //            try {
