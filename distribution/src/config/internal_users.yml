@@ -3,52 +3,22 @@
 
 # Define your internal users here
 identity-user:
-  hash: "$2y$12$Iq/yHpipN9z1AvN3AjG/ceRu9oVlJPubAan6QxngnFQ3bx1UM8xqK"
+  hash: "$2y$12$d1dcWb9eGIIRXkknpLSLce.IskP6G5WmLhWeXkBxn/IjuLxybq7j2"
   backend_roles:
     - "identityrole"
 
 new-user:
-  hash: "$2y$12$Iq/yHpipN9z1AvN3AjG/ceRu9oVlJPubAan6QxngnFQ3bx1UM8xqK"
+  hash: "$2y$12$KqmNS9DTRRaf9fvXFmY5veQG9.FT38hglMDf1zo5nSzhZBB9mg1N2"
   attributes:
     attribute1: "value1"
   permissions:
-    - indices:admin:create
-    - indices:data:write:index
-    - indices:data/read/search|my-index*,other-index*
-    - indices:data/read/search|third-index*
-    - indices:data/read/search|my*
+    - indices:admin/create?index-pattern=*
+    - indices:data?write/index
+    - indices:data/read/search?index-pattern=my-index*&index_pattern=other-index*
+    - indices:data/read/search?index-pattern=third-index*
+    - indices:data/read/search?index-pattern=my*
 
 ## Demo users
 
 admin:
-  hash: "$2a$12$VcCDgh2NDk07JGN0rjGbM.Ad41qVR/YFJcgHp0UGns5JDymv..TOG"
-
-kibanaserver:
-  hash: "$2a$12$4AcgAt3xwOWadA5s5blL6ev39OXDNhmOesEoo33eZtrq2N0YrU3H."
-
-kibanaro:
-  hash: "$2a$12$JJSXNfTowz7Uu5ttXfeYpeYE0arACvcwlPBStB1F.MI7f0U9Z4DGC"
-  attributes:
-    attribute1: "value1"
-    attribute2: "value2"
-    attribute3: "value3"
-
-logstash:
-  hash: "$2a$12$u1ShR4l4uBS3Uv59Pa2y5.1uQuZBrZtmNfqB3iM/.jL0XoV9sghS2"
-
-readall:
-  hash: "$2a$12$ae4ycwzwvLtZxwZ82RmiEunBbIPiAmGZduBAjKN0TXdwQFtCwARz2"
-
-snapshotrestore:
-  hash: "$2y$12$DpwmetHKwgYnorbgdvORCenv4NAK8cPUg8AI6pxLCuWf/ALc0.v7W"
-
-# used by ReIndexFromRemote
-Aladdin:
-  hash: "$2y$12$UxTDJyVmn/LIQBEGRt6Mq.9RF6GvC34sFPT6HjK.K0kmT3ANm1CZS" # open sesame
-
-# Two semi-colon password
-test:
-  hash: "$2y$12$fG1vNbK3X73j9eujLfh6We43fbKdy8O8RP5tGnLjg/CWMot48kAwO"    # te:st
-
-test_user:
-  hash: "$2y$12$BSFKmk3/FTTTH3eijILyxuVUGAoe4F.SPMoYHyrOfL.H8PagCqcZO"
+  hash: "$2y$12$SAcRUTwixlhHBiSDu3ynneOnhw8APiyCoN4eDT.g0aXwDr35ontta"

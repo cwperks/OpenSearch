@@ -67,6 +67,7 @@ public class SecurityRestFilter {
 
             @Override
             public void handleRequest(RestRequest request, RestChannel channel, NodeClient client) throws Exception {
+                System.out.println("IdentityPlugin - SecurityRestFilter");
                 org.apache.logging.log4j.ThreadContext.clearAll();
                 if (checkAndAuthenticateRequest(request, channel, client)) {
                     String authTokenHeader = threadContext.getHeader(ThreadContextConstants.OPENSEARCH_AUTHENTICATION_TOKEN_HEADER);
@@ -138,7 +139,10 @@ public class SecurityRestFilter {
                         threadContext.putTransient("_opendistro_security_identity_user_info", joiner.toString());
                     }
 
-                    threadContext.putTransient("_opendistro_security_origin", "REST");
+                    System.out.println("_opendistro_security_origin: " + threadContext.getTransient("_opendistro_security_origin"));
+                    if (threadContext.getTransient("_opendistro_security_origin") == null) {
+                        threadContext.putTransient("_opendistro_security_origin", "REST");
+                    }
 
                     original.handleRequest(request, channel, client);
                 }
@@ -148,9 +152,15 @@ public class SecurityRestFilter {
 
     // True is authenticated, false if not - this is opposite of the Security plugin
     private boolean checkAndAuthenticateRequest(RestRequest request, RestChannel channel, NodeClient client) throws Exception {
-        if (!authenticate(request, channel)) {
+        boolean previouslyAuthenticated = threadContext.getTransient("_opendistro_security_identity_user") != null;
+        if (!(authenticate(request, channel) || previouslyAuthenticated)) {
             final OpenSearchException exc = new OpenSearchException("Authentication failed");
             channel.sendResponse(new BytesRestResponse(channel, RestStatus.UNAUTHORIZED, exc));
+//            try {
+//                channel.sendResponse(new BytesRestResponse(channel, RestStatus.UNAUTHORIZED, exc));
+//            } catch (Exception inner) {
+//                log.warn("failed to send response for " + request, inner);
+//            }
             return false;
         }
 

@@ -442,6 +442,8 @@ import org.opensearch.usage.UsageService;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Deque;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -505,19 +507,25 @@ public class ActionModule extends AbstractModule {
             actionPlugins.stream().flatMap(p -> p.getRestHeaders().stream()),
             Stream.of(new RestHeaderDefinition(Task.X_OPAQUE_ID, false))
         ).collect(Collectors.toSet());
-        List<UnaryOperator<RestHandler>> restWrappers = new ArrayList<>();
+        Deque<UnaryOperator<RestHandler>> wrappers = new LinkedList<>();
         // Only one plugin is allowed to have a rest wrapper. i.e. Security plugin
         for (ActionPlugin plugin : actionPlugins) {
             UnaryOperator<RestHandler> newRestWrapper = plugin.getRestHandlerWrapper(threadPool.getThreadContext());
             if (newRestWrapper != null) {
                 logger.debug("Using REST wrapper from plugin " + plugin.getClass().getName());
-                restWrappers.add(newRestWrapper);
+                if (plugin.getClass().getName().equals("org.opensearch.identity.IdentityPlugin")) {
+                    wrappers.addFirst(newRestWrapper);
+                } else {
+                    wrappers.addLast(newRestWrapper);
+                }
                 // Identity Module + one other plugin
-                if (restWrappers.size() > 2) {
+                if (wrappers.size() > 2) {
                     throw new IllegalArgumentException("Cannot have more than two plugins implementing a REST wrapper");
                 }
             }
         }
+
+        List<UnaryOperator<RestHandler>> restWrappers = wrappers.stream().collect(Collectors.toList());
 
         mappingRequestValidators = new RequestValidators<>(
             actionPlugins.stream().flatMap(p -> p.mappingRequestValidators().stream()).collect(Collectors.toList())
