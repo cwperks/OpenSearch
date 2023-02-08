@@ -16,10 +16,14 @@ import java.util.Set;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import org.opensearch.authn.Identity;
+import org.opensearch.authn.Subject;
 import org.opensearch.client.node.NodeClient;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.common.util.concurrent.ThreadContext;
 import org.opensearch.common.xcontent.XContentBuilder;
+import org.opensearch.identity.User;
+import org.opensearch.identity.realm.InternalUsersStore;
 import org.opensearch.rest.BaseRestHandler;
 import org.opensearch.rest.BytesRestResponse;
 import org.opensearch.rest.RestChannel;
@@ -28,11 +32,12 @@ import org.opensearch.rest.RestRequest;
 import org.opensearch.rest.RestStatus;
 import org.opensearch.threadpool.ThreadPool;
 
+import static org.opensearch.identity.utils.RoutesHelper.addRoutesPrefix;
+import static org.opensearch.rest.RestRequest.Method.GET;
+import static org.opensearch.rest.RestRequest.Method.POST;
+
 public class IdentityInfoAction extends BaseRestHandler {
-    // private static final List<Route> routes = addRoutesPrefix(List.of(
-    // new Route(GET, "/authinfo"),
-    // new Route(POST, "/authinfo")
-    // ),"/_opendistro/_security", "/_plugins/_security");
+    private static final List<Route> routes = addRoutesPrefix(List.of(new Route(GET, "/authinfo"), new Route(POST, "/authinfo")));
 
     private final Logger log = LogManager.getLogger(this.getClass());
     private final ThreadContext threadContext;
@@ -44,8 +49,7 @@ public class IdentityInfoAction extends BaseRestHandler {
 
     @Override
     public List<Route> routes() {
-        // return routes;
-        return List.of();
+        return routes;
     }
 
     @Override
@@ -60,14 +64,19 @@ public class IdentityInfoAction extends BaseRestHandler {
                 try {
 
                     // final User user = threadContext.getTransient(ConfigConstants.OPENDISTRO_SECURITY_USER);
+                    Subject currentSubject = Identity.getAuthManager().getSubject();
+                    User user = null;
+                    if (currentSubject != null && currentSubject.getPrincipal() != null) {
+                        user = InternalUsersStore.getInstance().getInternalUsersModel().getUser(currentSubject.getPrincipal().getName());
+                    }
 
                     builder.startObject();
-                    // builder.field("user", user==null?null:user.toString());
-                    // builder.field("user_name", user==null?null:user.getName());
-                    // builder.field("user_requested_tenant", (String)null);
-                    // builder.field("remote_address", (String)null);
-                    // builder.field("backend_roles", user==null?null:user.getRoles());
-                    // builder.field("custom_attribute_names", user==null?null:user.getCustomAttributesMap().keySet());
+                    builder.field("user", user == null ? null : user.toString());
+                    builder.field("user_name", user == null ? null : user.getUsername());
+                    builder.field("user_requested_tenant", (String) null);
+                    builder.field("remote_address", (String) null);
+                    builder.field("backend_roles", user == null ? null : user.getBackendRoles());
+                    builder.field("custom_attribute_names", user == null ? null : user.getAttributes().keySet());
                     builder.field("roles", (Set<String>) null);
                     builder.field("tenants", (Map<String, Boolean>) null);
                     builder.field("principal", (String) null);
