@@ -38,7 +38,7 @@ public class AuthorizationRestFilter {
             public void handleRequest(RestRequest request, RestChannel channel, NodeClient client) throws Exception {
                 System.out.println("AuthorizationRestFilter.wrap");
                 if (channel instanceof NoopResponseCollectingRestChannel) {
-                    NoopResponseCollectingRestChannel noopChannel = (NoopResponseCollectingRestChannel)channel;
+                    NoopResponseCollectingRestChannel noopChannel = (NoopResponseCollectingRestChannel) channel;
                     RestChannel originalChannel = noopChannel.getOriginalChannel();
                     List<RestResponse> capturedResponses = noopChannel.capturedResponses();
                     System.out.println("capturedResponses: " + noopChannel.capturedResponses());
@@ -57,4 +57,3 @@ public class AuthorizationRestFilter {
         };
     }
 }
-

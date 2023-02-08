@@ -11,7 +11,6 @@ package org.opensearch.http;
 import org.opensearch.common.io.stream.BytesStreamOutput;
 import org.opensearch.common.xcontent.XContentBuilder;
 import org.opensearch.common.xcontent.XContentType;
-import org.opensearch.rest.AbstractRestChannel;
 import org.opensearch.rest.RestChannel;
 import org.opensearch.rest.RestRequest;
 import org.opensearch.rest.RestResponse;
@@ -49,7 +48,8 @@ public final class NoopResponseCollectingRestChannel implements RestChannel {
     }
 
     @Override
-    public XContentBuilder newBuilder(XContentType xContentType, XContentType responseContentType, boolean useFiltering) throws IOException {
+    public XContentBuilder newBuilder(XContentType xContentType, XContentType responseContentType, boolean useFiltering)
+        throws IOException {
         return null;
     }
 
@@ -90,6 +90,7 @@ public final class NoopResponseCollectingRestChannel implements RestChannel {
         return errors;
     }
 
-    public RestChannel getOriginalChannel() { return this.originalChannel; }
+    public RestChannel getOriginalChannel() {
+        return this.originalChannel;
+    }
 }
-
