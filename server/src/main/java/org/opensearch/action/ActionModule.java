@@ -525,7 +525,8 @@ public class ActionModule extends AbstractModule {
                 }
             }
         }
-        AuthorizationRestFilter authzFilter = new AuthorizationRestFilter();
+        List<UnaryOperator<RestHandler>> pluginWrappers = wrappers.stream().collect(Collectors.toList());
+        AuthorizationRestFilter authzFilter = new AuthorizationRestFilter(pluginWrappers);
         if (wrappers.size() > 0) {
             wrappers.addFirst((rh) -> authzFilter.wrap(rh));
         }

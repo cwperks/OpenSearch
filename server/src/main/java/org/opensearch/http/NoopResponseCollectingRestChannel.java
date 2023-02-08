@@ -70,8 +70,6 @@ public final class NoopResponseCollectingRestChannel implements RestChannel {
 
     @Override
     public void sendResponse(RestResponse response) {
-        System.out.println("NoopResponseCollectingRestChannel.sendResponse");
-        System.out.print(response);
         this.capturedRestResponses.add(response);
         if (response.status() == RestStatus.OK) {
             responses.incrementAndGet();

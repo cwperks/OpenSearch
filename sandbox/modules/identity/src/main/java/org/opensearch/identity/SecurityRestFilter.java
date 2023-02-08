@@ -161,8 +161,7 @@ public class SecurityRestFilter {
     // True is authenticated, false if not - this is opposite of the Security plugin
     private boolean checkAndAuthenticateRequest(RestRequest request, RestChannel channel, NodeClient client) throws Exception {
         if (!authenticate(request, channel)) {
-            final OpenSearchException exc = new OpenSearchException("Authentication failed");
-            channel.sendResponse(new BytesRestResponse(channel, RestStatus.UNAUTHORIZED, exc));
+            channel.sendResponse(new BytesRestResponse(RestStatus.UNAUTHORIZED, "Authentication finally failed"));
 //            try {
 //                channel.sendResponse(new BytesRestResponse(channel, RestStatus.UNAUTHORIZED, exc));
 //            } catch (Exception inner) {

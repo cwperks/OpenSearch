@@ -13,9 +13,19 @@ import org.apache.logging.log4j.Logger;
 import org.opensearch.client.node.NodeClient;
 import org.opensearch.http.NoopResponseCollectingRestChannel;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.UnaryOperator;
+
 public class AuthorizationRestFilter {
 
-    protected final Logger log = LogManager.getLogger(this.getClass());
+    private final Logger log = LogManager.getLogger(this.getClass());
+
+    private List<UnaryOperator<RestHandler>> restWrappers = new ArrayList<>();
+
+    public AuthorizationRestFilter(List<UnaryOperator<RestHandler>> restWrappers) {
+        this.restWrappers = restWrappers;
+    }
 
     /**
      * This function wraps around all rest requests
@@ -29,8 +39,16 @@ public class AuthorizationRestFilter {
                 System.out.println("AuthorizationRestFilter.wrap");
                 if (channel instanceof NoopResponseCollectingRestChannel) {
                     NoopResponseCollectingRestChannel noopChannel = (NoopResponseCollectingRestChannel)channel;
+                    RestChannel originalChannel = noopChannel.getOriginalChannel();
+                    List<RestResponse> capturedResponses = noopChannel.capturedResponses();
                     System.out.println("capturedResponses: " + noopChannel.capturedResponses());
-                    original.handleRequest(request, noopChannel.getOriginalChannel(), client);
+                    // All authentication REST filters failed
+                    if (restWrappers.size() > 0 && restWrappers.size() == capturedResponses.size()) {
+                        originalChannel.sendResponse(capturedResponses.get(0));
+                        return;
+                    }
+                    // At least one authentication REST filter succeeded
+                    original.handleRequest(request, originalChannel, client);
                 } else {
                     original.handleRequest(request, channel, client);
                 }
