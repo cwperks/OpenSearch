@@ -11,6 +11,7 @@ package org.opensearch.identity.rest.user.put;
 import org.opensearch.action.ActionListener;
 import org.opensearch.action.support.ActionFilters;
 import org.opensearch.action.support.HandledTransportAction;
+import org.opensearch.common.collect.List;
 import org.opensearch.common.inject.Inject;
 import org.opensearch.identity.User;
 import org.opensearch.identity.rest.user.UserService;
@@ -41,7 +42,8 @@ public class TransportPutUserAction extends HandledTransportAction<PutUserReques
         String password = request.getPassword();
         Map<String, String> attributes = request.getAttributes();
         Set<String> permissions = request.getPermissions();
-        User user = new User(username, password, attributes, permissions);
+        // TODO Support backend roles via this API?
+        User user = new User(username, password, attributes, permissions, List.of());
         userService.createOrUpdateUser(user, listener);
     }
 

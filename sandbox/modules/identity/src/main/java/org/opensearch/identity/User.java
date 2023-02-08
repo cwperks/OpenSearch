@@ -12,9 +12,11 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import org.opensearch.authn.StringPrincipal;
 
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * A non-volatile and immutable object in the storage.
@@ -39,7 +41,7 @@ public class User {
         final String username,
         final String bcryptHash,
         Map<String, String> attributes,
-        List<String> permissions,
+        Set<String> permissions,
         List<String> backendRoles
     ) {
         Objects.requireNonNull(username);

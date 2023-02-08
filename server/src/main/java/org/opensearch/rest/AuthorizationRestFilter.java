@@ -36,12 +36,10 @@ public class AuthorizationRestFilter {
 
             @Override
             public void handleRequest(RestRequest request, RestChannel channel, NodeClient client) throws Exception {
-                System.out.println("AuthorizationRestFilter.wrap");
                 if (channel instanceof NoopResponseCollectingRestChannel) {
                     NoopResponseCollectingRestChannel noopChannel = (NoopResponseCollectingRestChannel) channel;
                     RestChannel originalChannel = noopChannel.getOriginalChannel();
                     List<RestResponse> capturedResponses = noopChannel.capturedResponses();
-                    System.out.println("capturedResponses: " + noopChannel.capturedResponses());
                     // All authentication REST filters failed
                     if (restWrappers.size() > 0 && restWrappers.size() == capturedResponses.size()) {
                         // TODO Eagerly responding with first failure response, how should this respond?
