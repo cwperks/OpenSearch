@@ -44,6 +44,7 @@ public class AuthorizationRestFilter {
                     System.out.println("capturedResponses: " + noopChannel.capturedResponses());
                     // All authentication REST filters failed
                     if (restWrappers.size() > 0 && restWrappers.size() == capturedResponses.size()) {
+                        // TODO Eagerly responding with first failure response, how should this respond?
                         originalChannel.sendResponse(capturedResponses.get(0));
                         return;
                     }

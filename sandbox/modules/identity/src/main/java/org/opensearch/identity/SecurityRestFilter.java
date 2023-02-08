@@ -81,8 +81,7 @@ public class SecurityRestFilter {
                     String encodedJwt = null;
                     Subject currentSubject = Identity.getAuthManager().getSubject();
                     if (currentSubject == null || currentSubject.getPrincipal() == null) {
-                        final OpenSearchException exc = new OpenSearchException("Authentication failed");
-                        channel.sendResponse(new BytesRestResponse(channel, RestStatus.UNAUTHORIZED, exc));
+                        channel.sendResponse(new BytesRestResponse(RestStatus.UNAUTHORIZED, "Subject is not defined"));
                         return;
                     }
                     String username = currentSubject.getPrincipal().getName();
@@ -162,11 +161,6 @@ public class SecurityRestFilter {
     private boolean checkAndAuthenticateRequest(RestRequest request, RestChannel channel, NodeClient client) throws Exception {
         if (!authenticate(request, channel)) {
             channel.sendResponse(new BytesRestResponse(RestStatus.UNAUTHORIZED, "Authentication finally failed"));
-//            try {
-//                channel.sendResponse(new BytesRestResponse(channel, RestStatus.UNAUTHORIZED, exc));
-//            } catch (Exception inner) {
-//                log.warn("failed to send response for " + request, inner);
-//            }
             return false;
         }
 
