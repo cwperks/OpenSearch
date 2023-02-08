@@ -133,14 +133,14 @@ public class SecurityRestFilter {
                         org.opensearch.commons.authuser.User user = new org.opensearch.commons.authuser.User(
                             username,
                             backendRoles,
-                            backendRoles,
+                            List.of(),
                             List.of()
                         );
 
                         StringJoiner joiner = new StringJoiner("|");
                         joiner.add(user.getName());
+                        joiner.add(String.join(",", user.getBackendRoles()));
                         joiner.add(String.join(",", user.getRoles()));
-                        joiner.add("");
                         String requestedTenant = user.getRequestedTenant();
                         if (!Strings.isNullOrEmpty(requestedTenant)) {
                             joiner.add(requestedTenant);
