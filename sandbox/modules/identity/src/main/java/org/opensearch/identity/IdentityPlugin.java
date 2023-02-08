@@ -40,6 +40,9 @@ import org.opensearch.identity.configuration.ClusterInfoHolder;
 import org.opensearch.identity.configuration.ConfigurationRepository;
 import org.opensearch.identity.configuration.DynamicConfigFactory;
 import org.opensearch.identity.jwt.IdentityJwtVerifier;
+import org.opensearch.identity.rest.authinfo.IdentityInfoAction;
+import org.opensearch.identity.rest.authinfo.RestIdentityInfoAction;
+import org.opensearch.identity.rest.authinfo.TransportIdentityInfoAction;
 import org.opensearch.identity.rest.configuration.IdentityConfigUpdateAction;
 import org.opensearch.identity.rest.configuration.TransportIdentityConfigUpdateAction;
 import org.opensearch.identity.rest.user.put.PutUserAction;
@@ -123,6 +126,7 @@ public final class IdentityPlugin extends Plugin implements ActionPlugin, Networ
     ) {
         final List<RestHandler> handlers = new ArrayList<>(1);
         handlers.add(new RestPutUserAction());
+        handlers.add(new RestIdentityInfoAction());
         // TODO: Add handlers for future actions
         return handlers;
     }
@@ -138,6 +142,7 @@ public final class IdentityPlugin extends Plugin implements ActionPlugin, Networ
 
         return Arrays.asList(
             new ActionHandler<>(PutUserAction.INSTANCE, TransportPutUserAction.class),
+            new ActionHandler<>(IdentityInfoAction.INSTANCE, TransportIdentityInfoAction.class),
             new ActionHandler<>(IdentityConfigUpdateAction.INSTANCE, TransportIdentityConfigUpdateAction.class)
         );
     }

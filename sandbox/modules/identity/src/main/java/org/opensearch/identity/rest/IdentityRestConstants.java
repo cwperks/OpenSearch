@@ -21,4 +21,5 @@ public class IdentityRestConstants {
     public static final String IDENTITY_CREATE_OR_UPDATE_USER_ACTION = "put" + IDENTITY_USER_ACTION_SUFFIX;
     public static final String IDENTITY_READ_USER_ACTION = "read" + IDENTITY_USER_ACTION_SUFFIX;
     public static final String IDENTITY_DELETE_USER_ACTION = "delete" + IDENTITY_USER_ACTION_SUFFIX;
+    public static final String IDENTITY_AUTHINFO_ACTION = "authinfo";
 }
