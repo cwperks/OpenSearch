@@ -125,26 +125,14 @@ public class SecurityRestFilter {
                     }
                     threadContext.putHeader(ThreadContextConstants.OPENSEARCH_AUTHENTICATION_TOKEN_HEADER, encodedJwt);
 
-                    User loggedInUser = InternalUsersStore.getInstance().getInternalUsersModel().getUser(username);
-                    List<String> backendRoles = loggedInUser.getBackendRoles() != null ? loggedInUser.getBackendRoles() : List.of();
+                    User user = InternalUsersStore.getInstance().getInternalUsersModel().getUser(username);
+                    List<String> backendRoles = user.getBackendRoles() != null ? user.getBackendRoles() : List.of();
 
-                    if (threadContext.getTransient("_opendistro_security_identity_user_info") == null) {
-                        org.opensearch.commons.authuser.User user = new org.opensearch.commons.authuser.User(
-                            username,
-                            backendRoles,
-                            List.of(),
-                            List.of()
-                        );
-
+                    if (threadContext.getTransient("injected_user") == null) {
                         StringJoiner joiner = new StringJoiner("|");
-                        joiner.add(user.getName());
-                        joiner.add(String.join(",", user.getBackendRoles()));
-                        joiner.add(String.join(",", user.getRoles()));
-                        String requestedTenant = user.getRequestedTenant();
-                        if (!Strings.isNullOrEmpty(requestedTenant)) {
-                            joiner.add(requestedTenant);
-                        }
-                        threadContext.putTransient("_opendistro_security_identity_user_info", joiner.toString());
+                        joiner.add(user.getUsername().getName());
+                        joiner.add(String.join(",", backendRoles));
+                        threadContext.putTransient("injected_user", joiner.toString());
                     }
 
                     if (threadContext.getTransient("_opendistro_security_origin") == null) {
