@@ -49,15 +49,27 @@ public class RestIdentityInfoAction extends BaseRestHandler {
      * Sample Response
      *
      * {
-     *   "users": [
-     *     {
-     *       "successful": true,
-     *       "username": "test",
-     *       "message": "test created successfully."
-     *     }
-     *   ]
+     *   "user": "User [name=admin, backend_roles=[admin], requestedTenant=null]",
+     *   "user_name": "admin",
+     *   "user_requested_tenant": null,
+     *   "remote_address": "172.25.0.1:65382",
+     *   "backend_roles": [
+     *     "admin"
+     *   ],
+     *   "custom_attribute_names": [],
+     *   "roles": [
+     *     "own_index",
+     *     "all_access"
+     *   ],
+     *   "tenants": {
+     *     "global_tenant": true,
+     *     "admin_tenant": true,
+     *     "admin": true
+     *   },
+     *   "principal": null,
+     *   "peer_certificates": "0",
+     *   "sso_logout_url": null
      * }
-     *
      */
     @Override
     @SuppressWarnings("unchecked")

@@ -47,7 +47,7 @@ public class TransportIdentityInfoAction extends HandledTransportAction<Identity
             return;
         }
 
-        IdentityInfoResponse response = new IdentityInfoResponse(user.getUsername().getName(), user.getBackendRoles());
+        IdentityInfoResponse response = new IdentityInfoResponse(user.toString(), user.getUsername().getName(), user.getBackendRoles());
 
         listener.onResponse(response);
     }

@@ -27,11 +27,13 @@ import static org.opensearch.rest.RestStatus.OK;
  */
 public class IdentityInfoResponse extends ActionResponse implements StatusToXContentObject {
 
+    private String userStr; // String representation of a user. i.e. User [name=admin, backend_roles=[admin]]
     private String username;
 
     private List<String> backendRoles;
 
-    public IdentityInfoResponse(String username, List<String> backendRoles) {
+    public IdentityInfoResponse(String userStr, String username, List<String> backendRoles) {
+        this.userStr = userStr;
         this.username = username;
         this.backendRoles = backendRoles;
     }
@@ -51,6 +53,7 @@ public class IdentityInfoResponse extends ActionResponse implements StatusToXCon
 
     @Override
     public void writeTo(StreamOutput out) throws IOException {
+        out.writeString(userStr);
         out.writeString(username);
         out.writeStringArray(backendRoles.toArray(new String[0]));
     }
@@ -58,8 +61,17 @@ public class IdentityInfoResponse extends ActionResponse implements StatusToXCon
     @Override
     public XContentBuilder toXContent(XContentBuilder builder, ToXContent.Params params) throws IOException {
         builder.startObject();
-        builder.field("username", username);
+        builder.field("user", userStr);
+        builder.field("user_name", username);
         builder.field("backend_roles", backendRoles);
+        builder.field("remote_address", (String)null);
+        builder.field("user_requested_tenant", (String)null);
+        builder.field("custom_attribute_names", (String)null);
+        builder.field("roles", (String)null);
+        builder.field("tenants", (String)null);
+        builder.field("principal", (String)null);
+        builder.field("peer_certificates", (String)null);
+        builder.field("sso_logout_url", (String)null);
         builder.endObject();
         return builder;
     }
