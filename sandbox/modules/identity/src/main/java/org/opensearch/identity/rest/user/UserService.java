@@ -133,6 +133,10 @@ public class UserService {
             existingUser = (User) internalUsersConfiguration.getCEntry(username);
             // add current permissions
             Optional.ofNullable(existingUser.getPermissions()).ifPresent(permissions::addAll);
+            if (userToBeCreated.getBackendRoles() != null) {
+                existingUser.setBackendRoles(userToBeCreated.getBackendRoles());
+            }
+
         } else {
             // add new permissions
             Optional.ofNullable(userToBeCreated.getPermissions()).ifPresent(permissions::addAll);

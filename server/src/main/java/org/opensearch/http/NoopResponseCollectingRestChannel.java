@@ -21,6 +21,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
+/**
+ * This RestChannel collects reponses when sendResponse is called to ensure that multiple authentication filters
+ * can be utilized
+ */
 public final class NoopResponseCollectingRestChannel implements RestChannel {
     private final AtomicInteger responses = new AtomicInteger();
     private final AtomicInteger errors = new AtomicInteger();

@@ -17,6 +17,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.UnaryOperator;
 
+/**
+ * This class is the last rest wrapper to run and determines if the server should respond to the client
+ * before executing the request because of errors identified in the authorization rest wrappers.
+ */
 public class AuthorizationRestFilter {
 
     private final Logger log = LogManager.getLogger(this.getClass());
