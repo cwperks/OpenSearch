@@ -41,7 +41,7 @@ public class User {
         final String bcryptHash,
         Map<String, String> attributes,
         Set<String> permissions,
-        List<String> backendRoles
+        List<String> opensearchSecurityRoles
     ) {
         Objects.requireNonNull(username);
         Objects.requireNonNull(bcryptHash);
@@ -49,7 +49,7 @@ public class User {
         this.hash = bcryptHash;
         this.attributes = attributes;
         this.permissions = permissions;
-        this.backendRoles = backendRoles;
+        this.opensearchSecurityRoles = opensearchSecurityRoles;
     }
 
     @JsonProperty(value = "username")
@@ -64,8 +64,8 @@ public class User {
     @JsonProperty(value = "permissions")
     private Set<String> permissions = Collections.emptySet();
 
-    @JsonProperty(value = "backend_roles")
-    private List<String> backendRoles = Collections.emptyList();
+    @JsonProperty(value = "opensearch_security_roles")
+    private List<String> opensearchSecurityRoles = Collections.emptyList();
 
     @JsonProperty(value = "username")
     public StringPrincipal getUsername() {
@@ -97,14 +97,14 @@ public class User {
         this.permissions = permissions;
     }
 
-    @JsonProperty(value = "backend_roles")
-    public List<String> getBackendRoles() {
-        return backendRoles;
+    @JsonProperty(value = "opensearch_security_roles")
+    public List<String> getOpenSearchSecurityRoles() {
+        return opensearchSecurityRoles;
     }
 
-    @JsonProperty(value = "backend_roles")
-    public void setBackendRoles(List<String> backendRoles) {
-        this.backendRoles = backendRoles;
+    @JsonProperty(value = "opensearch_security_roles")
+    public void setOpenSearchSecurityRoles(List<String> opensearchSecurityRoles) {
+        this.opensearchSecurityRoles = opensearchSecurityRoles;
     }
 
     @JsonProperty(value = "attributes")
@@ -119,6 +119,6 @@ public class User {
 
     @Override
     public String toString() {
-        return "User [username=" + username + ", backendRoles=" + backendRoles + ", attributes=" + attributes + ", permissions=" + attributes + "]";
+        return "User [username=" + username + ", opensearchSecurityRoles=" + opensearchSecurityRoles + ", attributes=" + attributes + ", permissions=" + attributes + "]";
     }
 }

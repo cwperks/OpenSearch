@@ -126,13 +126,13 @@ public class SecurityRestFilter {
                     threadContext.putHeader(ThreadContextConstants.OPENSEARCH_AUTHENTICATION_TOKEN_HEADER, encodedJwt);
 
                     User user = InternalUsersStore.getInstance().getInternalUsersModel().getUser(username);
-                    List<String> backendRoles = user.getBackendRoles() != null ? user.getBackendRoles() : List.of();
+                    List<String> opensearchSecurityRoles = user.getOpenSearchSecurityRoles() != null ? user.getOpenSearchSecurityRoles() : List.of();
 
-                    if (threadContext.getTransient("injected_user") == null) {
+                    if (threadContext.getTransient("opendistro_security_injected_roles") == null) {
                         StringJoiner joiner = new StringJoiner("|");
                         joiner.add(user.getUsername().getName());
-                        joiner.add(String.join(",", backendRoles));
-                        threadContext.putTransient("injected_user", joiner.toString());
+                        joiner.add(String.join(",", opensearchSecurityRoles));
+                        threadContext.putTransient("opendistro_security_injected_roles", joiner.toString());
                     }
 
                     if (threadContext.getTransient("_opendistro_security_origin") == null) {

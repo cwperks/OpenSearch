@@ -42,9 +42,9 @@ public class TransportPutUserAction extends HandledTransportAction<PutUserReques
         String password = request.getPassword();
         Map<String, String> attributes = request.getAttributes();
         Set<String> permissions = request.getPermissions();
-        List<String> backendRoles = request.getBackendRoles();
-        // TODO Support backend roles via this API?
-        User user = new User(username, password, attributes, permissions, backendRoles);
+        List<String> opensearchSecurityRoles = request.getOpenSearchSecurityRoles();
+        // TODO Support opensearch security roles via this API?
+        User user = new User(username, password, attributes, permissions, opensearchSecurityRoles);
         userService.createOrUpdateUser(user, listener);
     }
 

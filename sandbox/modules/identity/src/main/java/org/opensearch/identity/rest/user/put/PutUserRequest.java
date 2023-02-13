@@ -34,7 +34,7 @@ public class PutUserRequest extends ActionRequest implements ToXContentObject {
     private Map<String, String> attributes;
     private Set<String> permissions;
 
-    private List<String> backendRoles;
+    private List<String> opensearchSecurityRoles;
 
     public PutUserRequest(StreamInput in) throws IOException {
         super(in);
@@ -42,15 +42,15 @@ public class PutUserRequest extends ActionRequest implements ToXContentObject {
         password = in.readString();
         attributes = in.readMap(StreamInput::readString, StreamInput::readString);
         permissions = in.readSet(StreamInput::readString);
-        backendRoles = in.readList(StreamInput::readString);
+        opensearchSecurityRoles = in.readList(StreamInput::readString);
     }
 
-    public PutUserRequest(String username, String password, Map<String, String> attributes, Set<String> permissions, List<String> backendRoles) {
+    public PutUserRequest(String username, String password, Map<String, String> attributes, Set<String> permissions, List<String> opensearchSecurityRoles) {
         this.username = username;
         this.password = password;
         this.attributes = attributes;
         this.permissions = permissions;
-        this.backendRoles = backendRoles;
+        this.opensearchSecurityRoles = opensearchSecurityRoles;
     }
 
     public PutUserRequest() {}
@@ -75,8 +75,8 @@ public class PutUserRequest extends ActionRequest implements ToXContentObject {
         return permissions;
     }
 
-    public List<String> getBackendRoles() {
-        return backendRoles;
+    public List<String> getOpenSearchSecurityRoles() {
+        return opensearchSecurityRoles;
     }
 
     @Override
@@ -97,7 +97,7 @@ public class PutUserRequest extends ActionRequest implements ToXContentObject {
         out.writeString(password);
         out.writeMap(attributes, StreamOutput::writeString, StreamOutput::writeString);
         out.writeStringCollection(permissions);
-        out.writeStringCollection(backendRoles);
+        out.writeStringCollection(opensearchSecurityRoles);
     }
 
     @Override
@@ -107,7 +107,7 @@ public class PutUserRequest extends ActionRequest implements ToXContentObject {
         builder.value(password);
         builder.value(attributes);
         builder.value(permissions);
-        builder.value(backendRoles);
+        builder.value(opensearchSecurityRoles);
         builder.endObject();
         return builder;
     }

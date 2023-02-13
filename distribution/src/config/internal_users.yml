@@ -13,7 +13,7 @@ new-user:
     attribute1: "value1"
   permissions:
     - indices:admin/create?index-pattern=*
-    - indices:data?write/index
+    - indices:data/write/index
     - indices:data/read/search?index-pattern=my-index*&index_pattern=other-index*
     - indices:data/read/search?index-pattern=third-index*
     - indices:data/read/search?index-pattern=my*
@@ -22,5 +22,5 @@ new-user:
 
 admin:
   hash: "$2y$12$SAcRUTwixlhHBiSDu3ynneOnhw8APiyCoN4eDT.g0aXwDr35ontta"
-  backend_roles:
-    - "admin"
+  opensearch_security_roles:
+    - "all_access"

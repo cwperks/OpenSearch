@@ -81,9 +81,9 @@ public class RestPutUserAction extends BaseRestHandler {
 
             Set<String> permissions = DefaultObjectMapper.readTree(contentAsNode.get("permissions"), Set.class);
 
-            List<String> backendRoles = DefaultObjectMapper.readTree(contentAsNode.get("backendRoles"), List.class);
+            List<String> opensearchSecurityRoles = DefaultObjectMapper.readTree(contentAsNode.get("opensearchSecurityRoles"), List.class);
 
-            PutUserRequest putUserRequest = new PutUserRequest(username, password, attributes, permissions, backendRoles);
+            PutUserRequest putUserRequest = new PutUserRequest(username, password, attributes, permissions, opensearchSecurityRoles);
 
             // TODO: check if this bypass to directly doExecute is okay.
             // TODO: Ideally, this should be registered as `createUser` request in Client.java and AbstractClient.java
