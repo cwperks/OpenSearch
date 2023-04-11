@@ -23,6 +23,8 @@ public class RouteHandler extends Route {
 
     private final String name;
 
+    private final String legacyName;
+
     private final Function<RestRequest, ExtensionRestResponse> responseHandler;
 
     /**
@@ -36,6 +38,7 @@ public class RouteHandler extends Route {
         super(method, path);
         this.responseHandler = handler;
         this.name = null;
+        this.legacyName = null;
     }
 
     /**
@@ -50,6 +53,24 @@ public class RouteHandler extends Route {
         super(method, path);
         this.responseHandler = handler;
         this.name = name;
+        this.legacyName = null;
+    }
+
+    /**
+     * Handle the method and path with the specified handler.
+     *
+     * @param name The name of the handler.
+     * @param legacyName The legacy name of the handler.
+     * @param method The {@link Method} to handle.
+     * @param path The path to handle.
+     * @param handler The method which handles the method and path.
+     */
+    @Deprecated
+    public RouteHandler(String name, String legacyName, Method method, String path, Function<RestRequest, ExtensionRestResponse> handler) {
+        super(method, path);
+        this.responseHandler = handler;
+        this.name = name;
+        this.legacyName = legacyName;
     }
 
     /**
