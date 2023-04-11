@@ -93,4 +93,11 @@ public class RouteHandler extends Route {
     public String name() {
         return this.name;
     }
+
+    /**
+     * The legacy action name corresponding to the RouteHandler. Must be unique across route handlers.
+     */
+    public String legacyActionName() {
+        return this.legacyActionName;
+    }
 }

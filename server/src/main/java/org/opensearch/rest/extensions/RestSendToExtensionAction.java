@@ -90,6 +90,7 @@ public class RestSendToExtensionAction extends BaseRestHandler {
             RestRequest.Method method;
             String path;
             Optional<String> name = Optional.empty();
+            Optional<String> legacyActionName = Optional.empty();
             try {
                 String[] parts = restAction.split(" ");
                 if (parts.length < 2) {
@@ -100,11 +101,17 @@ public class RestSendToExtensionAction extends BaseRestHandler {
                 if (parts.length > 2) {
                     name = Optional.of(parts[2].trim());
                 }
+
+                if (parts.length > 3) {
+                    legacyActionName = Optional.of(parts[3].trim());
+                }
             } catch (IndexOutOfBoundsException | IllegalArgumentException e) {
                 throw new IllegalArgumentException(restAction + " does not begin with a valid REST method");
             }
             logger.info("Registering: " + method + " " + path);
-            if (name.isPresent()) {
+            if (name.isPresent() && legacyActionName.isPresent()) {
+                restActionsAsRoutes.add(new PermissibleRoute(method, path, name.get(), legacyActionName.get()));
+            } else if (name.isPresent()) {
                 restActionsAsRoutes.add(new PermissibleRoute(method, path, name.get()));
             } else {
                 restActionsAsRoutes.add(new Route(method, path));

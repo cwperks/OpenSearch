@@ -17,9 +17,18 @@ public class PermissibleRoute extends RestHandler.Route {
 
     private final String name;
 
+    private final String legacyActionName;
+
     public PermissibleRoute(RestRequest.Method method, String path, String name) {
         super(method, path);
         this.name = name;
+        this.legacyActionName = null;
+    }
+
+    public PermissibleRoute(RestRequest.Method method, String path, String name, String legacyActionName) {
+        super(method, path);
+        this.name = name;
+        this.legacyActionName = legacyActionName;
     }
 
     /**
@@ -27,5 +36,12 @@ public class PermissibleRoute extends RestHandler.Route {
      */
     public String name() {
         return this.name;
+    }
+
+    /**
+     * The legacy action name of the Route. Must be unique across Route.
+     */
+    public String legacyActionName() {
+        return this.legacyActionName;
     }
 }
