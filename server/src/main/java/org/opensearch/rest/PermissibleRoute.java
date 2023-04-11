@@ -17,17 +17,21 @@ public class PermissibleRoute extends RestHandler.Route {
 
     private final String name;
 
+    private final boolean willCreateScheduledJob;
+
     private final String legacyActionName;
 
-    public PermissibleRoute(RestRequest.Method method, String path, String name) {
+    public PermissibleRoute(RestRequest.Method method, String path, String name, boolean willCreateScheduledJob) {
         super(method, path);
         this.name = name;
+        this.willCreateScheduledJob = willCreateScheduledJob;
         this.legacyActionName = null;
     }
 
-    public PermissibleRoute(RestRequest.Method method, String path, String name, String legacyActionName) {
+    public PermissibleRoute(RestRequest.Method method, String path, String name, boolean willCreateScheduledJob, String legacyActionName) {
         super(method, path);
         this.name = name;
+        this.willCreateScheduledJob = willCreateScheduledJob;
         this.legacyActionName = legacyActionName;
     }
 
@@ -36,6 +40,13 @@ public class PermissibleRoute extends RestHandler.Route {
      */
     public String name() {
         return this.name;
+    }
+
+    /**
+     * A flag to indicate whether this route is associated with a handler that will create a scheduled job
+     */
+    public boolean willCreateScheduledJob() {
+        return this.willCreateScheduledJob;
     }
 
     /**

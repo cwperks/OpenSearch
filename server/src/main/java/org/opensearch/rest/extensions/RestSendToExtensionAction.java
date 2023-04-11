@@ -19,6 +19,7 @@ import org.opensearch.extensions.ExtensionsManager;
 import org.opensearch.extensions.rest.ExtensionRestRequest;
 import org.opensearch.extensions.rest.RegisterRestActionsRequest;
 import org.opensearch.extensions.rest.RestExecuteOnExtensionResponse;
+import org.opensearch.extensions.rest.RouteHandler;
 import org.opensearch.rest.BaseRestHandler;
 import org.opensearch.rest.BytesRestResponse;
 import org.opensearch.rest.PermissibleRoute;
@@ -90,6 +91,7 @@ public class RestSendToExtensionAction extends BaseRestHandler {
             RestRequest.Method method;
             String path;
             Optional<String> name = Optional.empty();
+            boolean willCreateScheduledJob = false;
             Optional<String> legacyActionName = Optional.empty();
             try {
                 String[] parts = restAction.split(" ");
@@ -103,16 +105,20 @@ public class RestSendToExtensionAction extends BaseRestHandler {
                 }
 
                 if (parts.length > 3) {
-                    legacyActionName = Optional.of(parts[3].trim());
+                    willCreateScheduledJob = "true".equals(parts[3].trim());
+                }
+
+                if (parts.length > 4) {
+                    legacyActionName = Optional.of(parts[4].trim());
                 }
             } catch (IndexOutOfBoundsException | IllegalArgumentException e) {
                 throw new IllegalArgumentException(restAction + " does not begin with a valid REST method");
             }
             logger.info("Registering: " + method + " " + path);
             if (name.isPresent() && legacyActionName.isPresent()) {
-                restActionsAsRoutes.add(new PermissibleRoute(method, path, name.get(), legacyActionName.get()));
+                restActionsAsRoutes.add(new PermissibleRoute(method, path, name.get(), willCreateScheduledJob, legacyActionName.get()));
             } else if (name.isPresent()) {
-                restActionsAsRoutes.add(new PermissibleRoute(method, path, name.get()));
+                restActionsAsRoutes.add(new PermissibleRoute(method, path, name.get(), willCreateScheduledJob));
             } else {
                 restActionsAsRoutes.add(new Route(method, path));
             }
@@ -152,6 +158,14 @@ public class RestSendToExtensionAction extends BaseRestHandler {
         XContentType contentType = request.getXContentType();
         BytesReference content = request.content();
         HttpRequest.HttpVersion httpVersion = httpRequest.protocolVersion();
+
+        Optional<Route> correspondingRoute = routes.stream()
+            .filter(r -> r.getMethod().equals(request.method()))
+            .filter(r -> restPathMatches(request.path(), r.getPath()))
+            .findFirst();
+
+        // TODO Create Access Token
+        // TODO Create Refresh Token for handlers that create scheduled jobs
 
         if (path.startsWith(pathPrefix)) {
             path = path.substring(pathPrefix.length());
@@ -258,5 +272,31 @@ public class RestSendToExtensionAction extends BaseRestHandler {
         });
 
         return channel -> channel.sendResponse(restResponse);
+    }
+
+    /**
+     * Determines if the request's path is a match for the configured handler path.
+     *
+     * @param requestPath The path from the {@link RestRequest}
+     * @param handlerPath The path from the {@link RouteHandler}
+     * @return true if the request path matches the route
+     */
+    private boolean restPathMatches(String requestPath, String handlerPath) {
+        // Check exact match
+        if (handlerPath.equals(requestPath)) {
+            return true;
+        }
+        // Split path to evaluate named params
+        String[] handlerSplit = handlerPath.split("/");
+        String[] requestSplit = requestPath.split("/");
+        if (handlerSplit.length != requestSplit.length) {
+            return false;
+        }
+        for (int i = 0; i < handlerSplit.length; i++) {
+            if (!(handlerSplit[i].equals(requestSplit[i]) || (handlerSplit[i].startsWith("{") && handlerSplit[i].endsWith("}")))) {
+                return false;
+            }
+        }
+        return true;
     }
 }
