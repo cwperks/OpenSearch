@@ -23,6 +23,8 @@ public class RouteHandler extends Route {
 
     private final String legacyActionName;
 
+    private final boolean willCreateScheduledJob;
+
     private final Function<RestRequest, ExtensionRestResponse> responseHandler;
 
     /**
@@ -37,6 +39,7 @@ public class RouteHandler extends Route {
         this.responseHandler = handler;
         this.name = null;
         this.legacyActionName = null;
+        this.willCreateScheduledJob = false;
     }
 
     /**
@@ -52,6 +55,30 @@ public class RouteHandler extends Route {
         this.responseHandler = handler;
         this.name = name;
         this.legacyActionName = null;
+        this.willCreateScheduledJob = false;
+    }
+
+    /**
+     * Handle the method and path with the specified handler.
+     *
+     * @param name The name of the handler.
+     * @param willCreateScheduledJob A flag indicating that the handler will create a scheduled job
+     * @param method The {@link Method} to handle.
+     * @param path The path to handle.
+     * @param handler The method which handles the method and path.
+     */
+    public RouteHandler(
+        String name,
+        boolean willCreateScheduledJob,
+        Method method,
+        String path,
+        Function<RestRequest, ExtensionRestResponse> handler
+    ) {
+        super(method, path);
+        this.responseHandler = handler;
+        this.name = name;
+        this.legacyActionName = null;
+        this.willCreateScheduledJob = willCreateScheduledJob;
     }
 
     /**
@@ -75,6 +102,33 @@ public class RouteHandler extends Route {
         this.responseHandler = handler;
         this.name = name;
         this.legacyActionName = legacyActionName;
+        this.willCreateScheduledJob = false;
+    }
+
+    /**
+     * Handle the method and path with the specified handler.
+     *
+     * @param name The name of the handler.
+     * @param legacyActionName The legacy action name corresponding to this handler.
+     * @param willCreateScheduledJob A flag indicating that the handler will create a scheduled job
+     * @param method The {@link Method} to handle.
+     * @param path The path to handle.
+     * @param handler The method which handles the method and path.
+     */
+    @Deprecated
+    public RouteHandler(
+        String name,
+        String legacyActionName,
+        boolean willCreateScheduledJob,
+        Method method,
+        String path,
+        Function<RestRequest, ExtensionRestResponse> handler
+    ) {
+        super(method, path);
+        this.responseHandler = handler;
+        this.name = name;
+        this.legacyActionName = legacyActionName;
+        this.willCreateScheduledJob = willCreateScheduledJob;
     }
 
     /**
