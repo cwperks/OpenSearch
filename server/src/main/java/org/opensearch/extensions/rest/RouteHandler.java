@@ -10,8 +10,6 @@ package org.opensearch.extensions.rest;
 
 import java.util.function.Function;
 
-import org.opensearch.extensions.rest.ExtensionRestRequest;
-import org.opensearch.extensions.rest.ExtensionRestResponse;
 import org.opensearch.rest.RestHandler.Route;
 import org.opensearch.rest.RestRequest;
 import org.opensearch.rest.RestRequest.Method;
@@ -23,7 +21,7 @@ public class RouteHandler extends Route {
 
     private final String name;
 
-    private final String legacyName;
+    private final String legacyActionName;
 
     private final Function<RestRequest, ExtensionRestResponse> responseHandler;
 
@@ -38,7 +36,7 @@ public class RouteHandler extends Route {
         super(method, path);
         this.responseHandler = handler;
         this.name = null;
-        this.legacyName = null;
+        this.legacyActionName = null;
     }
 
     /**
@@ -53,24 +51,30 @@ public class RouteHandler extends Route {
         super(method, path);
         this.responseHandler = handler;
         this.name = name;
-        this.legacyName = null;
+        this.legacyActionName = null;
     }
 
     /**
      * Handle the method and path with the specified handler.
      *
      * @param name The name of the handler.
-     * @param legacyName The legacy name of the handler.
+     * @param legacyActionName The legacy action name corresponding to this handler.
      * @param method The {@link Method} to handle.
      * @param path The path to handle.
      * @param handler The method which handles the method and path.
      */
     @Deprecated
-    public RouteHandler(String name, String legacyName, Method method, String path, Function<RestRequest, ExtensionRestResponse> handler) {
+    public RouteHandler(
+        String name,
+        String legacyActionName,
+        Method method,
+        String path,
+        Function<RestRequest, ExtensionRestResponse> handler
+    ) {
         super(method, path);
         this.responseHandler = handler;
         this.name = name;
-        this.legacyName = legacyName;
+        this.legacyActionName = legacyActionName;
     }
 
     /**
@@ -82,7 +86,6 @@ public class RouteHandler extends Route {
     public ExtensionRestResponse handleRequest(RestRequest request) {
         return responseHandler.apply(request);
     }
-
 
     /**
      * The name of the RouteHandler. Must be unique across route handlers.
