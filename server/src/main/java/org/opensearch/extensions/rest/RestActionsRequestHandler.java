@@ -10,6 +10,7 @@ package org.opensearch.extensions.rest;
 
 import org.opensearch.extensions.AcknowledgedResponse;
 import org.opensearch.extensions.DiscoveryExtensionNode;
+import org.opensearch.identity.IdentityService;
 import org.opensearch.rest.RestController;
 import org.opensearch.rest.RestHandler;
 import org.opensearch.rest.extensions.RestSendToExtensionAction;
@@ -28,6 +29,7 @@ public class RestActionsRequestHandler {
     private final RestController restController;
     private final Map<String, DiscoveryExtensionNode> extensionIdMap;
     private final TransportService transportService;
+    private final IdentityService identityService;
 
     /**
      * Instantiates a new REST Actions Request Handler using the Node's RestController.
@@ -39,11 +41,13 @@ public class RestActionsRequestHandler {
     public RestActionsRequestHandler(
         RestController restController,
         Map<String, DiscoveryExtensionNode> extensionIdMap,
-        TransportService transportService
+        TransportService transportService,
+        IdentityService identityService
     ) {
         this.restController = restController;
         this.extensionIdMap = extensionIdMap;
         this.transportService = transportService;
+        this.identityService = identityService;
     }
 
     /**
@@ -55,7 +59,7 @@ public class RestActionsRequestHandler {
      */
     public TransportResponse handleRegisterRestActionsRequest(RegisterRestActionsRequest restActionsRequest) throws Exception {
         DiscoveryExtensionNode discoveryExtensionNode = extensionIdMap.get(restActionsRequest.getUniqueId());
-        RestHandler handler = new RestSendToExtensionAction(restActionsRequest, discoveryExtensionNode, transportService);
+        RestHandler handler = new RestSendToExtensionAction(restActionsRequest, discoveryExtensionNode, transportService, identityService);
         restController.registerHandler(handler);
         return new AcknowledgedResponse(true);
     }

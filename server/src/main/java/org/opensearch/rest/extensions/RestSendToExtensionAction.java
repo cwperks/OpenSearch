@@ -20,6 +20,8 @@ import org.opensearch.extensions.rest.ExtensionRestRequest;
 import org.opensearch.extensions.rest.RegisterRestActionsRequest;
 import org.opensearch.extensions.rest.RestExecuteOnExtensionResponse;
 import org.opensearch.extensions.rest.RouteHandler;
+import org.opensearch.identity.IdentityService;
+import org.opensearch.identity.Subject;
 import org.opensearch.rest.BaseRestHandler;
 import org.opensearch.rest.BytesRestResponse;
 import org.opensearch.rest.PermissibleRoute;
@@ -70,6 +72,8 @@ public class RestSendToExtensionAction extends BaseRestHandler {
     private final DiscoveryExtensionNode discoveryExtensionNode;
     private final TransportService transportService;
 
+    private final IdentityService identityService;
+
     private static final Set<String> allowList = Set.of("Content-Type");
     private static final Set<String> denyList = Set.of("Authorization", "Proxy-Authorization");
 
@@ -83,7 +87,8 @@ public class RestSendToExtensionAction extends BaseRestHandler {
     public RestSendToExtensionAction(
         RegisterRestActionsRequest restActionsRequest,
         DiscoveryExtensionNode discoveryExtensionNode,
-        TransportService transportService
+        TransportService transportService,
+        IdentityService identityService
     ) {
         this.pathPrefix = "/_extensions/_" + restActionsRequest.getUniqueId();
         List<Route> restActionsAsRoutes = new ArrayList<>();
@@ -126,6 +131,7 @@ public class RestSendToExtensionAction extends BaseRestHandler {
         this.routes = unmodifiableList(restActionsAsRoutes);
         this.discoveryExtensionNode = discoveryExtensionNode;
         this.transportService = transportService;
+        this.identityService = identityService;
     }
 
     @Override
@@ -163,6 +169,10 @@ public class RestSendToExtensionAction extends BaseRestHandler {
             .filter(r -> r.getMethod().equals(request.method()))
             .filter(r -> restPathMatches(request.path(), r.getPath()))
             .findFirst();
+
+        Subject subject = identityService.getSubject();
+        System.out.println("RestSendToExtensionAction.prepareRequest");
+        System.out.println("Current subject: " + subject.getPrincipal().getName());
 
         // TODO Create Access Token
         // TODO Create Refresh Token for handlers that create scheduled jobs

@@ -9,6 +9,7 @@
 package org.opensearch.plugins;
 
 import org.opensearch.identity.Subject;
+import org.opensearch.identity.TokenManager;
 
 /**
  * Plugin that provides identity and access control for OpenSearch
@@ -21,4 +22,9 @@ public interface IdentityPlugin {
      * Get the current subject
      * */
     public Subject getSubject();
+
+    /**
+     * Get the token manager
+     * */
+    public TokenManager getTokenManager();
 }
