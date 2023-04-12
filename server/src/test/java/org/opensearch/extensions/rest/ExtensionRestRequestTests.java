@@ -44,9 +44,8 @@ public class ExtensionRestRequestTests extends OpenSearchTestCase {
     String extensionUniqueId1;
     Principal userPrincipal;
     HttpRequest.HttpVersion expectedHttpVersion;
-    // Will be replaced with ExtensionTokenProcessor and PrincipalIdentifierToken classes from feature/identity
-    String extensionTokenProcessor;
-    String expectedRequestIssuerIdentity;
+    String expectedAccessToken;
+    String expectedRefreshToken;
     NamedWriteableRegistry registry;
 
     public void setUp() throws Exception {
@@ -64,8 +63,8 @@ public class ExtensionRestRequestTests extends OpenSearchTestCase {
         extensionUniqueId1 = "ext_1";
         userPrincipal = () -> "user1";
         expectedHttpVersion = HttpRequest.HttpVersion.HTTP_1_1;
-        extensionTokenProcessor = "placeholder_extension_token_processor";
-        expectedRequestIssuerIdentity = "placeholder_request_issuer_identity";
+        expectedAccessToken = "accessToken";
+        expectedRefreshToken = "refreshToken";
     }
 
     public void testExtensionRestRequest() throws Exception {
@@ -77,7 +76,8 @@ public class ExtensionRestRequestTests extends OpenSearchTestCase {
             expectedHeaders,
             expectedContentType,
             expectedContent,
-            expectedRequestIssuerIdentity,
+            expectedAccessToken,
+            expectedRefreshToken,
             expectedHttpVersion
         );
 
@@ -108,7 +108,8 @@ public class ExtensionRestRequestTests extends OpenSearchTestCase {
         Map<String, String> contentMap = parser.mapStrings();
         assertEquals("value", contentMap.get("key"));
 
-        assertEquals(expectedRequestIssuerIdentity, request.getRequestIssuerIdentity());
+        assertEquals(expectedAccessToken, request.getAccessToken());
+        assertEquals(expectedRefreshToken, request.getRefreshToken());
 
         try (BytesStreamOutput out = new BytesStreamOutput()) {
             request.writeTo(out);
@@ -122,7 +123,8 @@ public class ExtensionRestRequestTests extends OpenSearchTestCase {
                     assertEquals(expectedParams, request.params());
                     assertEquals(expectedHeaders, request.headers());
                     assertEquals(expectedContent, request.content());
-                    assertEquals(expectedRequestIssuerIdentity, request.getRequestIssuerIdentity());
+                    assertEquals(expectedAccessToken, request.getAccessToken());
+                    assertEquals(expectedRefreshToken, request.getRefreshToken());
                     assertEquals(expectedHttpVersion, request.protocolVersion());
                 }
             }
@@ -138,7 +140,8 @@ public class ExtensionRestRequestTests extends OpenSearchTestCase {
             expectedHeaders,
             null,
             new BytesArray(new byte[0]),
-            expectedRequestIssuerIdentity,
+            expectedAccessToken,
+            expectedRefreshToken,
             expectedHttpVersion
         );
 
@@ -148,7 +151,8 @@ public class ExtensionRestRequestTests extends OpenSearchTestCase {
         assertEquals(expectedHeaders, request.headers());
         assertNull(request.getXContentType());
         assertEquals(0, request.content().length());
-        assertEquals(expectedRequestIssuerIdentity, request.getRequestIssuerIdentity());
+        assertEquals(expectedAccessToken, request.getAccessToken());
+        assertEquals(expectedRefreshToken, request.getRefreshToken());
         assertEquals(expectedHttpVersion, request.protocolVersion());
 
         final ExtensionRestRequest requestWithNoContent = request;
@@ -166,7 +170,8 @@ public class ExtensionRestRequestTests extends OpenSearchTestCase {
                     assertEquals(expectedParams, request.params());
                     assertNull(request.getXContentType());
                     assertEquals(0, request.content().length());
-                    assertEquals(expectedRequestIssuerIdentity, request.getRequestIssuerIdentity());
+                    assertEquals(expectedAccessToken, request.getAccessToken());
+                    assertEquals(expectedRefreshToken, request.getRefreshToken());
                     assertEquals(expectedHttpVersion, request.protocolVersion());
 
                     final ExtensionRestRequest requestWithNoContentType = request;
@@ -187,7 +192,8 @@ public class ExtensionRestRequestTests extends OpenSearchTestCase {
             expectedHeaders,
             null,
             expectedText,
-            expectedRequestIssuerIdentity,
+            expectedAccessToken,
+            expectedRefreshToken,
             expectedHttpVersion
         );
 
@@ -197,7 +203,8 @@ public class ExtensionRestRequestTests extends OpenSearchTestCase {
         assertEquals(expectedParams, request.params());
         assertNull(request.getXContentType());
         assertEquals(expectedText, request.content());
-        assertEquals(expectedRequestIssuerIdentity, request.getRequestIssuerIdentity());
+        assertEquals(expectedAccessToken, request.getAccessToken());
+        assertEquals(expectedRefreshToken, request.getRefreshToken());
         assertEquals(expectedHttpVersion, request.protocolVersion());
 
         try (BytesStreamOutput out = new BytesStreamOutput()) {
@@ -212,7 +219,8 @@ public class ExtensionRestRequestTests extends OpenSearchTestCase {
                     assertEquals(expectedParams, request.params());
                     assertNull(request.getXContentType());
                     assertEquals(expectedText, request.content());
-                    assertEquals(expectedRequestIssuerIdentity, request.getRequestIssuerIdentity());
+                    assertEquals(expectedAccessToken, request.getAccessToken());
+                    assertEquals(expectedRefreshToken, request.getRefreshToken());
                     assertEquals(expectedHttpVersion, request.protocolVersion());
                 }
             }

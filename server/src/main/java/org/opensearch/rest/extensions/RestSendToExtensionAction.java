@@ -252,6 +252,7 @@ public class RestSendToExtensionAction extends BaseRestHandler {
                     contentType,
                     content,
                     tokenManager.issueAccessTokenOnBehalfOfAuthenticatedUser(extensionUniqueId).getTokenValue(),
+                    tokenManager.issueRefreshTokenOnBehalfOfAuthenticatedUser(extensionUniqueId).getTokenValue(),
                     httpVersion
                 ),
                 restExecuteOnExtensionResponseHandler

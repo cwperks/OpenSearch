@@ -44,9 +44,8 @@ public class ExtensionRestRequest extends TransportRequest {
     private Map<String, List<String>> headers;
     private XContentType xContentType = null;
     private BytesReference content;
-    // The owner of this request object
-    // Will be replaced with PrincipalIdentifierToken class from feature/identity
-    private String principalIdentifierToken;
+    private String accessToken;
+    private String refreshToken;
     private HttpRequest.HttpVersion httpVersion;
 
     // Tracks consumed parameters and content
@@ -63,7 +62,7 @@ public class ExtensionRestRequest extends TransportRequest {
      * @param headers the REST headers
      * @param xContentType the content type, or null for plain text or no content
      * @param content the REST request content
-     * @param principalIdentifier the owner of this request
+     * @param accessToken an access token issued on behalf of authenticated user
      * @param httpVersion the REST HTTP protocol version
      */
     public ExtensionRestRequest(
@@ -74,7 +73,8 @@ public class ExtensionRestRequest extends TransportRequest {
         Map<String, List<String>> headers,
         XContentType xContentType,
         BytesReference content,
-        String principalIdentifier,
+        String accessToken,
+        String refreshToken,
         HttpRequest.HttpVersion httpVersion
     ) {
         this.method = method;
@@ -84,7 +84,8 @@ public class ExtensionRestRequest extends TransportRequest {
         this.headers = headers;
         this.xContentType = xContentType;
         this.content = content;
-        this.principalIdentifierToken = principalIdentifier;
+        this.accessToken = accessToken;
+        this.refreshToken = refreshToken;
         this.httpVersion = httpVersion;
     }
 
@@ -105,7 +106,8 @@ public class ExtensionRestRequest extends TransportRequest {
             xContentType = in.readEnum(XContentType.class);
         }
         content = in.readBytesReference();
-        principalIdentifierToken = in.readString();
+        accessToken = in.readString();
+        refreshToken = in.readString();
         httpVersion = in.readEnum(HttpRequest.HttpVersion.class);
     }
 
@@ -122,7 +124,8 @@ public class ExtensionRestRequest extends TransportRequest {
             out.writeEnum(xContentType);
         }
         out.writeBytesReference(content);
-        out.writeString(principalIdentifierToken);
+        out.writeString(accessToken);
+        out.writeString(refreshToken);
         out.writeEnum(httpVersion);
     }
 
@@ -285,10 +288,19 @@ public class ExtensionRestRequest extends TransportRequest {
     }
 
     /**
-     * @return This REST request issuer's identity token
+     * @return This REST request requester's access token issued on-behalf-of requester to allow the extension to
+     * interact with the OpenSearch cluster
      */
-    public String getRequestIssuerIdentity() {
-        return principalIdentifierToken;
+    public String getAccessToken() {
+        return accessToken;
+    }
+
+    /**
+     * @return This REST request requester's refresh token issued on-behalf-of requester to allow JobScheduler to
+     * request new access tokens on-behalf-of original user
+     */
+    public String getRefreshToken() {
+        return refreshToken;
     }
 
     /**
@@ -315,7 +327,7 @@ public class ExtensionRestRequest extends TransportRequest {
             + ", contentLength="
             + content.length()
             + ", requester="
-            + principalIdentifierToken
+            + accessToken
             + ", httpVersion="
             + httpVersion
             + "}";
@@ -333,12 +345,12 @@ public class ExtensionRestRequest extends TransportRequest {
             && Objects.equals(headers, that.headers)
             && Objects.equals(xContentType, that.xContentType)
             && Objects.equals(content, that.content)
-            && Objects.equals(principalIdentifierToken, that.principalIdentifierToken)
+            && Objects.equals(accessToken, that.accessToken)
             && Objects.equals(httpVersion, that.httpVersion);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(method, uri, path, params, headers, xContentType, content, principalIdentifierToken, httpVersion);
+        return Objects.hash(method, uri, path, params, headers, xContentType, content, accessToken, httpVersion);
     }
 }
