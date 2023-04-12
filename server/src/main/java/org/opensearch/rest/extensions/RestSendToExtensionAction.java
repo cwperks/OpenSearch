@@ -22,6 +22,7 @@ import org.opensearch.extensions.rest.RestExecuteOnExtensionResponse;
 import org.opensearch.extensions.rest.RouteHandler;
 import org.opensearch.identity.IdentityService;
 import org.opensearch.identity.Subject;
+import org.opensearch.identity.TokenManager;
 import org.opensearch.rest.BaseRestHandler;
 import org.opensearch.rest.BytesRestResponse;
 import org.opensearch.rest.PermissibleRoute;
@@ -69,6 +70,7 @@ public class RestSendToExtensionAction extends BaseRestHandler {
 
     private final List<Route> routes;
     private final String pathPrefix;
+    private final String extensionUniqueId;
     private final DiscoveryExtensionNode discoveryExtensionNode;
     private final TransportService transportService;
 
@@ -90,6 +92,7 @@ public class RestSendToExtensionAction extends BaseRestHandler {
         TransportService transportService,
         IdentityService identityService
     ) {
+        this.extensionUniqueId = restActionsRequest.getUniqueId();
         this.pathPrefix = "/_extensions/_" + restActionsRequest.getUniqueId();
         List<Route> restActionsAsRoutes = new ArrayList<>();
         for (String restAction : restActionsRequest.getRestActions()) {
@@ -171,8 +174,13 @@ public class RestSendToExtensionAction extends BaseRestHandler {
             .findFirst();
 
         Subject subject = identityService.getSubject();
-        System.out.println("RestSendToExtensionAction.prepareRequest");
-        System.out.println("Current subject: " + subject.getPrincipal().getName());
+        TokenManager tokenManager = identityService.getTokenManager();
+        // System.out.println("RestSendToExtensionAction.prepareRequest");
+        // System.out.println("Current subject: " + subject.getPrincipal().getName());
+        // System.out.println("Refresh Token: " +
+        // tokenManager.issueRefreshTokenOnBehalfOfAuthenticatedUser(extensionUniqueId).getTokenValue());
+        // System.out.println("Access Token: " +
+        // tokenManager.issueAccessTokenOnBehalfOfAuthenticatedUser(extensionUniqueId).getTokenValue());
 
         // TODO Create Access Token
         // TODO Create Refresh Token for handlers that create scheduled jobs
@@ -228,10 +236,6 @@ public class RestSendToExtensionAction extends BaseRestHandler {
         };
 
         try {
-            // Will be replaced with ExtensionTokenProcessor and PrincipalIdentifierToken classes from feature/identity
-            final String extensionTokenProcessor = "placeholder_token_processor";
-            final String requestIssuerIdentity = "placeholder_request_issuer_identity";
-
             Map<String, List<String>> filteredHeaders = filterHeaders(headers, allowList, denyList);
 
             transportService.sendRequest(
@@ -247,7 +251,7 @@ public class RestSendToExtensionAction extends BaseRestHandler {
                     filteredHeaders,
                     contentType,
                     content,
-                    requestIssuerIdentity,
+                    tokenManager.issueAccessTokenOnBehalfOfAuthenticatedUser(extensionUniqueId).getTokenValue(),
                     httpVersion
                 ),
                 restExecuteOnExtensionResponseHandler

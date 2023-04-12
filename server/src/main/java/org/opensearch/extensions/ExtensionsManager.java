@@ -187,7 +187,12 @@ public class ExtensionsManager {
         Settings initialEnvironmentSettings,
         NodeClient client
     ) {
-        this.restActionsRequestHandler = new RestActionsRequestHandler(actionModule.getRestController(), extensionIdMap, transportService, identityService);
+        this.restActionsRequestHandler = new RestActionsRequestHandler(
+            actionModule.getRestController(),
+            extensionIdMap,
+            transportService,
+            identityService
+        );
         this.customSettingsRequestHandler = new CustomSettingsRequestHandler(settingsModule);
         this.transportService = transportService;
         this.clusterService = clusterService;
