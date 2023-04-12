@@ -49,4 +49,11 @@ public class IdentityService {
     public Subject getSubject() {
         return identityPlugin.getSubject();
     }
+
+    /**
+     * Gets the token manager
+     */
+    public TokenManager getTokenManager() {
+        return identityPlugin.getTokenManager();
+    }
 }
