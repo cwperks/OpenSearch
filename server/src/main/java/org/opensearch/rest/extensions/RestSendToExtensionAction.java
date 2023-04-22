@@ -69,6 +69,7 @@ public class RestSendToExtensionAction extends BaseRestHandler {
     };
 
     private final List<Route> routes;
+    private final List<DeprecatedRoute> deprecatedRoutes;
     private final String pathPrefix;
     private final String extensionUniqueId;
     private final DiscoveryExtensionNode discoveryExtensionNode;
@@ -94,10 +95,11 @@ public class RestSendToExtensionAction extends BaseRestHandler {
     ) {
         this.extensionUniqueId = restActionsRequest.getUniqueId();
         this.pathPrefix = "/_extensions/_" + restActionsRequest.getUniqueId();
+        RestRequest.Method method;
+        String path;
+
         List<Route> restActionsAsRoutes = new ArrayList<>();
         for (String restAction : restActionsRequest.getRestActions()) {
-            RestRequest.Method method;
-            String path;
             Optional<String> name = Optional.empty();
             boolean willCreateScheduledJob = false;
             Optional<String> legacyActionName = Optional.empty();
@@ -132,6 +134,25 @@ public class RestSendToExtensionAction extends BaseRestHandler {
             }
         }
         this.routes = unmodifiableList(restActionsAsRoutes);
+
+        List<DeprecatedRoute> restActionsAsDeprecatedRoutes = new ArrayList<>();
+        // Iterate in pairs of route / deprecation message
+        List<String> deprecatedActions = restActionsRequest.getDeprecatedRestActions();
+        for (int i = 0; i < deprecatedActions.size() - 1; i += 2) {
+            String restAction = deprecatedActions.get(i);
+            String message = deprecatedActions.get(i + 1);
+            int delim = restAction.indexOf(' ');
+            try {
+                method = RestRequest.Method.valueOf(restAction.substring(0, delim));
+                path = pathPrefix + restAction.substring(delim).trim();
+            } catch (IndexOutOfBoundsException | IllegalArgumentException e) {
+                throw new IllegalArgumentException(restAction + " does not begin with a valid REST method");
+            }
+            logger.info("Registering: " + method + " " + path + " with deprecation message " + message);
+            restActionsAsDeprecatedRoutes.add(new DeprecatedRoute(method, path, message));
+        }
+        this.deprecatedRoutes = unmodifiableList(restActionsAsDeprecatedRoutes);
+
         this.discoveryExtensionNode = discoveryExtensionNode;
         this.transportService = transportService;
         this.identityService = identityService;
@@ -145,6 +166,11 @@ public class RestSendToExtensionAction extends BaseRestHandler {
     @Override
     public List<Route> routes() {
         return this.routes;
+    }
+
+    @Override
+    public List<DeprecatedRoute> deprecatedRoutes() {
+        return this.deprecatedRoutes;
     }
 
     public Map<String, List<String>> filterHeaders(Map<String, List<String>> headers, Set<String> allowList, Set<String> denyList) {
