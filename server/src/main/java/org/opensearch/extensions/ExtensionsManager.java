@@ -45,6 +45,8 @@ import org.opensearch.common.transport.TransportAddress;
 
 import org.opensearch.discovery.InitializeExtensionRequest;
 import org.opensearch.discovery.InitializeExtensionResponse;
+import org.opensearch.discovery.InitializeExtensionSecurityRequest;
+import org.opensearch.discovery.InitializeExtensionSecurityResponse;
 import org.opensearch.extensions.ExtensionsSettings.Extension;
 import org.opensearch.extensions.action.ExtensionActionRequest;
 import org.opensearch.extensions.action.ExtensionActionResponse;
@@ -57,6 +59,7 @@ import org.opensearch.extensions.rest.RestActionsRequestHandler;
 import org.opensearch.extensions.settings.CustomSettingsRequestHandler;
 import org.opensearch.extensions.settings.RegisterCustomSettingsRequest;
 import org.opensearch.identity.IdentityService;
+import org.opensearch.identity.tokens.AuthToken;
 import org.opensearch.index.IndexModule;
 import org.opensearch.index.IndexService;
 import org.opensearch.index.IndicesModuleRequest;
@@ -79,6 +82,7 @@ import org.opensearch.env.EnvironmentSettingsResponse;
  */
 public class ExtensionsManager {
     public static final String REQUEST_EXTENSION_ACTION_NAME = "internal:discovery/extensions";
+
     public static final String INDICES_EXTENSION_POINT_ACTION_NAME = "indices:internal/extensions";
     public static final String INDICES_EXTENSION_NAME_ACTION_NAME = "indices:internal/name";
     public static final String REQUEST_EXTENSION_CLUSTER_STATE = "internal:discovery/clusterstate";
@@ -87,6 +91,7 @@ public class ExtensionsManager {
     public static final String REQUEST_EXTENSION_ADD_SETTINGS_UPDATE_CONSUMER = "internal:discovery/addsettingsupdateconsumer";
     public static final String REQUEST_EXTENSION_UPDATE_SETTINGS = "internal:discovery/updatesettings";
     public static final String REQUEST_EXTENSION_DEPENDENCY_INFORMATION = "internal:discovery/dependencyinformation";
+    public static final String REQUEST_EXTENSION_REGISTER_SECURITY_SETTINGS = "internal:discovery/registersecuritysettings";
     public static final String REQUEST_EXTENSION_REGISTER_CUSTOM_SETTINGS = "internal:discovery/registercustomsettings";
     public static final String REQUEST_EXTENSION_REGISTER_REST_ACTIONS = "internal:discovery/registerrestactions";
     public static final String REQUEST_EXTENSION_REGISTER_TRANSPORT_ACTIONS = "internal:discovery/registertransportactions";
@@ -401,6 +406,59 @@ public class ExtensionsManager {
                 new InitializeExtensionRequest(transportService.getLocalNode(), extension),
                 initializeExtensionResponseHandler
             );
+            inProgressFuture.orTimeout(EXTENSION_REQUEST_WAIT_TIMEOUT, TimeUnit.SECONDS).join();
+        } catch (CompletionException | ConnectTransportException e) {
+            if (e.getCause() instanceof TimeoutException || e instanceof ConnectTransportException) {
+                logger.info("No response from extension to request.", e);
+            } else if (e.getCause() instanceof RuntimeException) {
+                throw (RuntimeException) e.getCause();
+            } else if (e.getCause() instanceof Error) {
+                throw (Error) e.getCause();
+            } else {
+                throw new RuntimeException(e.getCause());
+            }
+        }
+
+        initializeExtensionSecurity(extension);
+    }
+
+    private void initializeExtensionSecurity(DiscoveryExtensionNode extension) {
+        final CompletableFuture<InitializeExtensionSecurityResponse> inProgressFuture = new CompletableFuture<>();
+        final TransportResponseHandler<InitializeExtensionSecurityResponse> initializeExtensionSecurityResponseHandler = new TransportResponseHandler<
+            InitializeExtensionSecurityResponse>() {
+
+            @Override
+            public InitializeExtensionSecurityResponse read(StreamInput in) throws IOException {
+                return new InitializeExtensionSecurityResponse(in);
+            }
+
+            @Override
+            public void handleResponse(InitializeExtensionSecurityResponse response) {
+                System.out.println("Registered security settings for " + response.getName());
+                inProgressFuture.complete(response);
+            }
+
+            @Override
+            public void handleException(TransportException exp) {
+                logger.error(new ParameterizedMessage("Extension initialization failed"), exp);
+                inProgressFuture.completeExceptionally(exp);
+            }
+
+            @Override
+            public String executor() {
+                return ThreadPool.Names.GENERIC;
+            }
+        };
+        try {
+            logger.info("Sending extension request type: " + REQUEST_EXTENSION_REGISTER_SECURITY_SETTINGS);
+            AuthToken serviceAccountToken = identityService.getTokenManager().generateServiceAccountToken(extension.getId());
+            transportService.sendRequest(
+                extension,
+                REQUEST_EXTENSION_REGISTER_SECURITY_SETTINGS,
+                new InitializeExtensionSecurityRequest(serviceAccountToken.getTokenValue()),
+                initializeExtensionSecurityResponseHandler
+            );
+
             inProgressFuture.orTimeout(EXTENSION_REQUEST_WAIT_TIMEOUT, TimeUnit.SECONDS).join();
         } catch (CompletionException | ConnectTransportException e) {
             if (e.getCause() instanceof TimeoutException || e instanceof ConnectTransportException) {

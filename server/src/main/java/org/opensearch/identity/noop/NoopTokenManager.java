@@ -8,6 +8,7 @@
 
 package org.opensearch.identity.noop;
 
+import org.opensearch.OpenSearchSecurityException;
 import org.opensearch.identity.TokenManager;
 import org.opensearch.identity.tokens.AuthToken;
 
@@ -24,6 +25,11 @@ public class NoopTokenManager implements TokenManager {
 
     @Override
     public AuthToken issueRefreshTokenOnBehalfOfAuthenticatedUser(String extensionUniqueId) {
+        return new NoopToken("");
+    }
+
+    @Override
+    public AuthToken generateServiceAccountToken(String extensionUniqueId) throws OpenSearchSecurityException {
         return new NoopToken("");
     }
 }

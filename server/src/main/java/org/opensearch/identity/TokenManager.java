@@ -27,4 +27,9 @@ public interface TokenManager {
      * Issue a refresh token on-behalf-of authenticated user for a service to refresh access tokens
      * */
     AuthToken issueRefreshTokenOnBehalfOfAuthenticatedUser(String extensionUniqueId) throws OpenSearchSecurityException;
+
+    /**
+     * Issue a service account token for an extension's service account
+     * */
+    AuthToken generateServiceAccountToken(String extensionUniqueId) throws OpenSearchSecurityException;
 }
