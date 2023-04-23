@@ -32,6 +32,8 @@ import org.opensearch.common.settings.Settings;
 import org.opensearch.common.transport.TransportAddress;
 import org.opensearch.common.util.PageCacheRecycler;
 import org.opensearch.extensions.DiscoveryExtensionNode;
+import org.opensearch.identity.IdentityService;
+import org.opensearch.identity.noop.NoopIdentityPlugin;
 import org.opensearch.indices.breaker.NoneCircuitBreakerService;
 import org.opensearch.rest.RestHandler.Route;
 import org.opensearch.rest.RestRequest.Method;
@@ -45,6 +47,7 @@ import org.opensearch.transport.nio.MockNioTransport;
 public class RestSendToExtensionActionTests extends OpenSearchTestCase {
 
     private TransportService transportService;
+    private IdentityService identityService;
     private MockNioTransport transport;
     private DiscoveryExtensionNode discoveryExtensionNode;
     private final ThreadPool threadPool = new TestThreadPool(RestSendToExtensionActionTests.class.getSimpleName());
@@ -86,6 +89,8 @@ public class RestSendToExtensionActionTests extends OpenSearchTestCase {
             Version.fromString("3.0.0"),
             Collections.emptyList()
         );
+
+        identityService = new IdentityService(Settings.EMPTY, List.of(new NoopIdentityPlugin()));
     }
 
     @Override
@@ -105,7 +110,8 @@ public class RestSendToExtensionActionTests extends OpenSearchTestCase {
         RestSendToExtensionAction restSendToExtensionAction = new RestSendToExtensionAction(
             registerRestActionRequest,
             discoveryExtensionNode,
-            transportService
+            transportService,
+            identityService
         );
 
         assertEquals("send_to_extension_action", restSendToExtensionAction.getName());
@@ -136,7 +142,8 @@ public class RestSendToExtensionActionTests extends OpenSearchTestCase {
         RestSendToExtensionAction restSendToExtensionAction = new RestSendToExtensionAction(
             registerRestActionRequest,
             discoveryExtensionNode,
-            transportService
+            transportService,
+            identityService
         );
 
         Map<String, List<String>> headers = new HashMap<>();
@@ -162,7 +169,7 @@ public class RestSendToExtensionActionTests extends OpenSearchTestCase {
         );
         expectThrows(
             IllegalArgumentException.class,
-            () -> new RestSendToExtensionAction(registerRestActionRequest, discoveryExtensionNode, transportService)
+            () -> new RestSendToExtensionAction(registerRestActionRequest, discoveryExtensionNode, transportService, identityService)
         );
     }
 
@@ -174,7 +181,7 @@ public class RestSendToExtensionActionTests extends OpenSearchTestCase {
         );
         expectThrows(
             IllegalArgumentException.class,
-            () -> new RestSendToExtensionAction(registerRestActionRequest, discoveryExtensionNode, transportService)
+            () -> new RestSendToExtensionAction(registerRestActionRequest, discoveryExtensionNode, transportService, identityService)
         );
     }
 
@@ -186,7 +193,7 @@ public class RestSendToExtensionActionTests extends OpenSearchTestCase {
         );
         expectThrows(
             IllegalArgumentException.class,
-            () -> new RestSendToExtensionAction(registerRestActionRequest, discoveryExtensionNode, transportService)
+            () -> new RestSendToExtensionAction(registerRestActionRequest, discoveryExtensionNode, transportService, identityService)
         );
     }
 
@@ -198,7 +205,7 @@ public class RestSendToExtensionActionTests extends OpenSearchTestCase {
         );
         expectThrows(
             IllegalArgumentException.class,
-            () -> new RestSendToExtensionAction(registerRestActionRequest, discoveryExtensionNode, transportService)
+            () -> new RestSendToExtensionAction(registerRestActionRequest, discoveryExtensionNode, transportService, identityService)
         );
     }
 }
