@@ -42,6 +42,7 @@ import org.opensearch.common.unit.ByteSizeUnit;
 import org.opensearch.common.unit.ByteSizeValue;
 import org.opensearch.common.util.FeatureFlags;
 import org.opensearch.cluster.routing.allocation.AwarenessReplicaBalance;
+import org.opensearch.identity.IdentityService;
 import org.opensearch.index.IndexModule;
 import org.opensearch.index.IndexingPressureService;
 import org.opensearch.index.store.remote.filecache.FileCache;
@@ -54,6 +55,7 @@ import org.opensearch.extensions.ExtensionsManager;
 import org.opensearch.extensions.NoopExtensionsManager;
 import org.opensearch.monitor.fs.FsInfo;
 import org.opensearch.monitor.fs.FsProbe;
+import org.opensearch.plugins.IdentityPlugin;
 import org.opensearch.plugins.SearchPipelinePlugin;
 import org.opensearch.search.backpressure.SearchBackpressureService;
 import org.opensearch.search.backpressure.settings.SearchBackpressureSettings;
@@ -454,11 +456,15 @@ public class Node implements Closeable {
             // Ensure to initialize Feature Flags via the settings from opensearch.yml
             FeatureFlags.initializeFeatureFlags(settings);
 
+            final List<IdentityPlugin> identityPlugins = pluginsService.filterPlugins(IdentityPlugin.class);
+            final IdentityService identityService = new IdentityService(settings, identityPlugins);
             if (FeatureFlags.isEnabled(FeatureFlags.EXTENSIONS)) {
                 this.extensionsManager = new ExtensionsManager(tmpSettings, initialEnvironment.extensionDir());
             } else {
                 this.extensionsManager = new NoopExtensionsManager();
             }
+
+            this.extensionsManager.setIdentityService(identityService);
 
             final Set<DiscoveryNodeRole> additionalRoles = pluginsService.filterPlugins(Plugin.class)
                 .stream()
@@ -1124,6 +1130,7 @@ public class Node implements Closeable {
                 b.bind(ShardLimitValidator.class).toInstance(shardLimitValidator);
                 b.bind(FsHealthService.class).toInstance(fsHealthService);
                 b.bind(SystemIndices.class).toInstance(systemIndices);
+                b.bind(IdentityService.class).toInstance(identityService);
             });
             injector = modules.createInjector();
 

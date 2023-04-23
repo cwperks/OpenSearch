@@ -56,6 +56,7 @@ import org.opensearch.extensions.rest.RegisterRestActionsRequest;
 import org.opensearch.extensions.rest.RestActionsRequestHandler;
 import org.opensearch.extensions.settings.CustomSettingsRequestHandler;
 import org.opensearch.extensions.settings.RegisterCustomSettingsRequest;
+import org.opensearch.identity.IdentityService;
 import org.opensearch.index.IndexModule;
 import org.opensearch.index.IndexService;
 import org.opensearch.index.IndicesModuleRequest;
@@ -114,6 +115,7 @@ public class ExtensionsManager {
     private CustomSettingsRequestHandler customSettingsRequestHandler;
     private TransportService transportService;
     private ClusterService clusterService;
+    private IdentityService identityService;
     private Settings environmentSettings;
     private AddSettingsUpdateConsumerRequestHandler addSettingsUpdateConsumerRequestHandler;
     private NodeClient client;
@@ -661,6 +663,10 @@ public class ExtensionsManager {
 
     public ClusterService getClusterService() {
         return clusterService;
+    }
+
+    public void setIdentityService(IdentityService identityService) {
+        this.identityService = identityService;
     }
 
     public static String getRequestExtensionRegisterRestActions() {
