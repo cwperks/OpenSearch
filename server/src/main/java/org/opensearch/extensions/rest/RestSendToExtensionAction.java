@@ -16,6 +16,8 @@ import org.opensearch.common.io.stream.StreamInput;
 import org.opensearch.common.xcontent.XContentType;
 import org.opensearch.extensions.DiscoveryExtensionNode;
 import org.opensearch.extensions.ExtensionsManager;
+import org.opensearch.identity.IdentityService;
+import org.opensearch.identity.tokens.AuthToken;
 import org.opensearch.rest.BaseRestHandler;
 import org.opensearch.rest.BytesRestResponse;
 import org.opensearch.rest.RestRequest;
@@ -64,6 +66,7 @@ public class RestSendToExtensionAction extends BaseRestHandler {
     private final String pathPrefix;
     private final DiscoveryExtensionNode discoveryExtensionNode;
     private final TransportService transportService;
+    private final IdentityService identityService;
 
     private static final Set<String> allowList = Set.of("Content-Type");
     private static final Set<String> denyList = Set.of("Authorization", "Proxy-Authorization");
@@ -78,7 +81,8 @@ public class RestSendToExtensionAction extends BaseRestHandler {
     public RestSendToExtensionAction(
         RegisterRestActionsRequest restActionsRequest,
         DiscoveryExtensionNode discoveryExtensionNode,
-        TransportService transportService
+        TransportService transportService,
+        IdentityService identityService
     ) {
         this.pathPrefix = "/_extensions/_" + restActionsRequest.getUniqueId();
         RestRequest.Method method;
@@ -118,6 +122,7 @@ public class RestSendToExtensionAction extends BaseRestHandler {
 
         this.discoveryExtensionNode = discoveryExtensionNode;
         this.transportService = transportService;
+        this.identityService = identityService;
     }
 
     @Override
@@ -207,9 +212,8 @@ public class RestSendToExtensionAction extends BaseRestHandler {
         };
 
         try {
-            // Will be replaced with ExtensionTokenProcessor and PrincipalIdentifierToken classes from feature/identity
-            final String extensionTokenProcessor = "placeholder_token_processor";
-            final String requestIssuerIdentity = "placeholder_request_issuer_identity";
+            final AuthToken accessToken = identityService.getTokenManager()
+                .issueAccessTokenOnBehalfOfAuthenticatedUser(discoveryExtensionNode.getId());
 
             Map<String, List<String>> filteredHeaders = filterHeaders(headers, allowList, denyList);
 
@@ -226,7 +230,7 @@ public class RestSendToExtensionAction extends BaseRestHandler {
                     filteredHeaders,
                     contentType,
                     content,
-                    requestIssuerIdentity,
+                    accessToken.getTokenValue(),
                     httpVersion
                 ),
                 restExecuteOnExtensionResponseHandler

@@ -70,6 +70,7 @@ import org.opensearch.env.TestEnvironment;
 import org.opensearch.extensions.proto.ExtensionRequestProto;
 import org.opensearch.extensions.rest.RegisterRestActionsRequest;
 import org.opensearch.extensions.settings.RegisterCustomSettingsRequest;
+import org.opensearch.identity.IdentityService;
 import org.opensearch.index.IndexModule;
 import org.opensearch.index.IndexSettings;
 import org.opensearch.index.analysis.AnalysisRegistry;
@@ -100,6 +101,7 @@ public class ExtensionsManagerTests extends OpenSearchTestCase {
     private RestController restController;
     private SettingsModule settingsModule;
     private ClusterService clusterService;
+    private IdentityService identityService;
     private NodeClient client;
     private MockNioTransport transport;
     private Path extensionDir;
@@ -823,6 +825,7 @@ public class ExtensionsManagerTests extends OpenSearchTestCase {
             settingsModule,
             mockTransportService,
             clusterService,
+            identityService,
             settings,
             client
         );
@@ -903,6 +906,7 @@ public class ExtensionsManagerTests extends OpenSearchTestCase {
             settingsModule,
             transportService,
             clusterService,
+            identityService,
             settings,
             client
         );
