@@ -348,6 +348,7 @@ public class ExtensionsManager {
                     Version.fromString(extension.getMinimumCompatibleVersion()),
                     extension.getDependencies()
                 );
+
                 extensionIdMap.put(extension.getUniqueId(), discoveryExtensionNode);
                 extensionSettingsMap.put(extension.getUniqueId(), extension);
                 logger.info("Loaded extension with uniqueId " + extension.getUniqueId() + ": " + extension);

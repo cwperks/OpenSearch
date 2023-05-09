@@ -6,7 +6,7 @@
  * compatible open source license.
  */
 
-package org.opensearch.extensions.rest;
+package org.opensearch.rest.extensions;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -16,8 +16,12 @@ import org.opensearch.common.io.stream.StreamInput;
 import org.opensearch.common.xcontent.XContentType;
 import org.opensearch.extensions.DiscoveryExtensionNode;
 import org.opensearch.extensions.ExtensionsManager;
+import org.opensearch.extensions.rest.ExtensionRestRequest;
+import org.opensearch.extensions.rest.RegisterRestActionsRequest;
+import org.opensearch.extensions.rest.RestExecuteOnExtensionResponse;
 import org.opensearch.rest.BaseRestHandler;
 import org.opensearch.rest.BytesRestResponse;
+import org.opensearch.rest.ProtectedRoute;
 import org.opensearch.rest.RestRequest;
 import org.opensearch.rest.RestRequest.Method;
 import org.opensearch.rest.RestStatus;
@@ -33,6 +37,7 @@ import java.security.Principal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.concurrent.CompletableFuture;
@@ -86,15 +91,26 @@ public class RestSendToExtensionAction extends BaseRestHandler {
 
         List<Route> restActionsAsRoutes = new ArrayList<>();
         for (String restAction : restActionsRequest.getRestActions()) {
-            int delim = restAction.indexOf(' ');
+            Optional<String> name = Optional.empty();
             try {
-                method = RestRequest.Method.valueOf(restAction.substring(0, delim));
-                path = pathPrefix + restAction.substring(delim).trim();
+                String[] parts = restAction.split(" ");
+                if (parts.length < 2) {
+                    throw new IllegalArgumentException(restAction + " does not begin with a valid REST method");
+                }
+                method = RestRequest.Method.valueOf(parts[0].trim());
+                path = pathPrefix + parts[1].trim();
+                if (parts.length > 2) {
+                    name = Optional.of(parts[2].trim());
+                }
             } catch (IndexOutOfBoundsException | IllegalArgumentException e) {
                 throw new IllegalArgumentException(restAction + " does not begin with a valid REST method");
             }
             logger.info("Registering: " + method + " " + path);
-            restActionsAsRoutes.add(new Route(method, path));
+            if (name.isPresent()) {
+                restActionsAsRoutes.add(new ProtectedRoute(method, path, name.get()));
+            } else {
+                restActionsAsRoutes.add(new Route(method, path));
+            }
         }
         this.routes = unmodifiableList(restActionsAsRoutes);
 
