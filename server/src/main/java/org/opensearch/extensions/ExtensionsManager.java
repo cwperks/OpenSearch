@@ -108,6 +108,7 @@ public class ExtensionsManager {
 
     private final Path extensionsPath;
     private ExtensionTransportActionsHandler extensionTransportActionsHandler;
+    private Map<String, Extension> extensionSettingsMap;
     private Map<String, DiscoveryExtensionNode> initializedExtensions;
     private Map<String, DiscoveryExtensionNode> extensionIdMap;
     private RestActionsRequestHandler restActionsRequestHandler;
@@ -129,6 +130,7 @@ public class ExtensionsManager {
         this.extensionsPath = extensionsPath;
         this.initializedExtensions = new HashMap<String, DiscoveryExtensionNode>();
         this.extensionIdMap = new HashMap<String, DiscoveryExtensionNode>();
+        this.extensionSettingsMap = new HashMap<String, Extension>();
         // will be initialized in initializeServicesAndRestHandler which is called after the Node is initialized
         this.transportService = null;
         this.clusterService = null;
@@ -190,6 +192,16 @@ public class ExtensionsManager {
      */
     public Optional<DiscoveryExtensionNode> lookupInitializedExtensionById(final String extensionId) {
         return Optional.ofNullable(this.initializedExtensions.get(extensionId));
+    }
+
+    /**
+     * Lookup the settings for an extension based on unique id for the settings placed in extensions.yml
+     *
+     * @param extensionId The unique extension identifier
+     * @return An optional of the Extension instance for the matching extension
+     */
+    public Optional<Extension> lookupExtensionSettingsById(final String extensionId) {
+        return Optional.ofNullable(this.extensionSettingsMap.get(extensionId));
     }
 
     /**
@@ -337,6 +349,7 @@ public class ExtensionsManager {
                     extension.getDependencies()
                 );
                 extensionIdMap.put(extension.getUniqueId(), discoveryExtensionNode);
+                extensionSettingsMap.put(extension.getUniqueId(), extension);
                 logger.info("Loaded extension with uniqueId " + extension.getUniqueId() + ": " + extension);
             } catch (OpenSearchException e) {
                 logger.error("Could not load extension with uniqueId " + extension.getUniqueId() + " due to " + e);

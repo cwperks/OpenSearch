@@ -13,6 +13,16 @@ package org.opensearch.identity.tokens;
  *
  * @opensearch.experimental
  */
-public interface AuthToken {
+public abstract class AuthToken {
+
+    private final String tokenValue;
+
+    public AuthToken(String tokenValue) {
+        this.tokenValue = tokenValue;
+    }
+
+    public String getTokenValue() {
+        return this.tokenValue;
+    }
 
 }

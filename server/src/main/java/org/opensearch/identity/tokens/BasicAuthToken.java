@@ -14,7 +14,7 @@ import java.util.Base64;
 /**
  * Basic (Base64 encoded) Authentication Token in a http request header
  */
-public final class BasicAuthToken implements AuthToken {
+public final class BasicAuthToken extends AuthToken {
 
     public final static String TOKEN_IDENIFIER = "Basic";
 
@@ -22,6 +22,7 @@ public final class BasicAuthToken implements AuthToken {
     private String password;
 
     public BasicAuthToken(final String headerValue) {
+        super(headerValue);
         final String base64Encoded = headerValue.substring(TOKEN_IDENIFIER.length()).trim();
         final byte[] rawDecoded = Base64.getDecoder().decode(base64Encoded);
         final String usernamepassword = new String(rawDecoded, StandardCharsets.UTF_8);

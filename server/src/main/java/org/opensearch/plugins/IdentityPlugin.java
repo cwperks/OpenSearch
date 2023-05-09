@@ -8,6 +8,7 @@
 
 package org.opensearch.plugins;
 
+import org.opensearch.identity.AuthTokenManager;
 import org.opensearch.identity.Subject;
 
 /**
@@ -23,4 +24,9 @@ public interface IdentityPlugin {
      * Should never return null
      * */
     public Subject getSubject();
+
+    /**
+     * Get the auth token manager
+     * */
+    public AuthTokenManager getAuthTokenManager();
 }
