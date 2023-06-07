@@ -1111,10 +1111,19 @@ public class ActionModule extends AbstractModule {
             requireNonNull(route, "route is required");
             requireNonNull(action, "action is required");
             Optional<String> routeName = Optional.empty();
+            Optional<String> legacyActionName = Optional.empty();
             if (route instanceof NamedRoute) {
-                routeName = Optional.of(((NamedRoute) route).name());
+                NamedRoute nr = (NamedRoute) route;
+                routeName = Optional.of(nr.name());
                 if (isActionRegistered(routeName.get()) || registeredActionNames.contains(routeName.get())) {
                     throw new IllegalArgumentException("route [" + route + "] already registered");
+                }
+                // Also check legacy action name
+                if (nr.legacyActionName() != null) {
+                    legacyActionName = Optional.of(nr.legacyActionName());
+                    if (isActionRegistered(legacyActionName.get()) || registeredActionNames.contains(legacyActionName.get())) {
+                        throw new IllegalArgumentException("route [" + route + "] already registered");
+                    }
                 }
             }
             if (routeRegistry.containsKey(route)) {
@@ -1122,6 +1131,7 @@ public class ActionModule extends AbstractModule {
             }
             routeRegistry.put(route, action);
             routeName.ifPresent(registeredActionNames::add);
+            legacyActionName.ifPresent(registeredActionNames::add);
         }
 
         /**
@@ -1135,7 +1145,11 @@ public class ActionModule extends AbstractModule {
                 throw new IllegalArgumentException("action [" + route + "] was not registered");
             }
             if (route instanceof NamedRoute) {
-                registeredActionNames.remove(((NamedRoute) route).name());
+                NamedRoute nr = (NamedRoute) route;
+                registeredActionNames.remove(nr.name());
+                if (nr.legacyActionName() != null) {
+                    registeredActionNames.remove(nr.legacyActionName());
+                }
             }
         }
 
