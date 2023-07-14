@@ -8,6 +8,8 @@
 
 package org.opensearch.identity.tokens;
 
+import org.opensearch.OpenSearchSecurityException;
+
 /**
  * This interface defines the expected methods of a token manager
  */
@@ -19,4 +21,9 @@ public interface TokenManager {
      * @return A new auth token
      */
     public AuthToken issueToken(String audience);
+
+    /**
+     * Issue a service account token for an extension's service account
+     * */
+    AuthToken issueServiceAccountToken(String extensionUniqueId) throws OpenSearchSecurityException;
 }
