@@ -8,6 +8,8 @@
 
 package org.opensearch.identity.shiro;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 import org.apache.shiro.authc.AuthenticationToken;
 import org.apache.shiro.authc.UsernamePasswordToken;
@@ -16,6 +18,7 @@ import org.opensearch.identity.noop.NoopTokenManager;
 import org.opensearch.identity.tokens.AuthToken;
 import org.opensearch.identity.tokens.BasicAuthToken;
 import org.opensearch.identity.tokens.BearerAuthToken;
+import org.opensearch.identity.tokens.StandardTokenClaims;
 import org.opensearch.test.OpenSearchTestCase;
 import org.passay.CharacterCharacteristicsRule;
 import org.passay.CharacterRule;
@@ -31,12 +34,10 @@ import static org.hamcrest.Matchers.notNullValue;
 public class AuthTokenHandlerTests extends OpenSearchTestCase {
 
     private ShiroTokenManager shiroAuthTokenHandler;
-    private NoopTokenManager noopTokenManager;
 
     @Before
     public void testSetup() {
         shiroAuthTokenHandler = new ShiroTokenManager();
-        noopTokenManager = new NoopTokenManager();
     }
 
     public void testShouldExtractBasicAuthTokenSuccessfully() {
@@ -144,4 +145,30 @@ public class AuthTokenHandlerTests extends OpenSearchTestCase {
         validator.validate(data);
     }
 
+    public void testIssueOnBehalfOfTokenFromClaims() {
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("aud", "test");
+        BasicAuthToken authToken = (BasicAuthToken) shiroAuthTokenHandler.issueOnBehalfOfToken(claims);
+        assertTrue(authToken instanceof BasicAuthToken);
+        UsernamePasswordToken translatedToken = (UsernamePasswordToken) shiroAuthTokenHandler.translateAuthToken(authToken).get();
+        assertEquals(authToken.getPassword(), new String(translatedToken.getPassword()));
+        assertTrue(shiroAuthTokenHandler.getShiroTokenPasswordMap().containsKey(authToken));
+        assertEquals(shiroAuthTokenHandler.getShiroTokenPasswordMap().get(authToken), new String(translatedToken.getPassword()));
+    }
+
+    public void testTokenNoopIssuance() {
+        NoopTokenManager tokenManager = new NoopTokenManager();
+        AuthToken token = tokenManager.issueOnBehalfOfToken(Map.of("test", "test"));
+        assertTrue(token instanceof AuthToken);
+    }
+
+    public void testStandardTokenClaims() {
+        assertEquals(StandardTokenClaims.AUDIENCE.getName(), "aud");
+        assertEquals(StandardTokenClaims.ISSUED_AT.getName(), "iat");
+        assertEquals(StandardTokenClaims.ISSUER.getName(), "iss");
+        assertEquals(StandardTokenClaims.EXPIRATION_TIME.getName(), "exp");
+        assertEquals(StandardTokenClaims.JWT_ID.getName(), "jti");
+        assertEquals(StandardTokenClaims.NOT_BEFORE.getName(), "nbf");
+        assertEquals(StandardTokenClaims.SUBJECT.getName(), "sub");
+    }
 }

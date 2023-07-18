@@ -23,6 +23,8 @@ import org.apache.shiro.authc.UsernamePasswordToken;
 import org.opensearch.OpenSearchSecurityException;
 import org.opensearch.common.Randomness;
 import org.opensearch.identity.IdentityService;
+import org.opensearch.identity.Subject;
+import org.opensearch.identity.noop.NoopSubject;
 import org.opensearch.identity.tokens.AuthToken;
 import org.opensearch.identity.tokens.BasicAuthToken;
 import org.opensearch.identity.tokens.TokenManager;
@@ -53,15 +55,16 @@ class ShiroTokenManager implements TokenManager {
             final BasicAuthToken basicAuthToken = (BasicAuthToken) authenticationToken;
             return Optional.of(new UsernamePasswordToken(basicAuthToken.getUser(), basicAuthToken.getPassword()));
         }
-
         return Optional.empty();
     }
 
     @Override
-    public AuthToken issueToken(String audience) {
+    public AuthToken issueOnBehalfOfToken(Map<String, Object> claims) {
 
         String password = generatePassword();
-        final byte[] rawEncoded = Base64.getEncoder().encode((audience + ":" + password).getBytes(UTF_8));
+        final byte[] rawEncoded = Base64.getEncoder().encode((claims.get("aud") + ":" + password).getBytes(UTF_8)); // Make a new
+                                                                                                                    // ShiroSubject w/
+                                                                                                                    // audience as name
         final String usernamePassword = new String(rawEncoded, UTF_8);
         final String header = "Basic " + usernamePassword;
         BasicAuthToken token = new BasicAuthToken(header);
@@ -73,6 +76,11 @@ class ShiroTokenManager implements TokenManager {
     @Override
     public AuthToken issueServiceAccountToken(String extensionUniqueId) throws OpenSearchSecurityException {
         return NOOP_AUTH_TOKEN;
+    }
+
+    @Override
+    public Subject authenticateToken(AuthToken authToken) {
+        return new NoopSubject();
     }
 
     public boolean validateToken(AuthToken token) {
