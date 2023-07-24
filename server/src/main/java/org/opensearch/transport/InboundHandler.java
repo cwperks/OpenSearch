@@ -124,10 +124,24 @@ public class InboundHandler {
         assert header.needsToReadVariableHeader() == false;
 
         ThreadContext threadContext = threadPool.getThreadContext();
+        boolean logAfter = false;
+        System.out.println("message received");
+        if (threadContext.getTransient("_opendistro_security_user") != null) {
+            System.out.println("message received with transient user");
+            System.out.println("Before stashing: " + threadContext.getTransient("_opendistro_security_user"));
+            logAfter = true;
+        }
+        if (threadContext.getTransient("_opendistro_security_remote_address") != null) {
+            System.out.println("Remote address transient header: " + threadContext.getTransient("_opendistro_security_remote_address"));
+        }
+        
         try (ThreadContext.StoredContext existing = threadContext.stashContext()) {
             // Place the context with the headers from the message
             threadContext.setHeaders(header.getHeaders());
             threadContext.putTransient("_remote_address", remoteAddress);
+            if (logAfter) {
+                System.out.println("After stashing: " + threadContext.getTransient("_opendistro_security_user"));
+            }
             if (header.isRequest()) {
                 handleRequest(channel, header, message);
             } else {

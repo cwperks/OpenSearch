@@ -125,6 +125,8 @@ final class OutboundHandler {
             compressRequest
         );
         ActionListener<Void> listener = ActionListener.wrap(() -> messageListener.onRequestSent(node, requestId, action, request, options));
+
+        System.out.println("Sending message for " + action);
         sendMessage(channel, message, listener);
     }
 

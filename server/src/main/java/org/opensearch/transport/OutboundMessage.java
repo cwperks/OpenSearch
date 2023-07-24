@@ -88,6 +88,7 @@ abstract class OutboundMessage extends NetworkMessage {
     }
 
     protected void writeVariableHeader(StreamOutput stream) throws IOException {
+        System.out.println("Writing threadcontext to Stream");
         threadContext.writeTo(stream);
     }
 
