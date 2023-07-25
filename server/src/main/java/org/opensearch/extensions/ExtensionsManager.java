@@ -16,6 +16,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
@@ -38,6 +41,8 @@ import org.opensearch.core.common.io.stream.StreamInput;
 
 import org.opensearch.discovery.InitializeExtensionRequest;
 import org.opensearch.discovery.InitializeExtensionResponse;
+import org.opensearch.discovery.InitializeExtensionSecurityRequest;
+import org.opensearch.discovery.InitializeExtensionSecurityResponse;
 import org.opensearch.extensions.ExtensionsSettings.Extension;
 import org.opensearch.extensions.action.ExtensionActionRequest;
 import org.opensearch.extensions.action.ExtensionActionResponse;
@@ -49,6 +54,8 @@ import org.opensearch.extensions.rest.RegisterRestActionsRequest;
 import org.opensearch.extensions.rest.RestActionsRequestHandler;
 import org.opensearch.extensions.settings.CustomSettingsRequestHandler;
 import org.opensearch.extensions.settings.RegisterCustomSettingsRequest;
+import org.opensearch.identity.IdentityService;
+import org.opensearch.identity.tokens.AuthToken;
 import org.opensearch.threadpool.ThreadPool;
 import org.opensearch.transport.ConnectTransportException;
 import org.opensearch.transport.TransportException;
@@ -70,6 +77,7 @@ public class ExtensionsManager {
     public static final String REQUEST_EXTENSION_ADD_SETTINGS_UPDATE_CONSUMER = "internal:discovery/addsettingsupdateconsumer";
     public static final String REQUEST_EXTENSION_UPDATE_SETTINGS = "internal:discovery/updatesettings";
     public static final String REQUEST_EXTENSION_DEPENDENCY_INFORMATION = "internal:discovery/dependencyinformation";
+    public static final String REQUEST_EXTENSION_REGISTER_SECURITY_SETTINGS = "internal:discovery/registersecuritysettings";
     public static final String REQUEST_EXTENSION_REGISTER_CUSTOM_SETTINGS = "internal:discovery/registercustomsettings";
     public static final String REQUEST_EXTENSION_REGISTER_REST_ACTIONS = "internal:discovery/registerrestactions";
     public static final String REQUEST_EXTENSION_REGISTER_TRANSPORT_ACTIONS = "internal:discovery/registertransportactions";
@@ -97,6 +105,8 @@ public class ExtensionsManager {
     private CustomSettingsRequestHandler customSettingsRequestHandler;
     private TransportService transportService;
     private ClusterService clusterService;
+
+    private IdentityService identityService;
     private final Set<Setting<?>> additionalSettings;
     private Settings environmentSettings;
     private AddSettingsUpdateConsumerRequestHandler addSettingsUpdateConsumerRequestHandler;
@@ -142,9 +152,15 @@ public class ExtensionsManager {
         TransportService transportService,
         ClusterService clusterService,
         Settings initialEnvironmentSettings,
-        NodeClient client
+        NodeClient client,
+        IdentityService identityService
     ) {
-        this.restActionsRequestHandler = new RestActionsRequestHandler(actionModule.getRestController(), extensionIdMap, transportService);
+        this.restActionsRequestHandler = new RestActionsRequestHandler(
+            actionModule.getRestController(),
+            extensionIdMap,
+            transportService,
+            identityService
+        );
         this.customSettingsRequestHandler = new CustomSettingsRequestHandler(settingsModule);
         this.transportService = transportService;
         this.clusterService = clusterService;
@@ -397,8 +413,60 @@ public class ExtensionsManager {
                     new InitializeExtensionRequest(transportService.getLocalNode(), extension),
                     initializeExtensionResponseHandler
                 );
+                initializeExtensionSecurity(extension);
             }
         });
+    }
+
+    private void initializeExtensionSecurity(DiscoveryExtensionNode extension) {
+        final CompletableFuture<InitializeExtensionSecurityResponse> inProgressFuture = new CompletableFuture<>();
+        final TransportResponseHandler<InitializeExtensionSecurityResponse> initializeExtensionSecurityResponseHandler =
+            new TransportResponseHandler<InitializeExtensionSecurityResponse>() {
+
+                @Override
+                public InitializeExtensionSecurityResponse read(StreamInput in) throws IOException {
+                    return new InitializeExtensionSecurityResponse(in);
+                }
+
+                @Override
+                public void handleResponse(InitializeExtensionSecurityResponse response) {
+                    System.out.println("Registered security settings for " + response.getName());
+                    inProgressFuture.complete(response);
+                }
+
+                @Override
+                public void handleException(TransportException exp) {
+                    logger.error(new ParameterizedMessage("Extension initialization failed"), exp);
+                    inProgressFuture.completeExceptionally(exp);
+                }
+
+                @Override
+                public String executor() {
+                    return ThreadPool.Names.GENERIC;
+                }
+            };
+        try {
+            logger.info("Sending extension request type: " + REQUEST_EXTENSION_REGISTER_SECURITY_SETTINGS);
+            AuthToken serviceAccountToken = identityService.getTokenManager().issueServiceAccountToken(extension.getId());
+            transportService.sendRequest(
+                extension,
+                REQUEST_EXTENSION_REGISTER_SECURITY_SETTINGS,
+                new InitializeExtensionSecurityRequest(serviceAccountToken.getTokenValue()),
+                initializeExtensionSecurityResponseHandler
+            );
+
+            inProgressFuture.orTimeout(EXTENSION_REQUEST_WAIT_TIMEOUT, TimeUnit.SECONDS).join();
+        } catch (CompletionException | ConnectTransportException e) {
+            if (e.getCause() instanceof TimeoutException || e instanceof ConnectTransportException) {
+                logger.info("No response from extension to request.", e);
+            } else if (e.getCause() instanceof RuntimeException) {
+                throw (RuntimeException) e.getCause();
+            } else if (e.getCause() instanceof Error) {
+                throw (Error) e.getCause();
+            } else {
+                throw new RuntimeException(e.getCause());
+            }
+        }
     }
 
     /**
@@ -483,6 +551,10 @@ public class ExtensionsManager {
 
     void setClusterService(ClusterService clusterService) {
         this.clusterService = clusterService;
+    }
+
+    public void setIdentityService(IdentityService identityService) {
+        this.identityService = identityService;
     }
 
     CustomSettingsRequestHandler getCustomSettingsRequestHandler() {

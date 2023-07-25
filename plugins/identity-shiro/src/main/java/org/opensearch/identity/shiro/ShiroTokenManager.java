@@ -20,8 +20,11 @@ import org.apache.logging.log4j.Logger;
 import org.apache.shiro.SecurityUtils;
 import org.apache.shiro.authc.AuthenticationToken;
 import org.apache.shiro.authc.UsernamePasswordToken;
+import org.opensearch.OpenSearchSecurityException;
 import org.opensearch.common.Randomness;
 import org.opensearch.identity.IdentityService;
+import org.opensearch.identity.Subject;
+import org.opensearch.identity.noop.NoopSubject;
 import org.opensearch.identity.tokens.AuthToken;
 import org.opensearch.identity.tokens.BasicAuthToken;
 import org.opensearch.identity.tokens.TokenManager;
@@ -29,6 +32,7 @@ import org.passay.CharacterRule;
 import org.passay.EnglishCharacterData;
 import org.passay.PasswordGenerator;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.opensearch.identity.noop.NoopTokenManager.NOOP_AUTH_TOKEN;
 
 /**
  * Extracts Shiro's {@link AuthenticationToken} from different types of auth headers
@@ -51,21 +55,32 @@ class ShiroTokenManager implements TokenManager {
             final BasicAuthToken basicAuthToken = (BasicAuthToken) authenticationToken;
             return Optional.of(new UsernamePasswordToken(basicAuthToken.getUser(), basicAuthToken.getPassword()));
         }
-
         return Optional.empty();
     }
 
     @Override
-    public AuthToken issueToken(String audience) {
+    public AuthToken issueOnBehalfOfToken(Map<String, Object> claims) {
 
         String password = generatePassword();
-        final byte[] rawEncoded = Base64.getEncoder().encode((audience + ":" + password).getBytes(UTF_8));
+        final byte[] rawEncoded = Base64.getEncoder().encode((claims.get("aud") + ":" + password).getBytes(UTF_8)); // Make a new
+                                                                                                                    // ShiroSubject w/
+                                                                                                                    // audience as name
         final String usernamePassword = new String(rawEncoded, UTF_8);
         final String header = "Basic " + usernamePassword;
         BasicAuthToken token = new BasicAuthToken(header);
         shiroTokenPasswordMap.put(token, password);
 
         return token;
+    }
+
+    @Override
+    public AuthToken issueServiceAccountToken(String extensionUniqueId) throws OpenSearchSecurityException {
+        return NOOP_AUTH_TOKEN;
+    }
+
+    @Override
+    public Subject authenticateToken(AuthToken authToken) {
+        return new NoopSubject();
     }
 
     public boolean validateToken(AuthToken token) {
