@@ -150,6 +150,7 @@ public class RunTask extends DefaultTestClustersTask {
                     entry -> entry.getValue().toString()
                 )
             );
+        System.out.println("additionalSettings: " + additionalSettings);
         boolean singleNode = getClusters().stream().flatMap(c -> c.getNodes().stream()).count() == 1;
         final Function<OpenSearchNode, Path> getDataPath;
         if (singleNode) {
