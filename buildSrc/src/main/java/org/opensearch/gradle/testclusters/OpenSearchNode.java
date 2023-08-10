@@ -471,6 +471,9 @@ public class OpenSearchNode implements TestClusterConfiguration {
     @Override
     public synchronized void start() {
         LOGGER.info("Starting `{}`", this);
+        System.out.println("Settings keys: " + settings.entrySet());
+        System.out.println("System Properties: " + systemProperties);
+        System.out.println("System.getProperties(): " + System.getProperties());
         System.out.println("http protocol: " + settings.get("http.protocol"));
         System.out.println("username: " + settings.get("username"));
         System.out.println("password: " + settings.get("password"));

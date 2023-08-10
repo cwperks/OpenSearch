@@ -554,13 +554,11 @@ public class OpenSearchCluster implements TestClusterConfiguration, Named {
     private void addWaitForClusterHealth() {
         waitConditions.put("cluster health yellow", (node) -> {
             try {
-                WaitForHttpResource wait = new WaitForHttpResource("http", getFirstNode().getHttpSocketURI(), nodes.size());
+                WaitForHttpResource wait = new WaitForHttpResource("https", getFirstNode().getHttpSocketURI(), nodes.size());
 
                 List<Map<String, String>> credentials = getFirstNode().getCredentials();
-                if (getFirstNode().getCredentials().isEmpty() == false) {
-                    wait.setUsername(credentials.get(0).get("useradd"));
-                    wait.setPassword(credentials.get(0).get("-p"));
-                }
+                wait.setUsername("admin");
+                wait.setPassword("password");
                 return wait.wait(500);
             } catch (IOException e) {
                 throw new UncheckedIOException("IO error while waiting cluster", e);
