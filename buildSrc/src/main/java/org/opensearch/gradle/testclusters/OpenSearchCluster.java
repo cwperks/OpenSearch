@@ -559,6 +559,7 @@ public class OpenSearchCluster implements TestClusterConfiguration, Named {
                 List<Map<String, String>> credentials = getFirstNode().getCredentials();
                 wait.setUsername("admin");
                 wait.setPassword("password");
+                System.out.println("Setting certificate authority");
                 wait.setCertificateAuthorities(new File("config", "root-ca.pem"));
                 return wait.wait(500);
             } catch (IOException e) {
