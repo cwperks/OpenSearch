@@ -9,7 +9,6 @@
 package org.opensearch.identity.tokens;
 
 import org.opensearch.OpenSearchSecurityException;
-import java.util.Map;
 import org.opensearch.identity.Subject;
 
 /**
@@ -20,10 +19,11 @@ public interface TokenManager {
     /**
      * Create a new on behalf of token
      *
+     * @param subject: The subject of the token
      * @param claims: A list of claims for the token to be generated with
      * @return A new auth token
      */
-    public AuthToken issueOnBehalfOfToken(Map<String, Object> claims);
+    public AuthToken issueOnBehalfOfToken(final Subject subject, final OnBehalfOfClaims claims);
 
     /**
      * Issue a service account token for an extension's service account

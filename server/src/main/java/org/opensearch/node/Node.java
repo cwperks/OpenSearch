@@ -32,35 +32,6 @@
 
 package org.opensearch.node;
 
-import java.io.BufferedWriter;
-import java.io.Closeable;
-import java.io.IOException;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Executor;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Function;
-import java.util.function.UnaryOperator;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-import javax.net.ssl.SNIHostName;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.lucene.util.Constants;
@@ -107,17 +78,13 @@ import org.opensearch.cluster.routing.allocation.DiskThresholdMonitor;
 import org.opensearch.cluster.service.ClusterService;
 import org.opensearch.common.SetOnce;
 import org.opensearch.common.StopWatch;
-import org.opensearch.common.breaker.CircuitBreaker;
-import org.opensearch.common.component.Lifecycle;
-import org.opensearch.common.component.LifecycleComponent;
 import org.opensearch.common.inject.Injector;
 import org.opensearch.common.inject.Key;
 import org.opensearch.common.inject.Module;
 import org.opensearch.common.inject.ModulesBuilder;
 import org.opensearch.common.lease.Releasables;
-
-import org.opensearch.core.common.io.stream.NamedWriteableRegistry;
-
+import org.opensearch.common.lifecycle.Lifecycle;
+import org.opensearch.common.lifecycle.LifecycleComponent;
 import org.opensearch.common.logging.DeprecationLogger;
 import org.opensearch.common.logging.HeaderWarning;
 import org.opensearch.common.logging.NodeAndClusterIdStateListener;
@@ -132,16 +99,20 @@ import org.opensearch.common.settings.SettingUpgrader;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.common.settings.SettingsException;
 import org.opensearch.common.settings.SettingsModule;
-import org.opensearch.common.transport.BoundTransportAddress;
-import org.opensearch.common.transport.TransportAddress;
-import org.opensearch.common.unit.ByteSizeUnit;
-import org.opensearch.common.unit.ByteSizeValue;
 import org.opensearch.common.unit.TimeValue;
 import org.opensearch.common.util.BigArrays;
 import org.opensearch.common.util.FeatureFlags;
 import org.opensearch.common.util.PageCacheRecycler;
 import org.opensearch.common.util.io.IOUtils;
 import org.opensearch.core.Assertions;
+import org.opensearch.core.common.breaker.CircuitBreaker;
+import org.opensearch.core.common.io.stream.NamedWriteableRegistry;
+import org.opensearch.core.common.transport.BoundTransportAddress;
+import org.opensearch.core.common.transport.TransportAddress;
+import org.opensearch.core.common.unit.ByteSizeUnit;
+import org.opensearch.core.common.unit.ByteSizeValue;
+import org.opensearch.core.indices.breaker.CircuitBreakerService;
+import org.opensearch.core.indices.breaker.NoneCircuitBreakerService;
 import org.opensearch.core.xcontent.NamedXContentRegistry;
 import org.opensearch.discovery.Discovery;
 import org.opensearch.discovery.DiscoveryModule;
@@ -163,6 +134,7 @@ import org.opensearch.index.IndexSettings;
 import org.opensearch.index.IndexingPressureService;
 import org.opensearch.index.analysis.AnalysisRegistry;
 import org.opensearch.index.engine.EngineFactory;
+import org.opensearch.index.recovery.RemoteStoreRestoreService;
 import org.opensearch.index.store.RemoteSegmentStoreDirectoryFactory;
 import org.opensearch.index.store.remote.filecache.FileCache;
 import org.opensearch.index.store.remote.filecache.FileCacheCleaner;
@@ -174,9 +146,7 @@ import org.opensearch.indices.SystemIndexDescriptor;
 import org.opensearch.indices.SystemIndices;
 import org.opensearch.indices.analysis.AnalysisModule;
 import org.opensearch.indices.breaker.BreakerSettings;
-import org.opensearch.indices.breaker.CircuitBreakerService;
 import org.opensearch.indices.breaker.HierarchyCircuitBreakerService;
-import org.opensearch.indices.breaker.NoneCircuitBreakerService;
 import org.opensearch.indices.cluster.IndicesClusterStateService;
 import org.opensearch.indices.recovery.PeerRecoverySourceService;
 import org.opensearch.indices.recovery.PeerRecoveryTargetService;
@@ -258,6 +228,38 @@ import org.opensearch.transport.TransportInterceptor;
 import org.opensearch.transport.TransportService;
 import org.opensearch.usage.UsageService;
 import org.opensearch.watcher.ResourceWatcherService;
+
+import javax.net.ssl.SNIHostName;
+
+import java.io.BufferedWriter;
+import java.io.Closeable;
+import java.io.IOException;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
+import java.util.function.UnaryOperator;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
 import static java.util.stream.Collectors.toList;
 import static org.opensearch.common.util.FeatureFlags.TELEMETRY;
 import static org.opensearch.env.NodeEnvironment.collectFileCacheDataPath;
@@ -428,7 +430,7 @@ public class Node implements Closeable {
                 Constants.JVM_VERSION
             );
             if (jvmInfo.getBundledJdk()) {
-                logger.info("JVM home [{}], using bundled JDK [{}]", System.getProperty("java.home"), jvmInfo.getUsingBundledJdk());
+                logger.info("JVM home [{}], using bundled JDK/JRE [{}]", System.getProperty("java.home"), jvmInfo.getUsingBundledJdk());
             } else {
                 logger.info("JVM home [{}]", System.getProperty("java.home"));
                 deprecationLogger.deprecate(
@@ -943,8 +945,13 @@ public class Node implements Closeable {
                 clusterModule.getAllocationService(),
                 metadataCreateIndexService,
                 metadataIndexUpgradeService,
-                clusterService.getClusterSettings(),
-                shardLimitValidator
+                shardLimitValidator,
+                indicesService,
+                clusterInfoService::getClusterInfo
+            );
+            RemoteStoreRestoreService remoteStoreRestoreService = new RemoteStoreRestoreService(
+                clusterService,
+                clusterModule.getAllocationService()
             );
 
             final DiskThresholdMonitor diskThresholdMonitor = new DiskThresholdMonitor(
@@ -1142,6 +1149,7 @@ public class Node implements Closeable {
                 b.bind(SnapshotShardsService.class).toInstance(snapshotShardsService);
                 b.bind(TransportNodesSnapshotsStatus.class).toInstance(nodesSnapshotsStatus);
                 b.bind(RestoreService.class).toInstance(restoreService);
+                b.bind(RemoteStoreRestoreService.class).toInstance(remoteStoreRestoreService);
                 b.bind(RerouteService.class).toInstance(rerouteService);
                 b.bind(ShardLimitValidator.class).toInstance(shardLimitValidator);
                 b.bind(FsHealthService.class).toInstance(fsHealthService);

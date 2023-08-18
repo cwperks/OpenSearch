@@ -8,13 +8,6 @@
 
 package org.opensearch.identity.shiro;
 
-import java.util.Arrays;
-import java.util.Base64;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Random;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.shiro.SecurityUtils;
@@ -27,10 +20,21 @@ import org.opensearch.identity.Subject;
 import org.opensearch.identity.noop.NoopSubject;
 import org.opensearch.identity.tokens.AuthToken;
 import org.opensearch.identity.tokens.BasicAuthToken;
+import org.opensearch.identity.tokens.OnBehalfOfClaims;
 import org.opensearch.identity.tokens.TokenManager;
+
+import java.util.Arrays;
+import java.util.Base64;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Random;
+
 import org.passay.CharacterRule;
 import org.passay.EnglishCharacterData;
 import org.passay.PasswordGenerator;
+
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.opensearch.identity.noop.NoopTokenManager.NOOP_AUTH_TOKEN;
 
@@ -59,12 +63,12 @@ class ShiroTokenManager implements TokenManager {
     }
 
     @Override
-    public AuthToken issueOnBehalfOfToken(Map<String, Object> claims) {
+    public AuthToken issueOnBehalfOfToken(Subject subject, OnBehalfOfClaims claims) {
 
         String password = generatePassword();
-        final byte[] rawEncoded = Base64.getEncoder().encode((claims.get("aud") + ":" + password).getBytes(UTF_8)); // Make a new
-                                                                                                                    // ShiroSubject w/
-                                                                                                                    // audience as name
+        final byte[] rawEncoded = Base64.getEncoder().encode((claims.getAudience() + ":" + password).getBytes(UTF_8)); // Make a new
+                                                                                                                       // ShiroSubject w/
+                                                                                                                       // audience as name
         final String usernamePassword = new String(rawEncoded, UTF_8);
         final String header = "Basic " + usernamePassword;
         BasicAuthToken token = new BasicAuthToken(header);

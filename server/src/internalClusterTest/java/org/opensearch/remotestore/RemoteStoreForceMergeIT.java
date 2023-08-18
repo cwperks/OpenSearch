@@ -8,7 +8,6 @@
 
 package org.opensearch.remotestore;
 
-import org.junit.Before;
 import org.opensearch.action.admin.cluster.remotestore.restore.RestoreRemoteStoreRequest;
 import org.opensearch.action.index.IndexResponse;
 import org.opensearch.action.support.PlainActionFuture;
@@ -17,6 +16,7 @@ import org.opensearch.plugins.Plugin;
 import org.opensearch.test.InternalTestCluster;
 import org.opensearch.test.OpenSearchIntegTestCase;
 import org.opensearch.test.transport.MockTransportService;
+import org.junit.Before;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -104,9 +104,17 @@ public class RemoteStoreForceMergeIT extends RemoteStoreBaseIntegTestCase {
         Map<String, Long> indexStats = indexData(numberOfIterations, invokeFlush, flushAfterMerge, deletedDocs);
 
         internalCluster().stopRandomNode(InternalTestCluster.nameFilter(primaryNodeName(INDEX_NAME)));
-        assertAcked(client().admin().indices().prepareClose(INDEX_NAME));
 
-        client().admin().cluster().restoreRemoteStore(new RestoreRemoteStoreRequest().indices(INDEX_NAME), PlainActionFuture.newFuture());
+        boolean restoreAllShards = randomBoolean();
+        if (restoreAllShards) {
+            assertAcked(client().admin().indices().prepareClose(INDEX_NAME));
+        }
+        client().admin()
+            .cluster()
+            .restoreRemoteStore(
+                new RestoreRemoteStoreRequest().indices(INDEX_NAME).restoreAllShards(restoreAllShards),
+                PlainActionFuture.newFuture()
+            );
         ensureGreen(INDEX_NAME);
 
         if (deletedDocs == -1) {
@@ -119,6 +127,7 @@ public class RemoteStoreForceMergeIT extends RemoteStoreBaseIntegTestCase {
     // Following integ tests use randomBoolean to control the number of integ tests. If we use the separate
     // values for each of the flags, number of integ tests become 16 in comparison to current 2.
     // We have run all the 16 tests on local and they run fine.
+    @AwaitsFix(bugUrl = "https://github.com/opensearch-project/OpenSearch/issues/9294")
     public void testRestoreForceMergeSingleIteration() throws IOException {
         boolean invokeFLush = randomBoolean();
         boolean flushAfterMerge = randomBoolean();

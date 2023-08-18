@@ -37,15 +37,15 @@ import org.opensearch.cluster.Diffable;
 import org.opensearch.cluster.DiffableUtils;
 import org.opensearch.cluster.metadata.IndexMetadata;
 import org.opensearch.cluster.metadata.Metadata;
-import org.opensearch.cluster.routing.RecoverySource.SnapshotRecoverySource;
 import org.opensearch.cluster.routing.RecoverySource.RemoteStoreRecoverySource;
+import org.opensearch.cluster.routing.RecoverySource.SnapshotRecoverySource;
 import org.opensearch.common.Nullable;
+import org.opensearch.common.util.iterable.Iterables;
 import org.opensearch.core.common.io.stream.StreamInput;
 import org.opensearch.core.common.io.stream.StreamOutput;
-import org.opensearch.common.util.iterable.Iterables;
 import org.opensearch.core.index.Index;
-import org.opensearch.index.IndexNotFoundException;
 import org.opensearch.core.index.shard.ShardId;
+import org.opensearch.index.IndexNotFoundException;
 import org.opensearch.index.shard.ShardNotFoundException;
 
 import java.io.IOException;
@@ -293,6 +293,16 @@ public class RoutingTable implements Iterable<IndexRoutingTable>, Diffable<Routi
 
     public ShardsIterator allShardsIncludingRelocationTargets(String[] indices) {
         return allShardsSatisfyingPredicate(indices, shardRouting -> true, true);
+    }
+
+    /**
+     * All the shards on the node which match the predicate
+     * @param predicate condition to match
+     * @return iterator over shards matching the predicate
+     */
+    public ShardsIterator allShardsSatisfyingPredicate(Predicate<ShardRouting> predicate) {
+        String[] indices = indicesRouting.keySet().toArray(new String[0]);
+        return allShardsSatisfyingPredicate(indices, predicate, false);
     }
 
     private ShardsIterator allShardsSatisfyingPredicate(
@@ -562,9 +572,13 @@ public class RoutingTable implements Iterable<IndexRoutingTable>, Diffable<Routi
             return add(indexRoutingBuilder);
         }
 
-        public Builder addAsRemoteStoreRestore(IndexMetadata indexMetadata, RemoteStoreRecoverySource recoverySource) {
+        public Builder addAsRemoteStoreRestore(
+            IndexMetadata indexMetadata,
+            RemoteStoreRecoverySource recoverySource,
+            Map<ShardId, ShardRouting> activeInitializingShards
+        ) {
             IndexRoutingTable.Builder indexRoutingBuilder = new IndexRoutingTable.Builder(indexMetadata.getIndex())
-                .initializeAsRemoteStoreRestore(indexMetadata, recoverySource);
+                .initializeAsRemoteStoreRestore(indexMetadata, recoverySource, activeInitializingShards);
             add(indexRoutingBuilder);
             return this;
         }

@@ -8,6 +8,31 @@
 
 package org.opensearch.extensions.rest;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.opensearch.action.ActionModule.DynamicActionRegistry;
+import org.opensearch.client.node.NodeClient;
+import org.opensearch.core.common.bytes.BytesReference;
+import org.opensearch.core.common.io.stream.StreamInput;
+import org.opensearch.core.rest.RestStatus;
+import org.opensearch.core.xcontent.MediaType;
+import org.opensearch.extensions.DiscoveryExtensionNode;
+import org.opensearch.extensions.ExtensionsManager;
+import org.opensearch.http.HttpRequest;
+import org.opensearch.identity.IdentityService;
+import org.opensearch.identity.Subject;
+import org.opensearch.identity.tokens.OnBehalfOfClaims;
+import org.opensearch.identity.tokens.TokenManager;
+import org.opensearch.rest.BaseRestHandler;
+import org.opensearch.rest.BytesRestResponse;
+import org.opensearch.rest.NamedRoute;
+import org.opensearch.rest.RestRequest;
+import org.opensearch.rest.RestRequest.Method;
+import org.opensearch.threadpool.ThreadPool;
+import org.opensearch.transport.TransportException;
+import org.opensearch.transport.TransportResponseHandler;
+import org.opensearch.transport.TransportService;
+
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -20,28 +45,7 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.opensearch.action.ActionModule.DynamicActionRegistry;
-import org.opensearch.client.node.NodeClient;
-import org.opensearch.common.xcontent.XContentType;
-import org.opensearch.core.common.bytes.BytesReference;
-import org.opensearch.core.common.io.stream.StreamInput;
-import org.opensearch.core.rest.RestStatus;
-import org.opensearch.extensions.DiscoveryExtensionNode;
-import org.opensearch.extensions.ExtensionsManager;
-import org.opensearch.http.HttpRequest;
-import org.opensearch.identity.IdentityService;
-import org.opensearch.identity.tokens.StandardTokenClaims;
-import org.opensearch.rest.BaseRestHandler;
-import org.opensearch.rest.BytesRestResponse;
-import org.opensearch.rest.NamedRoute;
-import org.opensearch.rest.RestRequest;
-import org.opensearch.rest.RestRequest.Method;
-import org.opensearch.threadpool.ThreadPool;
-import org.opensearch.transport.TransportException;
-import org.opensearch.transport.TransportResponseHandler;
-import org.opensearch.transport.TransportService;
+
 import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.unmodifiableList;
@@ -176,7 +180,7 @@ public class RestSendToExtensionAction extends BaseRestHandler {
         String uri = httpRequest.uri();
         Map<String, String> params = request.params();
         Map<String, List<String>> headers = request.getHeaders();
-        XContentType contentType = request.getXContentType();
+        MediaType contentType = request.getMediaType();
         BytesReference content = request.content();
         HttpRequest.HttpVersion httpVersion = httpRequest.protocolVersion();
 
@@ -235,8 +239,13 @@ public class RestSendToExtensionAction extends BaseRestHandler {
         };
 
         try {
+            // Will be replaced with ExtensionTokenProcessor and PrincipalIdentifierToken classes from feature/identity
 
             Map<String, List<String>> filteredHeaders = filterHeaders(headers, allowList, denyList);
+
+            TokenManager tokenManager = identityService.getTokenManager();
+            Subject subject = this.identityService.getSubject();
+            OnBehalfOfClaims claims = new OnBehalfOfClaims(discoveryExtensionNode.getId(), subject.getPrincipal().getName());
 
             transportService.sendRequest(
                 discoveryExtensionNode,
@@ -251,9 +260,7 @@ public class RestSendToExtensionAction extends BaseRestHandler {
                     filteredHeaders,
                     contentType,
                     content,
-                    identityService.getTokenManager()
-                        .issueOnBehalfOfToken(Map.of(StandardTokenClaims.AUDIENCE.getName(), discoveryExtensionNode.getId()))
-                        .getTokenValue(), // discoveryExtensionNode.getId() is extension's unique id
+                    tokenManager.issueOnBehalfOfToken(subject, claims).asAuthHeaderValue(),
                     httpVersion
                 ),
                 restExecuteOnExtensionResponseHandler

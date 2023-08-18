@@ -13,8 +13,8 @@ import org.opensearch.common.Nullable;
 import org.opensearch.core.common.io.stream.StreamInput;
 import org.opensearch.core.common.io.stream.StreamOutput;
 import org.opensearch.core.common.io.stream.Writeable;
-import org.opensearch.index.seqno.SequenceNumbers;
 import org.opensearch.core.index.shard.ShardId;
+import org.opensearch.index.seqno.SequenceNumbers;
 
 import java.io.IOException;
 import java.util.Objects;
@@ -32,6 +32,10 @@ public class ReplicationCheckpoint implements Writeable, Comparable<ReplicationC
     private final long segmentInfosVersion;
     private final long length;
     private final String codec;
+
+    public static ReplicationCheckpoint empty(ShardId shardId) {
+        return empty(shardId, "");
+    }
 
     public static ReplicationCheckpoint empty(ShardId shardId, String codec) {
         return new ReplicationCheckpoint(shardId, codec);

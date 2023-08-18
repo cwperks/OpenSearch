@@ -8,13 +8,13 @@
 
 package org.opensearch.identity.noop;
 
-import java.util.Map;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.opensearch.OpenSearchSecurityException;
 import org.opensearch.identity.IdentityService;
 import org.opensearch.identity.Subject;
 import org.opensearch.identity.tokens.AuthToken;
+import org.opensearch.identity.tokens.OnBehalfOfClaims;
 import org.opensearch.identity.tokens.TokenManager;
 
 /**
@@ -26,7 +26,7 @@ public class NoopTokenManager implements TokenManager {
 
     public static AuthToken NOOP_AUTH_TOKEN = new AuthToken() {
         @Override
-        public String getTokenValue() {
+        public String asAuthHeaderValue() {
             return "";
         }
     };
@@ -40,13 +40,13 @@ public class NoopTokenManager implements TokenManager {
         return NOOP_AUTH_TOKEN;
     }
 
-    /**
-     * Issue a new Noop Token
-     * @return a new Noop Token
-     */
-    @Override
-    public AuthToken issueOnBehalfOfToken(Map<String, Object> claims) {
-        return NOOP_AUTH_TOKEN;
+    public AuthToken issueOnBehalfOfToken(final Subject subject, final OnBehalfOfClaims claims) {
+        return new AuthToken() {
+            @Override
+            public String asAuthHeaderValue() {
+                return "noopToken";
+            }
+        };
     }
 
     @Override
