@@ -429,7 +429,7 @@ public class ExtensionsManager {
                         initializedExtensions.entrySet().stream().map(e -> e.getValue()).collect(Collectors.toList())
                     );
                 } else {
-                    ExtensionDependency matchingId = new ExtensionDependency(uniqueId, Version.CURRENT);
+                    var matchingId = new ExtensionDependency(uniqueId, Version.CURRENT);
                     return new ExtensionDependencyResponse(
                         initializedExtensions.entrySet()
                             .stream()
