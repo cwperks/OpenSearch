@@ -62,6 +62,7 @@ import org.junit.Before;
 
 import java.io.IOException;
 import java.net.InetAddress;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -95,6 +96,7 @@ public class ExtensionsManagerTests extends OpenSearchTestCase {
     private NodeClient client;
     private MockNioTransport transport;
     private IdentityService identityService;
+    private Path extensionDir;
 
     private final ThreadPool threadPool = new TestThreadPool(ExtensionsManagerTests.class.getSimpleName());
     private final Settings settings = Settings.builder()

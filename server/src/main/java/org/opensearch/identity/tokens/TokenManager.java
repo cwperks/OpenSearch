@@ -8,6 +8,7 @@
 
 package org.opensearch.identity.tokens;
 
+import org.opensearch.OpenSearchSecurityException;
 import org.opensearch.identity.Subject;
 
 /**
@@ -18,10 +19,16 @@ public interface TokenManager {
     /**
      * Create a new on behalf of token
      *
+     * @param subject: The subject of the token
      * @param claims: A list of claims for the token to be generated with
      * @return A new auth token
      */
     public AuthToken issueOnBehalfOfToken(final Subject subject, final OnBehalfOfClaims claims);
+
+    /**
+     * Issue a service account token for an extension's service account
+     * */
+    AuthToken issueServiceAccountToken(String extensionUniqueId) throws OpenSearchSecurityException;
 
     /**
      * Authenticates a provided authToken

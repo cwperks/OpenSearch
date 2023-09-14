@@ -13,6 +13,7 @@ import org.apache.logging.log4j.Logger;
 import org.apache.shiro.SecurityUtils;
 import org.apache.shiro.authc.AuthenticationToken;
 import org.apache.shiro.authc.UsernamePasswordToken;
+import org.opensearch.OpenSearchSecurityException;
 import org.opensearch.common.Randomness;
 import org.opensearch.identity.IdentityService;
 import org.opensearch.identity.Subject;
@@ -35,6 +36,7 @@ import org.passay.EnglishCharacterData;
 import org.passay.PasswordGenerator;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.opensearch.identity.noop.NoopTokenManager.NOOP_AUTH_TOKEN;
 
 /**
  * Extracts Shiro's {@link AuthenticationToken} from different types of auth headers
@@ -73,6 +75,11 @@ class ShiroTokenManager implements TokenManager {
         shiroTokenPasswordMap.put(token, password);
 
         return token;
+    }
+
+    @Override
+    public AuthToken issueServiceAccountToken(String extensionUniqueId) throws OpenSearchSecurityException {
+        return NOOP_AUTH_TOKEN;
     }
 
     @Override
