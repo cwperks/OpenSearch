@@ -373,20 +373,29 @@ public abstract class AbstractHttpServerTransport extends AbstractLifecycleCompo
     void dispatchRequest(final RestRequest restRequest, final RestChannel channel, final Throwable badRequestCause) {
         RestChannel traceableRestChannel = channel;
         final ThreadContext threadContext = threadPool.getThreadContext();
-        try (ThreadContext.StoredContext ignore = threadContext.stashContext()) {
-            final Span span = tracer.startSpan(SpanBuilder.from(restRequest));
-            try (final SpanScope spanScope = tracer.withSpanInScope(span)) {
-                if (channel != null) {
-                    traceableRestChannel = TraceableRestChannel.create(channel, span, tracer);
-                }
-                if (badRequestCause != null) {
-                    dispatcher.dispatchBadRequest(traceableRestChannel, threadContext, badRequestCause);
-                } else {
-                    dispatcher.dispatchRequest(restRequest, traceableRestChannel, threadContext);
-                }
+        if (dispatchRequestShouldStashThreadContext()) {
+            try (ThreadContext.StoredContext ignore = threadContext.stashContext()) {
+                doDispatch(restRequest, channel, badRequestCause);
+            }
+        } else {
+            doDispatch(restRequest, channel, badRequestCause);
+        }
+    }
+
+    private void doDispatch(final RestRequest restRequest, final RestChannel channel, final Throwable badRequestCause) {
+        RestChannel traceableRestChannel = channel;
+        final ThreadContext threadContext = threadPool.getThreadContext();
+        final Span span = tracer.startSpan(SpanBuilder.from(restRequest));
+        try (final SpanScope spanScope = tracer.withSpanInScope(span)) {
+            if (channel != null) {
+                traceableRestChannel = TraceableRestChannel.create(channel, span, tracer);
+            }
+            if (badRequestCause != null) {
+                dispatcher.dispatchBadRequest(traceableRestChannel, threadContext, badRequestCause);
+            } else {
+                dispatcher.dispatchRequest(restRequest, traceableRestChannel, threadContext);
             }
         }
-
     }
 
     private void handleIncomingRequest(final HttpRequest httpRequest, final HttpChannel httpChannel, final Exception exception) {
@@ -482,5 +491,9 @@ public abstract class AbstractHttpServerTransport extends AbstractLifecycleCompo
         } else {
             return NO_OP;
         }
+    }
+
+    public boolean dispatchRequestShouldStashThreadContext() {
+        return true;
     }
 }
