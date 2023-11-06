@@ -124,11 +124,11 @@ public class RegexTests extends OpenSearchTestCase {
         }
     }
 
-    public void testRemoveDuplicates() {
-        assertEquals("*", Regex.removeAdjacentDuplicates("***", '*'));
-        assertEquals("*abc*", Regex.removeAdjacentDuplicates("**abc**", '*'));
-        assertEquals("a*b*c*", Regex.removeAdjacentDuplicates("a*b**c****", '*'));
-        assertEquals("*abc", Regex.removeAdjacentDuplicates("****abc", '*'));
-        assertEquals("*", Regex.removeAdjacentDuplicates("*".repeat(100), '*'));
+    public void testLargeInput() {
+        try {
+            Regex.simpleMatch("*".repeat(10_000), "abc");
+        } catch (Error e) {
+            fail("Received error while evaluating regex: " + e);
+        }
     }
 }
