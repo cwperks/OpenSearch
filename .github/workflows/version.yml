@@ -11,13 +11,13 @@ jobs:
     if: github.repository == 'cwperks/OpenSearch'
     runs-on: ubuntu-latest
     steps:
-      - name: GitHub App token
-        id: github_app_token
-        uses: tibdex/github-app-token@v2.1.0
-        with:
-          app_id: ${{ secrets.APP_ID }}
-          private_key: ${{ secrets.APP_PRIVATE_KEY }}
-          installation_id: 22958780
+#      - name: GitHub App token
+#        id: github_app_token
+#        uses: tibdex/github-app-token@v2.1.0
+#        with:
+#          app_id: ${{ secrets.APP_ID }}
+#          private_key: ${{ secrets.APP_PRIVATE_KEY }}
+#          installation_id: 22958780
 
       - uses: actions/checkout@v4
       - name: Fetch Tag and Version Information
@@ -85,20 +85,20 @@ jobs:
           echo Adding $NEXT_VERSION_UNDERSCORE after $CURRENT_VERSION_UNDERSCORE
           sed -i "s/public static final Version $CURRENT_VERSION_UNDERSCORE = new Version(\([[:digit:]]\+\)\(.*\));/\0\n    public static final Version $NEXT_VERSION_UNDERSCORE = new Version($NEXT_VERSION_ID\2);/g" libs/core/src/main/java/org/opensearch/Version.java
 
-      - name: Create Pull Request
-        uses: peter-evans/create-pull-request@v6
-        with:
-          token: ${{ steps.github_app_token.outputs.token }}
-          base: ${{ env.BASE_X }}
-          branch: 'create-pull-request/patch-${{ env.BASE_X }}'
-          commit-message: Add bwc version ${{ env.NEXT_VERSION }}
-          signoff: true
-          delete-branch: true
-          labels: |
-            autocut
-          title: '[AUTO] [${{ env.BASE_X }}] Add bwc version ${{ env.NEXT_VERSION }}.'
-          body: |
-            I've noticed that a new tag ${{ env.TAG }} was pushed, and added a bwc version ${{ env.NEXT_VERSION }}.
+#      - name: Create Pull Request
+#        uses: peter-evans/create-pull-request@v6
+#        with:
+#          token: ${{ steps.github_app_token.outputs.token }}
+#          base: ${{ env.BASE_X }}
+#          branch: 'create-pull-request/patch-${{ env.BASE_X }}'
+#          commit-message: Add bwc version ${{ env.NEXT_VERSION }}
+#          signoff: true
+#          delete-branch: true
+#          labels: |
+#            autocut
+#          title: '[AUTO] [${{ env.BASE_X }}] Add bwc version ${{ env.NEXT_VERSION }}.'
+#          body: |
+#            I've noticed that a new tag ${{ env.TAG }} was pushed, and added a bwc version ${{ env.NEXT_VERSION }}.
 
       - uses: actions/checkout@v4
         with:
@@ -115,7 +115,7 @@ jobs:
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v6
         with:
-          token: ${{ steps.github_app_token.outputs.token }}
+          token: 'c3a2b49cd6ef6d64a0125284ac66a38d8b3e9df4'
           base: main
           branch: 'create-pull-request/patch-main'
           commit-message: Add bwc version ${{ env.NEXT_VERSION }}
