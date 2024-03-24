@@ -18,7 +18,7 @@ permissions:
 
 jobs:
   build:
-    if: github.repository == 'opensearch-project/OpenSearch'
+    if: github.repository == 'cwperks/OpenSearch'
     runs-on: ubuntu-latest
     steps:
       - name: Fetch tag and version information
@@ -54,7 +54,7 @@ jobs:
           ref: ${{ env.BASE }}
 
       - name: Increment Patch Version on Major.Minor branch
-        uses: peternied/opensearch-core-version-updater@v1
+        uses: cwperks/opensearch-core-version-updater@v1
         with:
           previous-version: ${{ env.CURRENT_VERSION }}
           new-version: ${{ env.NEXT_VERSION }}
@@ -80,7 +80,7 @@ jobs:
           ref: ${{ env.BASE_X }}
 
       - name: Add Patch Version on Major.X branch
-        uses: peternied/opensearch-core-version-updater@v1
+        uses: cwperks/opensearch-core-version-updater@v1
         with:
           previous-version: ${{ env.CURRENT_VERSION }}
           new-version: ${{ env.NEXT_VERSION }}
@@ -106,7 +106,7 @@ jobs:
           ref: main
 
       - name: Add Patch Version on main branch
-        uses: peternied/opensearch-core-version-updater@v1
+        uses: cwperks/opensearch-core-version-updater@v1
         with:
           previous-version: ${{ env.CURRENT_VERSION }}
           new-version: ${{ env.NEXT_VERSION }}
