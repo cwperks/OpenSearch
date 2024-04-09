@@ -43,11 +43,8 @@ import java.io.IOException;
 import java.util.List;
 
 import static java.util.Arrays.asList;
-import static java.util.Collections.singletonList;
 import static java.util.Collections.unmodifiableList;
 import static org.opensearch.rest.RestRequest.Method.GET;
-import static org.opensearch.rest.RestRequest.Method.POST;
-import static org.opensearch.rest.RestRequest.Method.PUT;
 
 /**
  * Transport action to get stored script
@@ -60,12 +57,7 @@ public class RestGetStoredScriptAction extends BaseRestHandler {
 
     @Override
     public List<Route> routes() {
-        return unmodifiableList(
-            asList(
-                new Route(GET, "/_scripts"),
-                new Route(GET, "/_scripts/{id}")
-            )
-        );
+        return unmodifiableList(asList(new Route(GET, "/_scripts"), new Route(GET, "/_scripts/{id}")));
     }
 
     @Override
@@ -76,7 +68,7 @@ public class RestGetStoredScriptAction extends BaseRestHandler {
     @Override
     public RestChannelConsumer prepareRequest(final RestRequest request, NodeClient client) throws IOException {
         final String[] scriptIds = request.paramAsStringArray("id", Strings.EMPTY_ARRAY);
-//        String id = request.param("id");
+        // String id = request.param("id");
         GetStoredScriptRequest getRequest = new GetStoredScriptRequest(scriptIds);
         getRequest.clusterManagerNodeTimeout(request.paramAsTime("cluster_manager_timeout", getRequest.clusterManagerNodeTimeout()));
         parseDeprecatedMasterTimeoutParameter(getRequest, request, deprecationLogger, getName());

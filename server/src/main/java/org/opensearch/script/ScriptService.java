@@ -536,7 +536,7 @@ public class ScriptService implements Closeable, ClusterStateApplier {
             throw new ResourceNotFoundException("unable to find script [" + id + "] in cluster state");
         }
 
-        StoredScriptSource[] source = scriptMetadata.getStoredScript(new String[]{id});
+        StoredScriptSource[] source = scriptMetadata.getStoredScript(new String[] { id });
 
         if (source == null || source.length == 0) {
             throw new ResourceNotFoundException("unable to find script [" + id + "] in cluster state");

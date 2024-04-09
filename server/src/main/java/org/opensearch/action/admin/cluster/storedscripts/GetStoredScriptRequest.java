@@ -92,7 +92,7 @@ public class GetStoredScriptRequest extends ClusterManagerNodeReadRequest<GetSto
     }
 
     public GetStoredScriptRequest id(String id) {
-        this.ids = new String[]{ id };
+        this.ids = new String[] { id };
 
         return this;
     }

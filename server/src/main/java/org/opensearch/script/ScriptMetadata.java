@@ -49,13 +49,12 @@ import org.opensearch.core.xcontent.XContentParser;
 import org.opensearch.core.xcontent.XContentParser.Token;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 /**
@@ -413,7 +412,15 @@ public final class ScriptMetadata implements Metadata.Custom, Writeable, ToXCont
         if (ids == null) {
             return scripts.values().toArray(StoredScriptSource[]::new);
         }
-        return Arrays.stream(ids).map(scripts::get).collect(Collectors.toList()).toArray(StoredScriptSource[]::new);
+        StoredScriptSource[] s = Arrays.stream(ids)
+            .map(scripts::get)
+            .filter(Objects::nonNull)
+            .collect(Collectors.toList())
+            .toArray(StoredScriptSource[]::new);
+        if (s == null || s.length == 0) {
+            return null;
+        }
+        return s;
     }
 
     @Override

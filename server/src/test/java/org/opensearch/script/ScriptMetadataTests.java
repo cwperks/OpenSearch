@@ -141,8 +141,8 @@ public class ScriptMetadataTests extends AbstractSerializingTestCase<ScriptMetad
         builder.storeScript("script", StoredScriptSource.parse(BytesReference.bytes(sourceBuilder), mediaType));
 
         ScriptMetadata scriptMetadata = builder.build();
-        assertEquals("_source", scriptMetadata.getStoredScript(new String[]{"script"})[0].getSource());
-        assertEquals("{\"field\":\"value\"}", scriptMetadata.getStoredScript(new String[]{"source_template"})[0].getSource());
+        assertEquals("_source", scriptMetadata.getStoredScript(new String[] { "script" })[0].getSource());
+        assertEquals("{\"field\":\"value\"}", scriptMetadata.getStoredScript(new String[] { "source_template" })[0].getSource());
     }
 
     public void testDiff() throws Exception {
@@ -197,9 +197,9 @@ public class ScriptMetadataTests extends AbstractSerializingTestCase<ScriptMetad
         assertNotNull(((DiffableUtils.MapDiff) diff.pipelines).getUpserts().get("4"));
 
         ScriptMetadata result = (ScriptMetadata) diff.apply(scriptMetadata1);
-        assertEquals("{\"foo\":\"abc\"}", result.getStoredScript(new String[]{"1"})[0].getSource());
-        assertEquals("{\"foo\":\"changed\"}", result.getStoredScript(new String[]{"2"})[0].getSource());
-        assertEquals("{\"foo\":\"jkl\"}", result.getStoredScript(new String[]{"4"})[0].getSource());
+        assertEquals("{\"foo\":\"abc\"}", result.getStoredScript(new String[] { "1" })[0].getSource());
+        assertEquals("{\"foo\":\"changed\"}", result.getStoredScript(new String[] { "2" })[0].getSource());
+        assertEquals("{\"foo\":\"jkl\"}", result.getStoredScript(new String[] { "4" })[0].getSource());
     }
 
     public void testBuilder() {
@@ -213,7 +213,7 @@ public class ScriptMetadataTests extends AbstractSerializingTestCase<ScriptMetad
         );
 
         ScriptMetadata result = builder.build();
-        assertEquals("1 + 1", result.getStoredScript(new String[]{"_id"})[0].getSource());
+        assertEquals("1 + 1", result.getStoredScript(new String[] { "_id" })[0].getSource());
     }
 
     public void testLoadEmptyScripts() throws IOException {
@@ -295,9 +295,9 @@ public class ScriptMetadataTests extends AbstractSerializingTestCase<ScriptMetad
                 BytesReference.bytes(builder).streamInput()
             );
         ScriptMetadata smd = ScriptMetadata.fromXContent(parser);
-        assertNull(smd.getStoredScript(new String[]{"painless#test"}));
-        assertNull(smd.getStoredScript(new String[]{"lang#test"}));
-        assertEquals(new StoredScriptSource("painless", "code", Collections.emptyMap()), smd.getStoredScript(new String[]{"test"})[0]);
+        assertNull(smd.getStoredScript(new String[] { "painless#test" }));
+        assertNull(smd.getStoredScript(new String[] { "lang#test" }));
+        assertEquals(new StoredScriptSource("painless", "code", Collections.emptyMap()), smd.getStoredScript(new String[] { "test" })[0]);
         assertEquals(1, smd.getStoredScripts().size());
     }
 

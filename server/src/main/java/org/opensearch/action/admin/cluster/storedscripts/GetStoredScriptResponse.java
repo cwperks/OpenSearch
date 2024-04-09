@@ -38,7 +38,6 @@ import org.opensearch.core.ParseField;
 import org.opensearch.core.action.ActionResponse;
 import org.opensearch.core.common.io.stream.StreamInput;
 import org.opensearch.core.common.io.stream.StreamOutput;
-import org.opensearch.core.common.io.stream.Writeable;
 import org.opensearch.core.rest.RestStatus;
 import org.opensearch.core.xcontent.ConstructingObjectParser;
 import org.opensearch.core.xcontent.ObjectParser;
@@ -72,7 +71,9 @@ public class GetStoredScriptResponse extends ActionResponse implements StatusToX
             String id = (String) a[0];
             boolean found = (Boolean) a[1];
             StoredScriptSource scriptSource = (StoredScriptSource) a[2];
-            return found ? new GetStoredScriptResponse(new String[]{id}, new StoredScriptSource[]{scriptSource}) : new GetStoredScriptResponse(new String[]{id}, null);
+            return found
+                ? new GetStoredScriptResponse(new String[] { id }, new StoredScriptSource[] { scriptSource })
+                : new GetStoredScriptResponse(new String[] { id }, null);
         }
     );
 
@@ -94,7 +95,7 @@ public class GetStoredScriptResponse extends ActionResponse implements StatusToX
         super(in);
 
         if (in.readBoolean()) {
-            in.readArray(StoredScriptSource::new, StoredScriptSource[]::new);
+            source = in.readArray(StoredScriptSource::new, StoredScriptSource[]::new);
         } else {
             source = null;
         }

@@ -76,7 +76,7 @@ public class StoredScriptsIT extends OpenSearchIntegTestCase {
         assertEquals("1", script);
 
         assertAcked(client().admin().cluster().prepareDeleteStoredScript().setId("foobar"));
-        StoredScriptSource source = client().admin().cluster().prepareGetStoredScript("foobar").get().getSource()[0];
+        StoredScriptSource[] source = client().admin().cluster().prepareGetStoredScript("foobar").get().getSource();
         assertNull(source);
 
         IllegalArgumentException e = expectThrows(

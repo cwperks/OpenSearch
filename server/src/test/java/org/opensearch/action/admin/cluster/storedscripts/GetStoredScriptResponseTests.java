@@ -53,7 +53,10 @@ public class GetStoredScriptResponseTests extends AbstractSerializingTestCase<Ge
 
     @Override
     protected GetStoredScriptResponse createTestInstance() {
-        return new GetStoredScriptResponse(new String[]{randomAlphaOfLengthBetween(1, 10)}, new StoredScriptSource[]{randomScriptSource()});
+        return new GetStoredScriptResponse(
+            new String[] { randomAlphaOfLengthBetween(1, 10) },
+            new StoredScriptSource[] { randomScriptSource() }
+        );
     }
 
     @Override
