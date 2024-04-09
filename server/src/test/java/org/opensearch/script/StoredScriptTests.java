@@ -55,10 +55,10 @@ public class StoredScriptTests extends AbstractSerializingTestCase<StoredScriptS
     public void testBasicAddDelete() {
         StoredScriptSource source = new StoredScriptSource("lang", "code", emptyMap());
         ScriptMetadata smd = ScriptMetadata.putStoredScript(null, "test", source);
-        assertThat(smd.getStoredScript("test"), equalTo(source));
+        assertThat(smd.getStoredScript(new String[]{"test"})[0], equalTo(source));
 
         smd = ScriptMetadata.deleteStoredScript(smd, "test");
-        assertThat(smd.getStoredScript("test"), nullValue());
+        assertThat(smd.getStoredScript(new String[]{"test"})[0], nullValue());
     }
 
     public void testInvalidDelete() {

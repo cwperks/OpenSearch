@@ -71,12 +71,12 @@ public class StoredScriptsIT extends OpenSearchIntegTestCase {
                 .setId("foobar")
                 .setContent(new BytesArray("{\"script\": {\"lang\": \"" + LANG + "\", \"source\": \"1\"} }"), MediaTypeRegistry.JSON)
         );
-        String script = client().admin().cluster().prepareGetStoredScript("foobar").get().getSource().getSource();
+        String script = client().admin().cluster().prepareGetStoredScript("foobar").get().getSource()[0].getSource();
         assertNotNull(script);
         assertEquals("1", script);
 
         assertAcked(client().admin().cluster().prepareDeleteStoredScript().setId("foobar"));
-        StoredScriptSource source = client().admin().cluster().prepareGetStoredScript("foobar").get().getSource();
+        StoredScriptSource source = client().admin().cluster().prepareGetStoredScript("foobar").get().getSource()[0];
         assertNull(source);
 
         IllegalArgumentException e = expectThrows(

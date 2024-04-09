@@ -38,6 +38,7 @@ import org.opensearch.core.ParseField;
 import org.opensearch.core.action.ActionResponse;
 import org.opensearch.core.common.io.stream.StreamInput;
 import org.opensearch.core.common.io.stream.StreamOutput;
+import org.opensearch.core.common.io.stream.Writeable;
 import org.opensearch.core.rest.RestStatus;
 import org.opensearch.core.xcontent.ConstructingObjectParser;
 import org.opensearch.core.xcontent.ObjectParser;
@@ -46,6 +47,7 @@ import org.opensearch.core.xcontent.XContentParser;
 import org.opensearch.script.StoredScriptSource;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Objects;
 
 import static org.opensearch.core.xcontent.ConstructingObjectParser.constructorArg;
@@ -70,7 +72,7 @@ public class GetStoredScriptResponse extends ActionResponse implements StatusToX
             String id = (String) a[0];
             boolean found = (Boolean) a[1];
             StoredScriptSource scriptSource = (StoredScriptSource) a[2];
-            return found ? new GetStoredScriptResponse(id, scriptSource) : new GetStoredScriptResponse(id, null);
+            return found ? new GetStoredScriptResponse(new String[]{id}, new StoredScriptSource[]{scriptSource}) : new GetStoredScriptResponse(new String[]{id}, null);
         }
     );
 
@@ -85,34 +87,34 @@ public class GetStoredScriptResponse extends ActionResponse implements StatusToX
         );
     }
 
-    private String id;
-    private StoredScriptSource source;
+    private String[] ids;
+    private StoredScriptSource[] source;
 
     public GetStoredScriptResponse(StreamInput in) throws IOException {
         super(in);
 
         if (in.readBoolean()) {
-            source = new StoredScriptSource(in);
+            in.readArray(StoredScriptSource::new, StoredScriptSource[]::new);
         } else {
             source = null;
         }
 
-        id = in.readString();
+        ids = in.readStringArray();
     }
 
-    GetStoredScriptResponse(String id, StoredScriptSource source) {
-        this.id = id;
+    GetStoredScriptResponse(String[] ids, StoredScriptSource[] source) {
+        this.ids = ids;
         this.source = source;
     }
 
-    public String getId() {
-        return id;
+    public String[] getIds() {
+        return ids;
     }
 
     /**
      * @return if a stored script and if not found <code>null</code>
      */
-    public StoredScriptSource getSource() {
+    public StoredScriptSource[] getSource() {
         return source;
     }
 
@@ -125,11 +127,13 @@ public class GetStoredScriptResponse extends ActionResponse implements StatusToX
     public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
         builder.startObject();
 
-        builder.field(_ID_PARSE_FIELD.getPreferredName(), id);
+        builder.field(_ID_PARSE_FIELD.getPreferredName(), ids);
         builder.field(FOUND_PARSE_FIELD.getPreferredName(), source != null);
         if (source != null) {
             builder.field(StoredScriptSource.SCRIPT_PARSE_FIELD.getPreferredName());
-            source.toXContent(builder, params);
+            for (StoredScriptSource scriptSource : this.source) {
+                scriptSource.toXContent(builder, params);
+            }
         }
 
         builder.endObject();
@@ -146,9 +150,9 @@ public class GetStoredScriptResponse extends ActionResponse implements StatusToX
             out.writeBoolean(false);
         } else {
             out.writeBoolean(true);
-            source.writeTo(out);
+            out.writeArray(source);
         }
-        out.writeString(id);
+        out.writeStringArrayNullable(ids);
     }
 
     @Override
@@ -156,11 +160,11 @@ public class GetStoredScriptResponse extends ActionResponse implements StatusToX
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         GetStoredScriptResponse that = (GetStoredScriptResponse) o;
-        return Objects.equals(id, that.id) && Objects.equals(source, that.source);
+        return Arrays.equals(ids, that.ids) && Arrays.equals(source, that.source);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, source);
+        return Objects.hash(Arrays.hashCode(ids), Arrays.hashCode(source));
     }
 }

@@ -536,13 +536,13 @@ public class ScriptService implements Closeable, ClusterStateApplier {
             throw new ResourceNotFoundException("unable to find script [" + id + "] in cluster state");
         }
 
-        StoredScriptSource source = scriptMetadata.getStoredScript(id);
+        StoredScriptSource[] source = scriptMetadata.getStoredScript(new String[]{id});
 
-        if (source == null) {
+        if (source == null || source.length == 0) {
             throw new ResourceNotFoundException("unable to find script [" + id + "] in cluster state");
         }
 
-        return source;
+        return source[0];
     }
 
     public void putStoredScript(
@@ -649,11 +649,11 @@ public class ScriptService implements Closeable, ClusterStateApplier {
         );
     }
 
-    public StoredScriptSource getStoredScript(ClusterState state, GetStoredScriptRequest request) {
+    public StoredScriptSource[] getStoredScript(ClusterState state, GetStoredScriptRequest request) {
         ScriptMetadata scriptMetadata = state.metadata().custom(ScriptMetadata.TYPE);
 
         if (scriptMetadata != null) {
-            return scriptMetadata.getStoredScript(request.id());
+            return scriptMetadata.getStoredScript(request.ids());
         } else {
             return null;
         }

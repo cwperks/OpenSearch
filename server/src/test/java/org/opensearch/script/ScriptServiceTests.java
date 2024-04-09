@@ -381,7 +381,7 @@ public class ScriptServiceTests extends OpenSearchTestCase {
             StoredScriptSource.parse(script, MediaTypeRegistry.JSON)
         );
         assertNotNull(scriptMetadata);
-        assertEquals("abc", scriptMetadata.getStoredScript("_id").getSource());
+        assertEquals("abc", scriptMetadata.getStoredScript(new String[]{"_id"})[0].getSource());
     }
 
     public void testDeleteScript() throws Exception {
@@ -392,7 +392,7 @@ public class ScriptServiceTests extends OpenSearchTestCase {
         );
         scriptMetadata = ScriptMetadata.deleteStoredScript(scriptMetadata, "_id");
         assertNotNull(scriptMetadata);
-        assertNull(scriptMetadata.getStoredScript("_id"));
+        assertNull(scriptMetadata.getStoredScript(new String[]{"_id"}));
 
         ScriptMetadata errorMetadata = scriptMetadata;
         ResourceNotFoundException e = expectThrows(ResourceNotFoundException.class, () -> {
@@ -419,10 +419,10 @@ public class ScriptServiceTests extends OpenSearchTestCase {
             )
             .build();
 
-        assertEquals("abc", scriptService.getStoredScript(cs, new GetStoredScriptRequest("_id")).getSource());
+        assertEquals("abc", scriptService.getStoredScript(cs, new GetStoredScriptRequest(new String[]{"_id"}))[0].getSource());
 
         cs = ClusterState.builder(new ClusterName("_name")).build();
-        assertNull(scriptService.getStoredScript(cs, new GetStoredScriptRequest("_id")));
+        assertNull(scriptService.getStoredScript(cs, new GetStoredScriptRequest(new String[]{"_id"})));
     }
 
     public void testMaxSizeLimit() throws Exception {

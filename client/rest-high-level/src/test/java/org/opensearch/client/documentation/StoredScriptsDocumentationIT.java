@@ -95,7 +95,7 @@ public class StoredScriptsDocumentationIT extends OpenSearchRestHighLevelClientT
 
         {
             // tag::get-stored-script-request
-            GetStoredScriptRequest request = new GetStoredScriptRequest("calculate-score"); // <1>
+            GetStoredScriptRequest request = new GetStoredScriptRequest(new String[]{"calculate-score"}); // <1>
             // end::get-stored-script-request
 
             // tag::get-stored-script-request-masterTimeout
@@ -108,7 +108,7 @@ public class StoredScriptsDocumentationIT extends OpenSearchRestHighLevelClientT
             // end::get-stored-script-execute
 
             // tag::get-stored-script-response
-            StoredScriptSource storedScriptSource = getResponse.getSource(); // <1>
+            StoredScriptSource storedScriptSource = getResponse.getSource()[0]; // <1>
 
             String lang = storedScriptSource.getLang(); // <2>
             String source = storedScriptSource.getSource(); // <3>

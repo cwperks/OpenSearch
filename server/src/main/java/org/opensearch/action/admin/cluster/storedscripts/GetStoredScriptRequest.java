@@ -39,6 +39,7 @@ import org.opensearch.core.common.io.stream.StreamInput;
 import org.opensearch.core.common.io.stream.StreamOutput;
 
 import java.io.IOException;
+import java.util.Arrays;
 
 import static org.opensearch.action.ValidateActions.addValidationError;
 
@@ -50,54 +51,54 @@ import static org.opensearch.action.ValidateActions.addValidationError;
 @PublicApi(since = "1.0.0")
 public class GetStoredScriptRequest extends ClusterManagerNodeReadRequest<GetStoredScriptRequest> {
 
-    protected String id;
+    protected String[] ids;
 
     GetStoredScriptRequest() {
         super();
     }
 
-    public GetStoredScriptRequest(String id) {
+    public GetStoredScriptRequest(String[] ids) {
         super();
 
-        this.id = id;
+        this.ids = ids;
     }
 
     public GetStoredScriptRequest(StreamInput in) throws IOException {
         super(in);
-        id = in.readString();
+        ids = in.readStringArray();
     }
 
     @Override
     public void writeTo(StreamOutput out) throws IOException {
         super.writeTo(out);
-        out.writeString(id);
+        out.writeStringArray(ids);
     }
 
     @Override
     public ActionRequestValidationException validate() {
         ActionRequestValidationException validationException = null;
 
-        if (id == null || id.isEmpty()) {
-            validationException = addValidationError("must specify id for stored script", validationException);
-        } else if (id.contains("#")) {
-            validationException = addValidationError("id cannot contain '#' for stored script", validationException);
+        if (ids == null) {
+            validationException = addValidationError("must specify id(s) for stored script", validationException);
+        } else if (Arrays.stream(ids).anyMatch((s) -> s.contains("#"))) {
+            validationException = addValidationError("id(s) cannot contain '#' for stored script", validationException);
         }
 
         return validationException;
     }
 
-    public String id() {
-        return id;
+    public String[] ids() {
+        return ids;
     }
 
     public GetStoredScriptRequest id(String id) {
-        this.id = id;
+        this.ids = new String[]{ id };
 
         return this;
     }
 
     @Override
     public String toString() {
-        return "get script [" + id + "]";
+        return "get script [" + Arrays.toString(ids) + "]";
     }
 }

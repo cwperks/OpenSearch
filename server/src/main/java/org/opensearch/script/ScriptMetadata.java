@@ -49,10 +49,14 @@ import org.opensearch.core.xcontent.XContentParser;
 import org.opensearch.core.xcontent.XContentParser.Token;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * {@link ScriptMetadata} is used to store user-defined scripts
@@ -405,8 +409,11 @@ public final class ScriptMetadata implements Metadata.Custom, Writeable, ToXCont
     /**
      * Retrieves a stored script based on a user-specified id.
      */
-    StoredScriptSource getStoredScript(String id) {
-        return scripts.get(id);
+    StoredScriptSource[] getStoredScript(String[] ids) {
+        if (ids == null) {
+            return scripts.values().toArray(StoredScriptSource[]::new);
+        }
+        return Arrays.stream(ids).map(scripts::get).collect(Collectors.toList()).toArray(StoredScriptSource[]::new);
     }
 
     @Override

@@ -38,12 +38,14 @@ import org.opensearch.test.OpenSearchTestCase;
 
 import java.io.IOException;
 
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.collection.ArrayMatching.arrayContainingInAnyOrder;
 import static org.opensearch.test.VersionUtils.randomVersion;
 import static org.hamcrest.CoreMatchers.equalTo;
 
 public class GetStoredScriptRequestTests extends OpenSearchTestCase {
     public void testGetIndexedScriptRequestSerialization() throws IOException {
-        GetStoredScriptRequest request = new GetStoredScriptRequest("id");
+        GetStoredScriptRequest request = new GetStoredScriptRequest(new String[]{"id"});
 
         BytesStreamOutput out = new BytesStreamOutput();
         out.setVersion(randomVersion(random()));
@@ -53,6 +55,6 @@ public class GetStoredScriptRequestTests extends OpenSearchTestCase {
         in.setVersion(out.getVersion());
         GetStoredScriptRequest request2 = new GetStoredScriptRequest(in);
 
-        assertThat(request2.id(), equalTo(request.id()));
+        assertThat(request2.ids(), arrayContainingInAnyOrder(request.ids()));
     }
 }

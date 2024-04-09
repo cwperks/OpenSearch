@@ -94,7 +94,7 @@ public class TransportGetStoredScriptAction extends TransportClusterManagerNodeR
         ClusterState state,
         ActionListener<GetStoredScriptResponse> listener
     ) throws Exception {
-        listener.onResponse(new GetStoredScriptResponse(request.id(), scriptService.getStoredScript(state, request)));
+        listener.onResponse(new GetStoredScriptResponse(request.ids(), scriptService.getStoredScript(state, request)));
     }
 
     @Override
