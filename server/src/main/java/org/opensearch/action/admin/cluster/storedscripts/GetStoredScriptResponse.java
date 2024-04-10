@@ -47,6 +47,7 @@ import org.opensearch.script.StoredScriptSource;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
 
 import static org.opensearch.core.xcontent.ConstructingObjectParser.constructorArg;
@@ -68,23 +69,23 @@ public class GetStoredScriptResponse extends ActionResponse implements StatusToX
         "GetStoredScriptResponse",
         true,
         (a, c) -> {
-            String id = (String) a[0];
+            List<String> ids = (List<String>) a[0];
             boolean found = (Boolean) a[1];
-            StoredScriptSource scriptSource = (StoredScriptSource) a[2];
+            List<StoredScriptSource> scriptSources = (List<StoredScriptSource>) a[2];
             return found
-                ? new GetStoredScriptResponse(new String[] { id }, new StoredScriptSource[] { scriptSource })
-                : new GetStoredScriptResponse(new String[] { id }, null);
+                ? new GetStoredScriptResponse(ids.toArray(new String[0]), scriptSources.toArray(new StoredScriptSource[0]))
+                : new GetStoredScriptResponse(ids.toArray(new String[0]), null);
         }
     );
 
     static {
-        PARSER.declareField(constructorArg(), (p, c) -> p.text(), _ID_PARSE_FIELD, ObjectParser.ValueType.STRING);
+        PARSER.declareFieldArray(constructorArg(), (p, c) -> p.text(), _ID_PARSE_FIELD, ObjectParser.ValueType.STRING_ARRAY);
         PARSER.declareField(constructorArg(), (p, c) -> p.booleanValue(), FOUND_PARSE_FIELD, ObjectParser.ValueType.BOOLEAN);
-        PARSER.declareField(
+        PARSER.declareFieldArray(
             optionalConstructorArg(),
             (p, c) -> StoredScriptSource.fromXContent(p, true),
             SCRIPT,
-            ObjectParser.ValueType.OBJECT
+            ObjectParser.ValueType.OBJECT_ARRAY
         );
     }
 
@@ -128,13 +129,20 @@ public class GetStoredScriptResponse extends ActionResponse implements StatusToX
     public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
         builder.startObject();
 
-        builder.field(_ID_PARSE_FIELD.getPreferredName(), ids);
+        builder.field(_ID_PARSE_FIELD.getPreferredName());
+        builder.startArray();
+        for (String id : ids) {
+            builder.value(id);
+        }
+        builder.endArray();
         builder.field(FOUND_PARSE_FIELD.getPreferredName(), source != null);
         if (source != null) {
             builder.field(StoredScriptSource.SCRIPT_PARSE_FIELD.getPreferredName());
+            builder.startArray();
             for (StoredScriptSource scriptSource : this.source) {
                 scriptSource.toXContent(builder, params);
             }
+            builder.endArray();
         }
 
         builder.endObject();

@@ -803,7 +803,9 @@ final class RequestConverters {
     }
 
     static Request getScript(GetStoredScriptRequest getStoredScriptRequest) {
-        String endpoint = new EndpointBuilder().addPathPartAsIs("_scripts").addPathPart(String.join(",", getStoredScriptRequest.ids())).build();
+        String endpoint = new EndpointBuilder().addPathPartAsIs("_scripts")
+            .addPathPart(String.join(",", getStoredScriptRequest.ids()))
+            .build();
         Request request = new Request(HttpGet.METHOD_NAME, endpoint);
         Params params = new Params();
         params.withClusterManagerTimeout(getStoredScriptRequest.clusterManagerNodeTimeout());

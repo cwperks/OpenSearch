@@ -70,7 +70,7 @@ public class StoredScriptsIT extends OpenSearchRestHighLevelClientTestCase {
         );
         assertAcked(execute(request, highLevelClient()::putScript, highLevelClient()::putScriptAsync));
 
-        GetStoredScriptRequest getRequest = new GetStoredScriptRequest("calculate-score");
+        GetStoredScriptRequest getRequest = new GetStoredScriptRequest(new String[] { "calculate-score" });
         getRequest.clusterManagerNodeTimeout("50s");
 
         GetStoredScriptResponse getResponse = execute(getRequest, highLevelClient()::getScript, highLevelClient()::getScriptAsync);
@@ -99,7 +99,7 @@ public class StoredScriptsIT extends OpenSearchRestHighLevelClientTestCase {
         deleteRequest.timeout("50s");
         assertAcked(execute(deleteRequest, highLevelClient()::deleteScript, highLevelClient()::deleteScriptAsync));
 
-        GetStoredScriptRequest getRequest = new GetStoredScriptRequest(id);
+        GetStoredScriptRequest getRequest = new GetStoredScriptRequest(new String[] { id });
 
         final OpenSearchStatusException statusException = expectThrows(
             OpenSearchStatusException.class,

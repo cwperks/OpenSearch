@@ -1740,12 +1740,12 @@ public class RequestConvertersTests extends OpenSearchTestCase {
     }
 
     public void testGetScriptRequest() {
-        GetStoredScriptRequest getStoredScriptRequest = new GetStoredScriptRequest("x-script");
+        GetStoredScriptRequest getStoredScriptRequest = new GetStoredScriptRequest(new String[] { "x-script" });
         Map<String, String> expectedParams = new HashMap<>();
         setRandomClusterManagerTimeout(getStoredScriptRequest, expectedParams);
 
         Request request = RequestConverters.getScript(getStoredScriptRequest);
-        assertThat(request.getEndpoint(), equalTo("/_scripts/" + getStoredScriptRequest.id()));
+        assertThat(request.getEndpoint(), equalTo("/_scripts/" + Arrays.toString(getStoredScriptRequest.ids())));
         assertThat(request.getMethod(), equalTo(HttpGet.METHOD_NAME));
         assertThat(request.getParameters(), equalTo(expectedParams));
         assertThat(request.getEntity(), nullValue());

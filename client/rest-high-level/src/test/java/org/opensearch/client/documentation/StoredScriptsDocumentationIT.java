@@ -316,6 +316,7 @@ public class StoredScriptsDocumentationIT extends OpenSearchRestHighLevelClientT
             client.putScript(request, RequestOptions.DEFAULT);
 
             Map<String, Object> script = getAsMap("/_scripts/id");
+            // System.out.println("Script: " + script);
             assertThat(extractValue("script.lang", script), equalTo("mustache"));
             assertThat(extractValue("script.source", script), equalTo("{\"query\":{\"match\":{\"title\":\"{{query_string}}\"}}}"));
         }
