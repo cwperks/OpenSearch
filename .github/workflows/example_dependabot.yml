@@ -5,6 +5,15 @@ on: [pull_request, push]
 jobs:
   example_job:
     runs-on: ubuntu-latest
+
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
       - name: Print GitHub actor
-        run: echo "GitHub Actor: ${{ github.actor }}"
+        run: |
+          echo "GitHub Actor: ${{ github.actor }}"
+
+      - name: Conditional Step
+        if: ${{ github.actor == 'dependabot[bot]' }}
+        run: echo "This job runs because the actor is dependabot."
