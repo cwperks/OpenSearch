@@ -1,10 +1,6 @@
 name: Example Action
 
-on:
-  workflow_dispatch:
-  push:
-    branches:
-      - '*'
+on: [pull_request, push]
 
 jobs:
   example_job:
