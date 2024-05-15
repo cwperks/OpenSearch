@@ -1,0 +1,14 @@
+name: Example Action
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - '*'
+
+jobs:
+  example_job:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Print GitHub actor
+        run: echo "GitHub Actor: ${{ github.actor }}"
