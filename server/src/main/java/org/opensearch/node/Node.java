@@ -813,14 +813,43 @@ public class Node implements Closeable {
                 .flatMap(m -> m.entrySet().stream())
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
 
+            List<SystemIndexPlugin> systemIndexPlugins = pluginsService.filterPlugins(SystemIndexPlugin.class);
             final Map<String, Collection<SystemIndexDescriptor>> systemIndexDescriptorMap = Collections.unmodifiableMap(
-                pluginsService.filterPlugins(SystemIndexPlugin.class)
-                    .stream()
+                systemIndexPlugins.stream()
                     .collect(
                         Collectors.toMap(plugin -> plugin.getClass().getSimpleName(), plugin -> plugin.getSystemIndexDescriptors(settings))
                     )
             );
+
+            final Map<String, Set<String>> systemIndexMap = Collections.unmodifiableMap(
+                systemIndexPlugins.stream()
+                    .collect(
+                        Collectors.toMap(
+                            plugin -> plugin.getClass().getSimpleName(),
+                            plugin -> plugin.getSystemIndexDescriptors(settings)
+                                .stream()
+                                .map(SystemIndexDescriptor::getIndexPattern)
+                                .collect(Collectors.toSet())
+                        )
+                    )
+            );
+
             final SystemIndices systemIndices = new SystemIndices(systemIndexDescriptorMap);
+            Function<Map<String, Set<String>>, Void> onSystemIndex = null;
+            for (SystemIndexPlugin plugin : systemIndexPlugins) {
+                Function<Map<String, Set<String>>, Void> newOnSystemIndex = plugin.onSystemIndices(Collections.emptyMap());
+                if (newOnSystemIndex != null) {
+                    logger.debug("Using onSystemIndex from plugin " + plugin.getClass().getName());
+                    if (onSystemIndex != null) {
+                        throw new IllegalArgumentException("Cannot have more than one plugin implementing onSystemIndex");
+                    }
+                    onSystemIndex = newOnSystemIndex;
+                }
+            }
+
+            if (onSystemIndex != null) {
+                onSystemIndex.apply(systemIndexMap);
+            }
 
             final RerouteService rerouteService = new BatchedRerouteService(clusterService, clusterModule.getAllocationService()::reroute);
             rerouteServiceReference.set(rerouteService);
