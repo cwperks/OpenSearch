@@ -286,6 +286,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
@@ -975,9 +976,9 @@ public class Node implements Closeable {
                     )
             );
 
-            Function<Map<String, Set<String>>, Void> onSystemIndex = null;
+            Consumer<Map<String, Set<String>>> onSystemIndex = null;
             for (SystemIndexPlugin plugin : systemIndexPlugins) {
-                Function<Map<String, Set<String>>, Void> newOnSystemIndex = plugin.onSystemIndices(Collections.emptyMap());
+                Consumer<Map<String, Set<String>>> newOnSystemIndex = plugin.onSystemIndices();
                 if (newOnSystemIndex != null) {
                     logger.debug("Using onSystemIndex from plugin " + plugin.getClass().getName());
                     if (onSystemIndex != null) {
@@ -988,7 +989,7 @@ public class Node implements Closeable {
             }
 
             if (onSystemIndex != null) {
-                onSystemIndex.apply(systemIndexMap);
+                onSystemIndex.accept(systemIndexMap);
             }
 
             // register all standard SearchRequestOperationsCompositeListenerFactory to the SearchRequestOperationsCompositeListenerFactory

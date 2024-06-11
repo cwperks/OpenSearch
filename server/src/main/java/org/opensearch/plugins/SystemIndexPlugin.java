@@ -39,7 +39,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Function;
+import java.util.function.Consumer;
 
 /**
  * Plugin for defining system indices. Extends {@link ActionPlugin} because system indices must be accessed via APIs
@@ -64,7 +64,7 @@ public interface SystemIndexPlugin extends ActionPlugin {
      *
      * Note: Only one installed plugin may implement onSystemIndices.
      */
-    default Function<Map<String, Set<String>>, Void> onSystemIndices(Map<String, Set<String>> systemIndices) {
+    default Consumer<Map<String, Set<String>>> onSystemIndices() {
         return null;
     }
 }
