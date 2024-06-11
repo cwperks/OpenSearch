@@ -820,6 +820,7 @@ public class Node implements Closeable {
                         Collectors.toMap(plugin -> plugin.getClass().getSimpleName(), plugin -> plugin.getSystemIndexDescriptors(settings))
                     )
             );
+            final SystemIndices systemIndices = new SystemIndices(systemIndexDescriptorMap);
 
             final RerouteService rerouteService = new BatchedRerouteService(clusterService, clusterModule.getAllocationService()::reroute);
             rerouteServiceReference.set(rerouteService);
@@ -974,7 +975,6 @@ public class Node implements Closeable {
                     )
             );
 
-            final SystemIndices systemIndices = new SystemIndices(systemIndexDescriptorMap);
             Function<Map<String, Set<String>>, Void> onSystemIndex = null;
             for (SystemIndexPlugin plugin : systemIndexPlugins) {
                 Function<Map<String, Set<String>>, Void> newOnSystemIndex = plugin.onSystemIndices(Collections.emptyMap());
