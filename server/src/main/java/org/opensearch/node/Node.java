@@ -967,7 +967,7 @@ public class Node implements Closeable {
                 systemIndexPlugins.stream()
                     .collect(
                         Collectors.toMap(
-                            plugin -> plugin.getClass().getSimpleName(),
+                            plugin -> plugin.getClass().getCanonicalName(),
                             plugin -> plugin.getSystemIndexDescriptors(settings)
                                 .stream()
                                 .map(SystemIndexDescriptor::getIndexPattern)
@@ -980,7 +980,7 @@ public class Node implements Closeable {
             for (SystemIndexPlugin plugin : systemIndexPlugins) {
                 Consumer<Map<String, Set<String>>> newOnSystemIndex = plugin.onSystemIndices();
                 if (newOnSystemIndex != null) {
-                    logger.debug("Using onSystemIndex from plugin " + plugin.getClass().getName());
+                    logger.debug("Using onSystemIndex from plugin " + plugin.getClass().getCanonicalName());
                     if (onSystemIndex != null) {
                         throw new IllegalArgumentException("Cannot have more than one plugin implementing onSystemIndex");
                     }
