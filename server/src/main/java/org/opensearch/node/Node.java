@@ -823,6 +823,35 @@ public class Node implements Closeable {
             );
             final SystemIndices systemIndices = new SystemIndices(systemIndexDescriptorMap);
 
+            final Map<String, Set<String>> systemIndexMap = Collections.unmodifiableMap(
+                systemIndexPlugins.stream()
+                    .collect(
+                        Collectors.toMap(
+                            plugin -> plugin.getClass().getCanonicalName(),
+                            plugin -> plugin.getSystemIndexDescriptors(settings)
+                                .stream()
+                                .map(SystemIndexDescriptor::getIndexPattern)
+                                .collect(Collectors.toSet())
+                        )
+                    )
+            );
+
+            Consumer<Map<String, Set<String>>> onSystemIndex = null;
+            for (SystemIndexPlugin plugin : systemIndexPlugins) {
+                Consumer<Map<String, Set<String>>> newOnSystemIndex = plugin.onSystemIndices();
+                if (newOnSystemIndex != null) {
+                    logger.debug("Using onSystemIndex from plugin " + plugin.getClass().getCanonicalName());
+                    if (onSystemIndex != null) {
+                        throw new IllegalArgumentException("Cannot have more than one plugin implementing onSystemIndex");
+                    }
+                    onSystemIndex = newOnSystemIndex;
+                }
+            }
+
+            if (onSystemIndex != null) {
+                onSystemIndex.accept(systemIndexMap);
+            }
+
             final RerouteService rerouteService = new BatchedRerouteService(clusterService, clusterModule.getAllocationService()::reroute);
             rerouteServiceReference.set(rerouteService);
             clusterService.setRerouteService(rerouteService);
@@ -962,35 +991,6 @@ public class Node implements Closeable {
 
             // Add the telemetryAwarePlugin components to the existing pluginComponents collection.
             pluginComponents.addAll(telemetryAwarePluginComponents);
-
-            final Map<String, Set<String>> systemIndexMap = Collections.unmodifiableMap(
-                systemIndexPlugins.stream()
-                    .collect(
-                        Collectors.toMap(
-                            plugin -> plugin.getClass().getCanonicalName(),
-                            plugin -> plugin.getSystemIndexDescriptors(settings)
-                                .stream()
-                                .map(SystemIndexDescriptor::getIndexPattern)
-                                .collect(Collectors.toSet())
-                        )
-                    )
-            );
-
-            Consumer<Map<String, Set<String>>> onSystemIndex = null;
-            for (SystemIndexPlugin plugin : systemIndexPlugins) {
-                Consumer<Map<String, Set<String>>> newOnSystemIndex = plugin.onSystemIndices();
-                if (newOnSystemIndex != null) {
-                    logger.debug("Using onSystemIndex from plugin " + plugin.getClass().getCanonicalName());
-                    if (onSystemIndex != null) {
-                        throw new IllegalArgumentException("Cannot have more than one plugin implementing onSystemIndex");
-                    }
-                    onSystemIndex = newOnSystemIndex;
-                }
-            }
-
-            if (onSystemIndex != null) {
-                onSystemIndex.accept(systemIndexMap);
-            }
 
             // register all standard SearchRequestOperationsCompositeListenerFactory to the SearchRequestOperationsCompositeListenerFactory
             final SearchRequestOperationsCompositeListenerFactory searchRequestOperationsCompositeListenerFactory =
