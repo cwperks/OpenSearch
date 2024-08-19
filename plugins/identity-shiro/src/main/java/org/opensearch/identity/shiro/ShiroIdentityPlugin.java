@@ -33,8 +33,6 @@ import java.util.function.UnaryOperator;
 
 /**
  * Identity implementation with Shiro
- *
- * @opensearch.experimental
  */
 public final class ShiroIdentityPlugin extends Plugin implements IdentityPlugin {
     private Logger log = LogManager.getLogger(this.getClass());

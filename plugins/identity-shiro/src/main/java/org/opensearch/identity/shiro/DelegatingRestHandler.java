@@ -18,8 +18,6 @@ import org.opensearch.rest.RestRequest;
 
 /**
  * Delegating RestHandler that delegates all implementations to original handler
- *
- * @opensearch.api
  */
 public class DelegatingRestHandler implements RestHandler {
 
