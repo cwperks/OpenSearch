@@ -46,12 +46,4 @@ public class NoopSubject implements Subject {
     public String toString() {
         return "NoopSubject(principal=" + getPrincipal() + ")";
     }
-
-    /**
-     * Logs the user in
-     */
-    @Override
-    public void authenticate(AuthToken AuthToken) {
-        // Do nothing as noop subject is always logged in
-    }
 }

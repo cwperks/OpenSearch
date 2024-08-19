@@ -8,9 +8,13 @@
 
 package org.opensearch.identity.noop;
 
+import org.opensearch.common.util.concurrent.ThreadContext;
 import org.opensearch.identity.Subject;
 import org.opensearch.identity.tokens.TokenManager;
 import org.opensearch.plugins.IdentityPlugin;
+import org.opensearch.rest.RestHandler;
+
+import java.util.function.UnaryOperator;
 
 /**
  * Implementation of identity plugin that does not enforce authentication or authorization
@@ -37,5 +41,10 @@ public class NoopIdentityPlugin implements IdentityPlugin {
     @Override
     public TokenManager getTokenManager() {
         return new NoopTokenManager();
+    }
+
+    @Override
+    public UnaryOperator<RestHandler> authenticate(ThreadContext threadContext) {
+        return h -> h;
     }
 }

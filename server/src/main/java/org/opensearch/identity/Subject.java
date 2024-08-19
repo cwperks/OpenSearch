@@ -20,13 +20,4 @@ public interface Subject {
      * Get the application-wide uniquely identifying principal
      * */
     Principal getPrincipal();
-
-    /**
-     * Authenticate via an auth token
-     * throws UnsupportedAuthenticationMethod
-     * throws InvalidAuthenticationToken
-     * throws SubjectNotFound
-     * throws SubjectDisabled
-     */
-    void authenticate(final AuthToken token);
 }
