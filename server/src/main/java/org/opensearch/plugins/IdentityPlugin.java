@@ -9,9 +9,13 @@
 package org.opensearch.plugins;
 
 import org.opensearch.common.annotation.ExperimentalApi;
+import org.opensearch.common.util.concurrent.ThreadContext;
 import org.opensearch.identity.PluginSubject;
 import org.opensearch.identity.Subject;
 import org.opensearch.identity.tokens.TokenManager;
+import org.opensearch.rest.RestHandler;
+
+import java.util.function.UnaryOperator;
 
 /**
  * Plugin that provides identity and access control for OpenSearch
@@ -42,4 +46,11 @@ public interface IdentityPlugin {
      * @return Subject corresponding to the plugin
      */
     PluginSubject getPluginSubject(Plugin plugin);
+
+    /**
+     * Returns a function used to wrap each rest request before handling the request.
+     * The returned {@link UnaryOperator} is called for every incoming rest request and receives
+     * the original rest handler as it's input.
+     */
+    UnaryOperator<RestHandler> authenticate(ThreadContext threadContext);
 }
