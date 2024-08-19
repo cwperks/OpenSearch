@@ -82,6 +82,7 @@ public class ShiroSubject implements UserSubject {
      * Logs the user in via authenticating the user against current Shiro realm
      * @param authenticationToken The authToken to be used for login
      */
+    @Override
     public void authenticate(AuthToken authenticationToken) {
         final org.apache.shiro.authc.AuthenticationToken authToken = authTokenHandler.translateAuthToken(authenticationToken)
             .orElseThrow(() -> new UnsupportedAuthenticationToken());
