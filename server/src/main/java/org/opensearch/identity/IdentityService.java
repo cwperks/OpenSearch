@@ -37,7 +37,7 @@ public class IdentityService {
         this.settings = settings;
         this.threadPool = threadPool;
 
-        if (identityPlugins.size() == 0) {
+        if (identityPlugins.isEmpty()) {
             log.debug("Identity plugins size is 0");
             identityPlugin = new NoopIdentityPlugin(threadPool);
         } else if (identityPlugins.size() == 1) {
