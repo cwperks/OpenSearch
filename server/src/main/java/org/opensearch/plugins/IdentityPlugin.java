@@ -17,6 +17,8 @@ import org.opensearch.rest.RestHandler;
 
 import java.util.function.UnaryOperator;
 
+import static org.opensearch.rest.RestController.PASS_THROUGH_REST_HANDLER_WRAPPER;
+
 /**
  * Plugin that provides identity and access control for OpenSearch
  *
@@ -52,5 +54,7 @@ public interface IdentityPlugin {
      * The returned {@link UnaryOperator} is called for every incoming rest request and receives
      * the original rest handler as it's input.
      */
-    UnaryOperator<RestHandler> authenticate(ThreadContext threadContext);
+    default UnaryOperator<RestHandler> authenticate(ThreadContext threadContext) {
+        return PASS_THROUGH_REST_HANDLER_WRAPPER;
+    }
 }

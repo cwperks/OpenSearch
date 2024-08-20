@@ -71,14 +71,7 @@ public abstract class RestActionTestCase extends OpenSearchTestCase {
     public void setUpController() {
         verifyingClient = new VerifyingClient(this.getTestName());
         final IdentityService identityService = new IdentityService(Settings.EMPTY, mock(ThreadPool.class), List.of());
-        controller = new RestController(
-            Collections.emptySet(),
-            null,
-            verifyingClient,
-            new NoneCircuitBreakerService(),
-            new UsageService(),
-            identityService
-        );
+        controller = new RestController(Collections.emptySet(), null, verifyingClient, new NoneCircuitBreakerService(), new UsageService());
     }
 
     @After

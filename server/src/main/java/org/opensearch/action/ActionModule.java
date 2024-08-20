@@ -480,6 +480,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListSet;
@@ -491,6 +492,7 @@ import java.util.stream.Stream;
 
 import static java.util.Collections.unmodifiableMap;
 import static java.util.Objects.requireNonNull;
+import static org.opensearch.rest.RestController.PASS_THROUGH_REST_HANDLER_WRAPPER;
 
 /**
  * Builds and binds the generic action map, all {@link TransportAction}s, and {@link ActionFilters}.
@@ -559,15 +561,18 @@ public class ActionModule extends AbstractModule {
             actionPlugins.stream().flatMap(p -> p.getRestHeaders().stream()),
             Stream.of(new RestHeaderDefinition(Task.X_OPAQUE_ID, false))
         ).collect(Collectors.toSet());
-        UnaryOperator<RestHandler> restWrapper = null;
-        for (ActionPlugin plugin : actionPlugins) {
-            UnaryOperator<RestHandler> newRestWrapper = plugin.getRestHandlerWrapper(threadPool.getThreadContext());
-            if (newRestWrapper != null) {
-                logger.debug("Using REST wrapper from plugin " + plugin.getClass().getName());
-                if (restWrapper != null) {
+        UnaryOperator<RestHandler> restWrapper = identityService.authenticate();
+        // Check if implementation is provided by one of the actionPlugins
+        if (PASS_THROUGH_REST_HANDLER_WRAPPER.equals(restWrapper)) {
+            List<UnaryOperator<RestHandler>> restWrappers = actionPlugins.stream()
+                .map(p -> p.getRestHandlerWrapper(threadPool.getThreadContext()))
+                .filter(Objects::nonNull)
+                .collect(Collectors.toUnmodifiableList());
+            if (!restWrappers.isEmpty()) {
+                if (restWrappers.size() > 1) {
                     throw new IllegalArgumentException("Cannot have more than one plugin implementing a REST wrapper");
                 }
-                restWrapper = newRestWrapper;
+                restWrapper = restWrappers.get(0);
             }
         }
         mappingRequestValidators = new RequestValidators<>(
@@ -577,7 +582,7 @@ public class ActionModule extends AbstractModule {
             actionPlugins.stream().flatMap(p -> p.indicesAliasesRequestValidators().stream()).collect(Collectors.toList())
         );
 
-        restController = new RestController(headers, restWrapper, nodeClient, circuitBreakerService, usageService, identityService);
+        restController = new RestController(headers, restWrapper, nodeClient, circuitBreakerService, usageService);
     }
 
     public Map<String, ActionHandler<?, ?>> getActions() {

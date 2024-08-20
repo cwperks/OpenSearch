@@ -41,7 +41,6 @@ import org.opensearch.common.Nullable;
 import org.opensearch.common.io.stream.BytesStreamOutput;
 import org.opensearch.common.logging.DeprecationLogger;
 import org.opensearch.common.path.PathTrie;
-import org.opensearch.common.util.FeatureFlags;
 import org.opensearch.common.util.concurrent.ThreadContext;
 import org.opensearch.common.util.io.Streams;
 import org.opensearch.common.xcontent.XContentType;
@@ -56,7 +55,6 @@ import org.opensearch.core.xcontent.MediaTypeRegistry;
 import org.opensearch.core.xcontent.XContentBuilder;
 import org.opensearch.http.HttpChunk;
 import org.opensearch.http.HttpServerTransport;
-import org.opensearch.identity.IdentityService;
 import org.opensearch.usage.UsageService;
 
 import java.io.ByteArrayOutputStream;
@@ -112,6 +110,8 @@ public class RestController implements HttpServerTransport.Dispatcher {
 
     private final PathTrie<RestMethodHandlers> handlers = new PathTrie<>(RestUtils.REST_DECODER);
 
+    public static final UnaryOperator<RestHandler> PASS_THROUGH_REST_HANDLER_WRAPPER = (h) -> h;
+
     private final UnaryOperator<RestHandler> handlerWrapper;
 
     private final NodeClient client;
@@ -121,29 +121,19 @@ public class RestController implements HttpServerTransport.Dispatcher {
     /** Rest headers that are copied to internal requests made during a rest request. */
     private final Set<RestHeaderDefinition> headersToCopy;
     private final UsageService usageService;
-    private final IdentityService identityService;
 
     public RestController(
         Set<RestHeaderDefinition> headersToCopy,
         UnaryOperator<RestHandler> handlerWrapper,
         NodeClient client,
         CircuitBreakerService circuitBreakerService,
-        UsageService usageService,
-        IdentityService identityService
+        UsageService usageService
     ) {
         this.headersToCopy = headersToCopy;
         this.usageService = usageService;
-        if (handlerWrapper == null) {
-            handlerWrapper = h -> h; // passthrough if no wrapper set
-        }
-        if (FeatureFlags.isEnabled(FeatureFlags.IDENTITY)) {
-            this.handlerWrapper = identityService.authenticate();
-        } else {
-            this.handlerWrapper = handlerWrapper;
-        }
+        this.handlerWrapper = handlerWrapper;
         this.client = client;
         this.circuitBreakerService = circuitBreakerService;
-        this.identityService = identityService;
         registerHandlerNoWrap(
             RestRequest.Method.GET,
             "/favicon.ico",
