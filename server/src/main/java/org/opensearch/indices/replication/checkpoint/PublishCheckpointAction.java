@@ -23,10 +23,9 @@ import org.opensearch.cluster.service.ClusterService;
 import org.opensearch.common.annotation.PublicApi;
 import org.opensearch.common.inject.Inject;
 import org.opensearch.common.settings.Settings;
-import org.opensearch.common.util.concurrent.ThreadContext;
-import org.opensearch.common.util.concurrent.ThreadContextAccess;
 import org.opensearch.core.action.ActionListener;
 import org.opensearch.core.common.io.stream.StreamInput;
+import org.opensearch.identity.SystemSubject;
 import org.opensearch.index.IndexNotFoundException;
 import org.opensearch.index.shard.IndexShard;
 import org.opensearch.index.shard.IndexShardClosedException;
@@ -111,77 +110,83 @@ public class PublishCheckpointAction extends TransportReplicationAction<
     final void publish(IndexShard indexShard, ReplicationCheckpoint checkpoint) {
         String primaryAllocationId = indexShard.routingEntry().allocationId().getId();
         long primaryTerm = indexShard.getPendingPrimaryTerm();
-        final ThreadContext threadContext = threadPool.getThreadContext();
-        try (ThreadContext.StoredContext ignore = threadContext.stashContext()) {
-            // we have to execute under the system context so that if security is enabled the sync is authorized
-            ThreadContextAccess.doPrivilegedVoid(threadContext::markAsSystemContext);
-            PublishCheckpointRequest request = new PublishCheckpointRequest(checkpoint);
-            final ReplicationTask task = (ReplicationTask) taskManager.register("transport", "segrep_publish_checkpoint", request);
-            final ReplicationTimer timer = new ReplicationTimer();
-            timer.start();
-            transportService.sendChildRequest(
-                indexShard.recoveryState().getTargetNode(),
-                transportPrimaryAction,
-                new ConcreteShardRequest<>(request, primaryAllocationId, primaryTerm),
-                task,
-                transportOptions,
-                new TransportResponseHandler<ReplicationResponse>() {
-                    @Override
-                    public ReplicationResponse read(StreamInput in) throws IOException {
-                        return newResponseInstance(in);
-                    }
-
-                    @Override
-                    public String executor() {
-                        return ThreadPool.Names.SAME;
-                    }
-
-                    @Override
-                    public void handleResponse(ReplicationResponse response) {
-                        timer.stop();
-                        logger.debug(
-                            () -> new ParameterizedMessage(
-                                "[shardId {}] Completed publishing checkpoint [{}], timing: {}",
-                                indexShard.shardId().getId(),
-                                checkpoint,
-                                timer.time()
-                            )
-                        );
-                        task.setPhase("finished");
-                        taskManager.unregister(task);
-                    }
-
-                    @Override
-                    public void handleException(TransportException e) {
-                        timer.stop();
-                        logger.debug("[shardId {}] Failed to publish checkpoint, timing: {}", indexShard.shardId().getId(), timer.time());
-                        task.setPhase("finished");
-                        taskManager.unregister(task);
-                        if (ExceptionsHelper.unwrap(
-                            e,
-                            NodeClosedException.class,
-                            IndexNotFoundException.class,
-                            AlreadyClosedException.class,
-                            IndexShardClosedException.class,
-                            ShardNotInPrimaryModeException.class
-                        ) != null) {
-                            // Node is shutting down or the index was deleted or the shard is closed
-                            return;
+        try {
+            SystemSubject.getInstance().runAs(() -> {
+                PublishCheckpointRequest request = new PublishCheckpointRequest(checkpoint);
+                final ReplicationTask task = (ReplicationTask) taskManager.register("transport", "segrep_publish_checkpoint", request);
+                final ReplicationTimer timer = new ReplicationTimer();
+                timer.start();
+                transportService.sendChildRequest(
+                    indexShard.recoveryState().getTargetNode(),
+                    transportPrimaryAction,
+                    new ConcreteShardRequest<>(request, primaryAllocationId, primaryTerm),
+                    task,
+                    transportOptions,
+                    new TransportResponseHandler<ReplicationResponse>() {
+                        @Override
+                        public ReplicationResponse read(StreamInput in) throws IOException {
+                            return newResponseInstance(in);
                         }
-                        logger.warn(
-                            new ParameterizedMessage("{} segment replication checkpoint publishing failed", indexShard.shardId()),
-                            e
-                        );
+
+                        @Override
+                        public String executor() {
+                            return ThreadPool.Names.SAME;
+                        }
+
+                        @Override
+                        public void handleResponse(ReplicationResponse response) {
+                            timer.stop();
+                            logger.debug(
+                                () -> new ParameterizedMessage(
+                                    "[shardId {}] Completed publishing checkpoint [{}], timing: {}",
+                                    indexShard.shardId().getId(),
+                                    checkpoint,
+                                    timer.time()
+                                )
+                            );
+                            task.setPhase("finished");
+                            taskManager.unregister(task);
+                        }
+
+                        @Override
+                        public void handleException(TransportException e) {
+                            timer.stop();
+                            logger.debug(
+                                "[shardId {}] Failed to publish checkpoint, timing: {}",
+                                indexShard.shardId().getId(),
+                                timer.time()
+                            );
+                            task.setPhase("finished");
+                            taskManager.unregister(task);
+                            if (ExceptionsHelper.unwrap(
+                                e,
+                                NodeClosedException.class,
+                                IndexNotFoundException.class,
+                                AlreadyClosedException.class,
+                                IndexShardClosedException.class,
+                                ShardNotInPrimaryModeException.class
+                            ) != null) {
+                                // Node is shutting down or the index was deleted or the shard is closed
+                                return;
+                            }
+                            logger.warn(
+                                new ParameterizedMessage("{} segment replication checkpoint publishing failed", indexShard.shardId()),
+                                e
+                            );
+                        }
                     }
-                }
-            );
-            logger.trace(
-                () -> new ParameterizedMessage(
-                    "[shardId {}] Publishing replication checkpoint [{}]",
-                    checkpoint.getShardId().getId(),
-                    checkpoint
-                )
-            );
+                );
+                logger.trace(
+                    () -> new ParameterizedMessage(
+                        "[shardId {}] Publishing replication checkpoint [{}]",
+                        checkpoint.getShardId().getId(),
+                        checkpoint
+                    )
+                );
+                return null;
+            });
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
     }
 

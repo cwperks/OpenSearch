@@ -47,7 +47,6 @@ import org.opensearch.common.UUIDs;
 import org.opensearch.common.settings.Setting;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.common.util.concurrent.ThreadContext;
-import org.opensearch.common.util.concurrent.ThreadContextAccess;
 import org.opensearch.common.util.io.IOUtils;
 import org.opensearch.core.action.ActionListener;
 import org.opensearch.core.common.Strings;
@@ -56,6 +55,7 @@ import org.opensearch.core.common.io.stream.StreamOutput;
 import org.opensearch.core.common.io.stream.Writeable;
 import org.opensearch.core.common.transport.TransportAddress;
 import org.opensearch.core.xcontent.XContentBuilder;
+import org.opensearch.identity.SystemSubject;
 import org.opensearch.threadpool.ThreadPool;
 
 import java.io.IOException;
@@ -347,17 +347,19 @@ public class SniffConnectionStrategy extends RemoteConnectionStrategy {
                         threadContext.newRestorableContext(false),
                         new SniffClusterStateResponseHandler(connection, listener, seedNodes)
                     );
-                try (ThreadContext.StoredContext ignore = threadContext.stashContext()) {
-                    // we stash any context here since this is an internal execution and should not leak any
-                    // existing context information.
-                    ThreadContextAccess.doPrivilegedVoid(threadContext::markAsSystemContext);
-                    transportService.sendRequest(
-                        connection,
-                        ClusterStateAction.NAME,
-                        request,
-                        TransportRequestOptions.EMPTY,
-                        responseHandler
-                    );
+                try {
+                    SystemSubject.getInstance().runAs(() -> {
+                        transportService.sendRequest(
+                            connection,
+                            ClusterStateAction.NAME,
+                            request,
+                            TransportRequestOptions.EMPTY,
+                            responseHandler
+                        );
+                        return null;
+                    });
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
                 }
             }, e -> {
                 final Transport.Connection connection = openConnectionStep.result();

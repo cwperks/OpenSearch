@@ -47,13 +47,12 @@ import org.opensearch.cluster.action.shard.ShardStateAction;
 import org.opensearch.cluster.service.ClusterService;
 import org.opensearch.common.inject.Inject;
 import org.opensearch.common.settings.Settings;
-import org.opensearch.common.util.concurrent.ThreadContext;
-import org.opensearch.common.util.concurrent.ThreadContextAccess;
 import org.opensearch.core.action.ActionListener;
 import org.opensearch.core.common.io.stream.StreamInput;
 import org.opensearch.core.common.io.stream.StreamOutput;
 import org.opensearch.core.index.shard.ShardId;
 import org.opensearch.core.tasks.TaskId;
+import org.opensearch.identity.SystemSubject;
 import org.opensearch.index.IndexNotFoundException;
 import org.opensearch.index.shard.IndexShard;
 import org.opensearch.index.shard.IndexShardClosedException;
@@ -120,56 +119,62 @@ public class RetentionLeaseBackgroundSyncAction extends TransportReplicationActi
     }
 
     final void backgroundSync(ShardId shardId, String primaryAllocationId, long primaryTerm, RetentionLeases retentionLeases) {
-        final ThreadContext threadContext = threadPool.getThreadContext();
-        try (ThreadContext.StoredContext ignore = threadContext.stashContext()) {
-            // we have to execute under the system context so that if security is enabled the sync is authorized
-            ThreadContextAccess.doPrivilegedVoid(threadContext::markAsSystemContext);
-            final Request request = new Request(shardId, retentionLeases);
-            final ReplicationTask task = (ReplicationTask) taskManager.register("transport", "retention_lease_background_sync", request);
-            transportService.sendChildRequest(
-                clusterService.localNode(),
-                transportPrimaryAction,
-                new ConcreteShardRequest<>(request, primaryAllocationId, primaryTerm),
-                task,
-                transportOptions,
-                new TransportResponseHandler<ReplicationResponse>() {
-                    @Override
-                    public ReplicationResponse read(StreamInput in) throws IOException {
-                        return newResponseInstance(in);
-                    }
-
-                    @Override
-                    public String executor() {
-                        return ThreadPool.Names.SAME;
-                    }
-
-                    @Override
-                    public void handleResponse(ReplicationResponse response) {
-                        task.setPhase("finished");
-                        taskManager.unregister(task);
-                    }
-
-                    @Override
-                    public void handleException(TransportException e) {
-                        task.setPhase("finished");
-                        taskManager.unregister(task);
-                        if (ExceptionsHelper.unwrap(e, NodeClosedException.class) != null) {
-                            // node shutting down
-                            return;
+        try {
+            SystemSubject.getInstance().runAs(() -> {
+                final Request request = new Request(shardId, retentionLeases);
+                final ReplicationTask task = (ReplicationTask) taskManager.register(
+                    "transport",
+                    "retention_lease_background_sync",
+                    request
+                );
+                transportService.sendChildRequest(
+                    clusterService.localNode(),
+                    transportPrimaryAction,
+                    new ConcreteShardRequest<>(request, primaryAllocationId, primaryTerm),
+                    task,
+                    transportOptions,
+                    new TransportResponseHandler<ReplicationResponse>() {
+                        @Override
+                        public ReplicationResponse read(StreamInput in) throws IOException {
+                            return newResponseInstance(in);
                         }
-                        if (ExceptionsHelper.unwrap(
-                            e,
-                            IndexNotFoundException.class,
-                            AlreadyClosedException.class,
-                            IndexShardClosedException.class
-                        ) != null) {
-                            // the index was deleted or the shard is closed
-                            return;
+
+                        @Override
+                        public String executor() {
+                            return ThreadPool.Names.SAME;
                         }
-                        getLogger().warn(new ParameterizedMessage("{} retention lease background sync failed", shardId), e);
+
+                        @Override
+                        public void handleResponse(ReplicationResponse response) {
+                            task.setPhase("finished");
+                            taskManager.unregister(task);
+                        }
+
+                        @Override
+                        public void handleException(TransportException e) {
+                            task.setPhase("finished");
+                            taskManager.unregister(task);
+                            if (ExceptionsHelper.unwrap(e, NodeClosedException.class) != null) {
+                                // node shutting down
+                                return;
+                            }
+                            if (ExceptionsHelper.unwrap(
+                                e,
+                                IndexNotFoundException.class,
+                                AlreadyClosedException.class,
+                                IndexShardClosedException.class
+                            ) != null) {
+                                // the index was deleted or the shard is closed
+                                return;
+                            }
+                            getLogger().warn(new ParameterizedMessage("{} retention lease background sync failed", shardId), e);
+                        }
                     }
-                }
-            );
+                );
+                return null;
+            });
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
     }
 

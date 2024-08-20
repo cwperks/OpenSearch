@@ -43,9 +43,8 @@ import org.opensearch.common.settings.Settings;
 import org.opensearch.common.unit.TimeValue;
 import org.opensearch.common.util.concurrent.OpenSearchExecutors;
 import org.opensearch.common.util.concurrent.PrioritizedOpenSearchThreadPoolExecutor;
-import org.opensearch.common.util.concurrent.ThreadContext;
-import org.opensearch.common.util.concurrent.ThreadContextAccess;
 import org.opensearch.core.action.ActionListener;
+import org.opensearch.identity.SystemSubject;
 import org.opensearch.node.Node;
 import org.opensearch.telemetry.metrics.noop.NoopMetricsRegistry;
 import org.opensearch.threadpool.ThreadPool;
@@ -133,10 +132,13 @@ public class FakeThreadPoolClusterManagerService extends ClusterManagerService {
                     final Runnable task = pendingTasks.remove(taskIndex);
                     taskInProgress = true;
                     scheduledNextTask = false;
-                    final ThreadContext threadContext = threadPool.getThreadContext();
-                    try (ThreadContext.StoredContext ignored = threadContext.stashContext()) {
-                        ThreadContextAccess.doPrivilegedVoid(threadContext::markAsSystemContext);
-                        task.run();
+                    try {
+                        SystemSubject.getInstance().runAs(() -> {
+                            task.run();
+                            return null;
+                        });
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
                     }
                     if (waitForPublish == false) {
                         taskInProgress = false;

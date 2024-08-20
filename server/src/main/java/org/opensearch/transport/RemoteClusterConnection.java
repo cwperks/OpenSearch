@@ -40,10 +40,10 @@ import org.opensearch.cluster.node.DiscoveryNodes;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.common.unit.TimeValue;
 import org.opensearch.common.util.concurrent.ThreadContext;
-import org.opensearch.common.util.concurrent.ThreadContextAccess;
 import org.opensearch.common.util.io.IOUtils;
 import org.opensearch.core.action.ActionListener;
 import org.opensearch.core.common.io.stream.StreamInput;
+import org.opensearch.identity.SystemSubject;
 import org.opensearch.threadpool.ThreadPool;
 
 import java.io.Closeable;
@@ -135,44 +135,46 @@ final class RemoteClusterConnection implements Closeable {
             final ThreadContext threadContext = threadPool.getThreadContext();
             final ContextPreservingActionListener<Function<String, DiscoveryNode>> contextPreservingActionListener =
                 new ContextPreservingActionListener<>(threadContext.newRestorableContext(false), listener);
-            try (ThreadContext.StoredContext ignore = threadContext.stashContext()) {
-                // we stash any context here since this is an internal execution and should not leak any existing context information
-                ThreadContextAccess.doPrivilegedVoid(threadContext::markAsSystemContext);
+            try {
+                SystemSubject.getInstance().runAs(() -> {
+                    final ClusterStateRequest request = new ClusterStateRequest();
+                    request.clear();
+                    request.nodes(true);
+                    request.local(true); // run this on the node that gets the request it's as good as any other
+                    Transport.Connection connection = remoteConnectionManager.getAnyRemoteConnection();
+                    transportService.sendRequest(
+                        connection,
+                        ClusterStateAction.NAME,
+                        request,
+                        TransportRequestOptions.EMPTY,
+                        new TransportResponseHandler<ClusterStateResponse>() {
 
-                final ClusterStateRequest request = new ClusterStateRequest();
-                request.clear();
-                request.nodes(true);
-                request.local(true); // run this on the node that gets the request it's as good as any other
-                Transport.Connection connection = remoteConnectionManager.getAnyRemoteConnection();
-                transportService.sendRequest(
-                    connection,
-                    ClusterStateAction.NAME,
-                    request,
-                    TransportRequestOptions.EMPTY,
-                    new TransportResponseHandler<ClusterStateResponse>() {
+                            @Override
+                            public ClusterStateResponse read(StreamInput in) throws IOException {
+                                return new ClusterStateResponse(in);
+                            }
 
-                        @Override
-                        public ClusterStateResponse read(StreamInput in) throws IOException {
-                            return new ClusterStateResponse(in);
+                            @Override
+                            public void handleResponse(ClusterStateResponse response) {
+                                DiscoveryNodes nodes = response.getState().nodes();
+                                contextPreservingActionListener.onResponse(nodes::get);
+                            }
+
+                            @Override
+                            public void handleException(TransportException exp) {
+                                contextPreservingActionListener.onFailure(exp);
+                            }
+
+                            @Override
+                            public String executor() {
+                                return ThreadPool.Names.SAME;
+                            }
                         }
-
-                        @Override
-                        public void handleResponse(ClusterStateResponse response) {
-                            DiscoveryNodes nodes = response.getState().nodes();
-                            contextPreservingActionListener.onResponse(nodes::get);
-                        }
-
-                        @Override
-                        public void handleException(TransportException exp) {
-                            contextPreservingActionListener.onFailure(exp);
-                        }
-
-                        @Override
-                        public String executor() {
-                            return ThreadPool.Names.SAME;
-                        }
-                    }
-                );
+                    );
+                    return null;
+                });
+            } catch (Exception e) {
+                throw new RuntimeException(e);
             }
         };
         try {

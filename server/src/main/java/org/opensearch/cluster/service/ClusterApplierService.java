@@ -61,8 +61,8 @@ import org.opensearch.common.unit.TimeValue;
 import org.opensearch.common.util.concurrent.OpenSearchExecutors;
 import org.opensearch.common.util.concurrent.PrioritizedOpenSearchThreadPoolExecutor;
 import org.opensearch.common.util.concurrent.ThreadContext;
-import org.opensearch.common.util.concurrent.ThreadContextAccess;
 import org.opensearch.core.concurrency.OpenSearchRejectedExecutionException;
+import org.opensearch.identity.SystemSubject;
 import org.opensearch.telemetry.metrics.noop.NoopMetricsRegistry;
 import org.opensearch.telemetry.metrics.tags.Tags;
 import org.opensearch.threadpool.Scheduler;
@@ -396,30 +396,34 @@ public class ClusterApplierService extends AbstractLifecycleComponent implements
         }
         final ThreadContext threadContext = threadPool.getThreadContext();
         final Supplier<ThreadContext.StoredContext> supplier = threadContext.newRestorableContext(true);
-        try (ThreadContext.StoredContext ignore = threadContext.stashContext()) {
-            ThreadContextAccess.doPrivilegedVoid(threadContext::markAsSystemContext);
-            final UpdateTask updateTask = new UpdateTask(
-                config.priority(),
-                source,
-                new SafeClusterApplyListener(listener, supplier, logger),
-                executor
-            );
-            if (config.timeout() != null) {
-                threadPoolExecutor.execute(
-                    updateTask,
-                    config.timeout(),
-                    () -> threadPool.generic()
-                        .execute(() -> listener.onFailure(source, new ProcessClusterEventTimeoutException(config.timeout(), source)))
+        try {
+            SystemSubject.getInstance().runAs(() -> {
+                final UpdateTask updateTask = new UpdateTask(
+                    config.priority(),
+                    source,
+                    new SafeClusterApplyListener(listener, supplier, logger),
+                    executor
                 );
-            } else {
-                threadPoolExecutor.execute(updateTask);
-            }
+                if (config.timeout() != null) {
+                    threadPoolExecutor.execute(
+                        updateTask,
+                        config.timeout(),
+                        () -> threadPool.generic()
+                            .execute(() -> listener.onFailure(source, new ProcessClusterEventTimeoutException(config.timeout(), source)))
+                    );
+                } else {
+                    threadPoolExecutor.execute(updateTask);
+                }
+                return null;
+            });
         } catch (OpenSearchRejectedExecutionException e) {
             // ignore cases where we are shutting down..., there is really nothing interesting
             // to be done here...
             if (!lifecycle.stoppedOrClosed()) {
                 throw e;
             }
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
     }
 

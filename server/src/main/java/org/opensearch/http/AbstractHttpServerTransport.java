@@ -52,6 +52,7 @@ import org.opensearch.core.common.transport.BoundTransportAddress;
 import org.opensearch.core.common.transport.TransportAddress;
 import org.opensearch.core.common.unit.ByteSizeValue;
 import org.opensearch.core.xcontent.NamedXContentRegistry;
+import org.opensearch.identity.SystemSubject;
 import org.opensearch.rest.RestChannel;
 import org.opensearch.rest.RestRequest;
 import org.opensearch.telemetry.tracing.Span;
@@ -383,20 +384,25 @@ public abstract class AbstractHttpServerTransport extends AbstractLifecycleCompo
 
     // Visible for testing
     void dispatchRequest(final RestRequest restRequest, final RestChannel channel, final Throwable badRequestCause) {
-        RestChannel traceableRestChannel = channel;
         final ThreadContext threadContext = threadPool.getThreadContext();
-        try (ThreadContext.StoredContext ignore = threadContext.stashContext()) {
-            final Span span = tracer.startSpan(SpanBuilder.from(restRequest));
-            try (final SpanScope spanScope = tracer.withSpanInScope(span)) {
-                if (channel != null) {
-                    traceableRestChannel = TraceableRestChannel.create(channel, span, tracer);
+        try {
+            SystemSubject.getInstance().runAs(() -> {
+                RestChannel traceableRestChannel = channel;
+                final Span span = tracer.startSpan(SpanBuilder.from(restRequest));
+                try (final SpanScope spanScope = tracer.withSpanInScope(span)) {
+                    if (channel != null) {
+                        traceableRestChannel = TraceableRestChannel.create(channel, span, tracer);
+                    }
+                    if (badRequestCause != null) {
+                        dispatcher.dispatchBadRequest(traceableRestChannel, threadContext, badRequestCause);
+                    } else {
+                        dispatcher.dispatchRequest(restRequest, traceableRestChannel, threadContext);
+                    }
                 }
-                if (badRequestCause != null) {
-                    dispatcher.dispatchBadRequest(traceableRestChannel, threadContext, badRequestCause);
-                } else {
-                    dispatcher.dispatchRequest(restRequest, traceableRestChannel, threadContext);
-                }
-            }
+                return null;
+            });
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
 
     }
