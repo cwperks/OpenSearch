@@ -28,5 +28,5 @@ public interface Subject {
      */
     default <T> T runAs(Callable<T> callable) throws Exception {
         return callable.call();
-    };
+    }
 }
