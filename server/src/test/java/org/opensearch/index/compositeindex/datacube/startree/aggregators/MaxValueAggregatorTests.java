@@ -9,35 +9,28 @@
 package org.opensearch.index.compositeindex.datacube.startree.aggregators;
 
 import org.apache.lucene.util.NumericUtils;
-import org.opensearch.index.compositeindex.datacube.startree.aggregators.numerictype.StarTreeNumericType;
+import org.opensearch.index.mapper.FieldValueConverter;
+import org.opensearch.index.mapper.NumberFieldMapper;
 
 public class MaxValueAggregatorTests extends AbstractValueAggregatorTests {
 
     private MaxValueAggregator aggregator;
 
-    public MaxValueAggregatorTests(StarTreeNumericType starTreeNumericType) {
-        super(starTreeNumericType);
+    public MaxValueAggregatorTests(FieldValueConverter fieldValueConverter) {
+        super(fieldValueConverter);
     }
 
     public void testMergeAggregatedValueAndSegmentValue() {
         Long randomLong = randomLong();
         double randomDouble = randomDouble();
         assertEquals(
-            Math.max(aggregator.toStarTreeNumericTypeValue(randomLong), randomDouble),
+            Math.max(fieldValueConverter.toDoubleValue(randomLong), randomDouble),
             aggregator.mergeAggregatedValueAndSegmentValue(randomDouble, randomLong),
             0.0
         );
-        assertEquals(
-            aggregator.toStarTreeNumericTypeValue(randomLong),
-            aggregator.mergeAggregatedValueAndSegmentValue(null, randomLong),
-            0.0
-        );
+        assertEquals(fieldValueConverter.toDoubleValue(randomLong), aggregator.mergeAggregatedValueAndSegmentValue(null, randomLong), 0.0);
         assertEquals(randomDouble, aggregator.mergeAggregatedValueAndSegmentValue(randomDouble, null), 0.0);
-        assertEquals(
-            Math.max(2.0, aggregator.toStarTreeNumericTypeValue(3L)),
-            aggregator.mergeAggregatedValueAndSegmentValue(2.0, 3L),
-            0.0
-        );
+        assertEquals(Math.max(2.0, fieldValueConverter.toDoubleValue(3L)), aggregator.mergeAggregatedValueAndSegmentValue(2.0, 3L), 0.0);
     }
 
     public void testMergeAggregatedValues() {
@@ -53,10 +46,10 @@ public class MaxValueAggregatorTests extends AbstractValueAggregatorTests {
         assertEquals(randomDouble, aggregator.getInitialAggregatedValue(randomDouble), 0.0);
     }
 
-    public void testToStarTreeNumericTypeValue() {
-        MaxValueAggregator aggregator = new MaxValueAggregator(StarTreeNumericType.DOUBLE);
+    public void testToAggregatedValueType() {
+        MaxValueAggregator aggregator = new MaxValueAggregator(NumberFieldMapper.NumberType.DOUBLE);
         long randomLong = randomLong();
-        assertEquals(NumericUtils.sortableLongToDouble(randomLong), aggregator.toStarTreeNumericTypeValue(randomLong), 0.0);
+        assertEquals(NumericUtils.sortableLongToDouble(randomLong), aggregator.toAggregatedValueType(randomLong), 0.0);
     }
 
     public void testIdentityMetricValue() {
@@ -64,8 +57,8 @@ public class MaxValueAggregatorTests extends AbstractValueAggregatorTests {
     }
 
     @Override
-    public ValueAggregator getValueAggregator(StarTreeNumericType starTreeNumericType) {
-        aggregator = new MaxValueAggregator(starTreeNumericType);
+    public ValueAggregator getValueAggregator(FieldValueConverter fieldValueConverter) {
+        aggregator = new MaxValueAggregator(fieldValueConverter);
         return aggregator;
     }
 

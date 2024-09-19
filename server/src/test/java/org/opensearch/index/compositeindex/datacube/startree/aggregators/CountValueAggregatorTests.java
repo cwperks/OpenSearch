@@ -8,14 +8,14 @@
 
 package org.opensearch.index.compositeindex.datacube.startree.aggregators;
 
-import org.opensearch.index.compositeindex.datacube.startree.aggregators.numerictype.StarTreeNumericType;
+import org.opensearch.index.mapper.FieldValueConverter;
 
 public class CountValueAggregatorTests extends AbstractValueAggregatorTests {
 
     private CountValueAggregator aggregator;
 
-    public CountValueAggregatorTests(StarTreeNumericType starTreeNumericType) {
-        super(starTreeNumericType);
+    public CountValueAggregatorTests(FieldValueConverter fieldValueConverter) {
+        super(fieldValueConverter);
     }
 
     public void testMergeAggregatedValueAndSegmentValue() {
@@ -31,15 +31,20 @@ public class CountValueAggregatorTests extends AbstractValueAggregatorTests {
         assertEquals(randomLong2, aggregator.mergeAggregatedValues(null, randomLong2), 0.0);
     }
 
+    @Override
+    public void testMergeAggregatedNullValueAndSegmentNullValue() {
+        assertThrows(AssertionError.class, () -> aggregator.mergeAggregatedValueAndSegmentValue(null, null));
+    }
+
     public void testGetInitialAggregatedValue() {
         long randomLong = randomLong();
         assertEquals(randomLong, aggregator.getInitialAggregatedValue(randomLong), 0.0);
     }
 
-    public void testToStarTreeNumericTypeValue() {
+    public void testToAggregatedValueType() {
         long randomLong = randomLong();
-        assertEquals(randomLong, aggregator.toStarTreeNumericTypeValue(randomLong), 0.0);
-        assertNull(aggregator.toStarTreeNumericTypeValue(null));
+        assertEquals(randomLong, aggregator.toAggregatedValueType(randomLong), 0.0);
+        assertNull(aggregator.toAggregatedValueType(null));
     }
 
     public void testIdentityMetricValue() {
@@ -47,9 +52,14 @@ public class CountValueAggregatorTests extends AbstractValueAggregatorTests {
     }
 
     @Override
-    public ValueAggregator getValueAggregator(StarTreeNumericType starTreeNumericType) {
-        aggregator = new CountValueAggregator(starTreeNumericType);
+    public ValueAggregator getValueAggregator(FieldValueConverter fieldValueConverter) {
+        aggregator = new CountValueAggregator();
         return aggregator;
     }
 
+    @Override
+    public void testGetInitialAggregatedValueForSegmentDocValue() {
+        long randomLong = randomLong();
+        assertEquals(CountValueAggregator.DEFAULT_INITIAL_VALUE, (long) aggregator.getInitialAggregatedValueForSegmentDocValue(randomLong));
+    }
 }
