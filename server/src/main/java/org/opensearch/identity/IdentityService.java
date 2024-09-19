@@ -32,6 +32,7 @@ public class IdentityService {
 
     public IdentityService(final Settings settings, final ThreadPool threadPool, final List<IdentityPlugin> identityPlugins) {
         this.settings = settings;
+        SystemSubject.getInstance().initialize(threadPool);
 
         if (identityPlugins.size() == 0) {
             log.debug("Identity plugins size is 0");

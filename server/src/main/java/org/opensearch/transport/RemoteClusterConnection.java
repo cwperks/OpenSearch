@@ -40,10 +40,10 @@ import org.opensearch.cluster.node.DiscoveryNodes;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.common.unit.TimeValue;
 import org.opensearch.common.util.concurrent.ThreadContext;
-import org.opensearch.common.util.concurrent.ThreadContextAccess;
 import org.opensearch.common.util.io.IOUtils;
 import org.opensearch.core.action.ActionListener;
 import org.opensearch.core.common.io.stream.StreamInput;
+import org.opensearch.identity.SystemSubject;
 import org.opensearch.threadpool.ThreadPool;
 
 import java.io.Closeable;
@@ -135,10 +135,7 @@ final class RemoteClusterConnection implements Closeable {
             final ThreadContext threadContext = threadPool.getThreadContext();
             final ContextPreservingActionListener<Function<String, DiscoveryNode>> contextPreservingActionListener =
                 new ContextPreservingActionListener<>(threadContext.newRestorableContext(false), listener);
-            try (ThreadContext.StoredContext ignore = threadContext.stashContext()) {
-                // we stash any context here since this is an internal execution and should not leak any existing context information
-                ThreadContextAccess.doPrivilegedVoid(threadContext::markAsSystemContext);
-
+            SystemSubject.getInstance().runAs(() -> {
                 final ClusterStateRequest request = new ClusterStateRequest();
                 request.clear();
                 request.nodes(true);
@@ -173,7 +170,8 @@ final class RemoteClusterConnection implements Closeable {
                         }
                     }
                 );
-            }
+                return null;
+            });
         };
         try {
             // just in case if we are not connected for some reason we try to connect and if we fail we have to notify the listener
