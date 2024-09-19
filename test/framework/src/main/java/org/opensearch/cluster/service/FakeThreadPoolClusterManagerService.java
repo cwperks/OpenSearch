@@ -132,14 +132,10 @@ public class FakeThreadPoolClusterManagerService extends ClusterManagerService {
                     final Runnable task = pendingTasks.remove(taskIndex);
                     taskInProgress = true;
                     scheduledNextTask = false;
-                    try {
-                        SystemSubject.getInstance().runAs(() -> {
-                            task.run();
-                            return null;
-                        });
-                    } catch (Exception e) {
-                        throw new RuntimeException(e);
-                    }
+                    SystemSubject.getInstance().runAs(() -> {
+                        task.run();
+                        return null;
+                    });
                     if (waitForPublish == false) {
                         taskInProgress = false;
                     }

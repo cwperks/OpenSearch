@@ -385,26 +385,21 @@ public abstract class AbstractHttpServerTransport extends AbstractLifecycleCompo
     // Visible for testing
     void dispatchRequest(final RestRequest restRequest, final RestChannel channel, final Throwable badRequestCause) {
         final ThreadContext threadContext = threadPool.getThreadContext();
-        try {
-            SystemSubject.getInstance().runAs(() -> {
-                RestChannel traceableRestChannel = channel;
-                final Span span = tracer.startSpan(SpanBuilder.from(restRequest));
-                try (final SpanScope spanScope = tracer.withSpanInScope(span)) {
-                    if (channel != null) {
-                        traceableRestChannel = TraceableRestChannel.create(channel, span, tracer);
-                    }
-                    if (badRequestCause != null) {
-                        dispatcher.dispatchBadRequest(traceableRestChannel, threadContext, badRequestCause);
-                    } else {
-                        dispatcher.dispatchRequest(restRequest, traceableRestChannel, threadContext);
-                    }
+        SystemSubject.getInstance().runAs(() -> {
+            RestChannel traceableRestChannel = channel;
+            final Span span = tracer.startSpan(SpanBuilder.from(restRequest));
+            try (final SpanScope spanScope = tracer.withSpanInScope(span)) {
+                if (channel != null) {
+                    traceableRestChannel = TraceableRestChannel.create(channel, span, tracer);
                 }
-                return null;
-            });
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-
+                if (badRequestCause != null) {
+                    dispatcher.dispatchBadRequest(traceableRestChannel, threadContext, badRequestCause);
+                } else {
+                    dispatcher.dispatchRequest(restRequest, traceableRestChannel, threadContext);
+                }
+            }
+            return null;
+        });
     }
 
     private void handleIncomingRequest(final HttpRequest httpRequest, final HttpChannel httpChannel, final Exception exception) {

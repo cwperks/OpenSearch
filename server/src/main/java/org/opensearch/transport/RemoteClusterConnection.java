@@ -135,47 +135,43 @@ final class RemoteClusterConnection implements Closeable {
             final ThreadContext threadContext = threadPool.getThreadContext();
             final ContextPreservingActionListener<Function<String, DiscoveryNode>> contextPreservingActionListener =
                 new ContextPreservingActionListener<>(threadContext.newRestorableContext(false), listener);
-            try {
-                SystemSubject.getInstance().runAs(() -> {
-                    final ClusterStateRequest request = new ClusterStateRequest();
-                    request.clear();
-                    request.nodes(true);
-                    request.local(true); // run this on the node that gets the request it's as good as any other
-                    Transport.Connection connection = remoteConnectionManager.getAnyRemoteConnection();
-                    transportService.sendRequest(
-                        connection,
-                        ClusterStateAction.NAME,
-                        request,
-                        TransportRequestOptions.EMPTY,
-                        new TransportResponseHandler<ClusterStateResponse>() {
+            SystemSubject.getInstance().runAs(() -> {
+                final ClusterStateRequest request = new ClusterStateRequest();
+                request.clear();
+                request.nodes(true);
+                request.local(true); // run this on the node that gets the request it's as good as any other
+                Transport.Connection connection = remoteConnectionManager.getAnyRemoteConnection();
+                transportService.sendRequest(
+                    connection,
+                    ClusterStateAction.NAME,
+                    request,
+                    TransportRequestOptions.EMPTY,
+                    new TransportResponseHandler<ClusterStateResponse>() {
 
-                            @Override
-                            public ClusterStateResponse read(StreamInput in) throws IOException {
-                                return new ClusterStateResponse(in);
-                            }
-
-                            @Override
-                            public void handleResponse(ClusterStateResponse response) {
-                                DiscoveryNodes nodes = response.getState().nodes();
-                                contextPreservingActionListener.onResponse(nodes::get);
-                            }
-
-                            @Override
-                            public void handleException(TransportException exp) {
-                                contextPreservingActionListener.onFailure(exp);
-                            }
-
-                            @Override
-                            public String executor() {
-                                return ThreadPool.Names.SAME;
-                            }
+                        @Override
+                        public ClusterStateResponse read(StreamInput in) throws IOException {
+                            return new ClusterStateResponse(in);
                         }
-                    );
-                    return null;
-                });
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
+
+                        @Override
+                        public void handleResponse(ClusterStateResponse response) {
+                            DiscoveryNodes nodes = response.getState().nodes();
+                            contextPreservingActionListener.onResponse(nodes::get);
+                        }
+
+                        @Override
+                        public void handleException(TransportException exp) {
+                            contextPreservingActionListener.onFailure(exp);
+                        }
+
+                        @Override
+                        public String executor() {
+                            return ThreadPool.Names.SAME;
+                        }
+                    }
+                );
+                return null;
+            });
         };
         try {
             // just in case if we are not connected for some reason we try to connect and if we fail we have to notify the listener

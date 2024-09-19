@@ -134,55 +134,51 @@ public class RetentionLeaseSyncAction extends TransportWriteAction<
         RetentionLeases retentionLeases,
         ActionListener<ReplicationResponse> listener
     ) {
-        try {
-            SystemSubject.getInstance().runAs(() -> {
-                final Request request = new Request(shardId, retentionLeases);
-                final ReplicationTask task = (ReplicationTask) taskManager.register("transport", "retention_lease_sync", request);
-                transportService.sendChildRequest(
-                    clusterService.localNode(),
-                    transportPrimaryAction,
-                    new ConcreteShardRequest<>(request, primaryAllocationId, primaryTerm),
-                    task,
-                    transportOptions,
-                    new TransportResponseHandler<ReplicationResponse>() {
-                        @Override
-                        public ReplicationResponse read(StreamInput in) throws IOException {
-                            return newResponseInstance(in);
-                        }
-
-                        @Override
-                        public String executor() {
-                            return ThreadPool.Names.SAME;
-                        }
-
-                        @Override
-                        public void handleResponse(ReplicationResponse response) {
-                            task.setPhase("finished");
-                            taskManager.unregister(task);
-                            listener.onResponse(response);
-                        }
-
-                        @Override
-                        public void handleException(TransportException e) {
-                            if (ExceptionsHelper.unwrap(
-                                e,
-                                IndexNotFoundException.class,
-                                AlreadyClosedException.class,
-                                IndexShardClosedException.class
-                            ) == null) {
-                                getLogger().warn(new ParameterizedMessage("{} retention lease sync failed", shardId), e);
-                            }
-                            task.setPhase("finished");
-                            taskManager.unregister(task);
-                            listener.onFailure(e);
-                        }
+        SystemSubject.getInstance().runAs(() -> {
+            final Request request = new Request(shardId, retentionLeases);
+            final ReplicationTask task = (ReplicationTask) taskManager.register("transport", "retention_lease_sync", request);
+            transportService.sendChildRequest(
+                clusterService.localNode(),
+                transportPrimaryAction,
+                new ConcreteShardRequest<>(request, primaryAllocationId, primaryTerm),
+                task,
+                transportOptions,
+                new TransportResponseHandler<ReplicationResponse>() {
+                    @Override
+                    public ReplicationResponse read(StreamInput in) throws IOException {
+                        return newResponseInstance(in);
                     }
-                );
-                return null;
-            });
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+
+                    @Override
+                    public String executor() {
+                        return ThreadPool.Names.SAME;
+                    }
+
+                    @Override
+                    public void handleResponse(ReplicationResponse response) {
+                        task.setPhase("finished");
+                        taskManager.unregister(task);
+                        listener.onResponse(response);
+                    }
+
+                    @Override
+                    public void handleException(TransportException e) {
+                        if (ExceptionsHelper.unwrap(
+                            e,
+                            IndexNotFoundException.class,
+                            AlreadyClosedException.class,
+                            IndexShardClosedException.class
+                        ) == null) {
+                            getLogger().warn(new ParameterizedMessage("{} retention lease sync failed", shardId), e);
+                        }
+                        task.setPhase("finished");
+                        taskManager.unregister(task);
+                        listener.onFailure(e);
+                    }
+                }
+            );
+            return null;
+        });
     }
 
     @Override

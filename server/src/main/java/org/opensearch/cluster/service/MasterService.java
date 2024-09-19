@@ -1022,24 +1022,23 @@ public class MasterService extends AbstractLifecycleComponent {
         }
         final ThreadContext threadContext = threadPool.getThreadContext();
         final Supplier<ThreadContext.StoredContext> supplier = threadContext.newRestorableContext(true);
-        try {
-            SystemSubject.getInstance().runAs(() -> {
+
+        SystemSubject.getInstance().runAs(() -> {
+            try {
                 List<Batcher.UpdateTask> safeTasks = tasks.entrySet()
                     .stream()
                     .map(e -> taskBatcher.new UpdateTask(config.priority(), source, e.getKey(), safe(e.getValue(), supplier), executor))
                     .collect(Collectors.toList());
                 taskBatcher.submitTasks(safeTasks, config.timeout());
-                return null;
-            });
-        } catch (OpenSearchRejectedExecutionException e) {
-            // ignore cases where we are shutting down..., there is really nothing interesting
-            // to be done here...
-            if (!lifecycle.stoppedOrClosed()) {
-                throw e;
+            } catch (OpenSearchRejectedExecutionException e) {
+                // ignore cases where we are shutting down..., there is really nothing interesting
+                // to be done here...
+                if (!lifecycle.stoppedOrClosed()) {
+                    throw e;
+                }
             }
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+            return null;
+        });
     }
 
     public ClusterStateStats getClusterStateStats() {

@@ -45,11 +45,15 @@ public class SystemSubject implements Subject {
     }
 
     @Override
-    public <T> T runAs(Callable<T> callable) throws Exception {
+    public <T> T runAs(Callable<T> callable) throws RuntimeException {
         ThreadContext threadContext = threadPool.getThreadContext();
         try (ThreadContext.StoredContext ctx = threadPool.getThreadContext().stashContext()) {
             ThreadContextAccess.doPrivilegedVoid(threadContext::markAsSystemContext);
-            return callable.call();
+            try {
+                return callable.call();
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
         }
     }
 

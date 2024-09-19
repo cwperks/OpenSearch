@@ -396,8 +396,8 @@ public class ClusterApplierService extends AbstractLifecycleComponent implements
         }
         final ThreadContext threadContext = threadPool.getThreadContext();
         final Supplier<ThreadContext.StoredContext> supplier = threadContext.newRestorableContext(true);
-        try {
-            SystemSubject.getInstance().runAs(() -> {
+        SystemSubject.getInstance().runAs(() -> {
+            try {
                 final UpdateTask updateTask = new UpdateTask(
                     config.priority(),
                     source,
@@ -414,17 +414,15 @@ public class ClusterApplierService extends AbstractLifecycleComponent implements
                 } else {
                     threadPoolExecutor.execute(updateTask);
                 }
-                return null;
-            });
-        } catch (OpenSearchRejectedExecutionException e) {
-            // ignore cases where we are shutting down..., there is really nothing interesting
-            // to be done here...
-            if (!lifecycle.stoppedOrClosed()) {
-                throw e;
+            } catch (OpenSearchRejectedExecutionException e) {
+                // ignore cases where we are shutting down..., there is really nothing interesting
+                // to be done here...
+                if (!lifecycle.stoppedOrClosed()) {
+                    throw e;
+                }
             }
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+            return null;
+        });
     }
 
     /** asserts that the current thread is <b>NOT</b> the cluster state update thread */

@@ -96,18 +96,14 @@ public class GlobalCheckpointSyncAction extends TransportReplicationAction<
     }
 
     public void updateGlobalCheckpointForShard(final ShardId shardId) {
-        try {
-            SystemSubject.getInstance().runAs(() -> {
-                execute(new Request(shardId), ActionListener.wrap(r -> {}, e -> {
-                    if (ExceptionsHelper.unwrap(e, AlreadyClosedException.class, IndexShardClosedException.class) == null) {
-                        logger.info(new ParameterizedMessage("{} global checkpoint sync failed", shardId), e);
-                    }
-                }));
-                return null;
-            });
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+        SystemSubject.getInstance().runAs(() -> {
+            execute(new Request(shardId), ActionListener.wrap(r -> {}, e -> {
+                if (ExceptionsHelper.unwrap(e, AlreadyClosedException.class, IndexShardClosedException.class) == null) {
+                    logger.info(new ParameterizedMessage("{} global checkpoint sync failed", shardId), e);
+                }
+            }));
+            return null;
+        });
     }
 
     @Override

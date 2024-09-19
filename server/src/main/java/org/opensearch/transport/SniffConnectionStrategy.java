@@ -347,20 +347,16 @@ public class SniffConnectionStrategy extends RemoteConnectionStrategy {
                         threadContext.newRestorableContext(false),
                         new SniffClusterStateResponseHandler(connection, listener, seedNodes)
                     );
-                try {
-                    SystemSubject.getInstance().runAs(() -> {
-                        transportService.sendRequest(
-                            connection,
-                            ClusterStateAction.NAME,
-                            request,
-                            TransportRequestOptions.EMPTY,
-                            responseHandler
-                        );
-                        return null;
-                    });
-                } catch (Exception e) {
-                    throw new RuntimeException(e);
-                }
+                SystemSubject.getInstance().runAs(() -> {
+                    transportService.sendRequest(
+                        connection,
+                        ClusterStateAction.NAME,
+                        request,
+                        TransportRequestOptions.EMPTY,
+                        responseHandler
+                    );
+                    return null;
+                });
             }, e -> {
                 final Transport.Connection connection = openConnectionStep.result();
                 final DiscoveryNode node = connection.getNode();
