@@ -63,7 +63,7 @@ import static org.opensearch.repositories.s3.S3Repository.SERVER_SIDE_ENCRYPTION
 import static org.opensearch.repositories.s3.S3Repository.STORAGE_CLASS_SETTING;
 import static org.opensearch.repositories.s3.S3Repository.UPLOAD_RETRY_ENABLED;
 
-class S3BlobStore implements BlobStore {
+public class S3BlobStore implements BlobStore {
 
     private static final Logger logger = LogManager.getLogger(S3BlobStore.class);
 
@@ -242,6 +242,11 @@ class S3BlobStore implements BlobStore {
         statsMetricPublisher.getExtendedStats().forEach((k, v) -> extendedStats.put(k, v.toMap()));
         extendedStats.put(Metric.GENERIC_STATS, genericStatsMetricPublisher.stats());
         return extendedStats;
+    }
+
+    @Override
+    public boolean isBlobMetadataEnabled() {
+        return true;
     }
 
     public ObjectCannedACL getCannedACL() {
