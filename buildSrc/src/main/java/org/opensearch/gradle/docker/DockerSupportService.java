@@ -125,10 +125,7 @@ public abstract class DockerSupportService implements BuildService<DockerSupport
                         lastResult = runCommand(dockerPath, "images");
 
                         // If docker all checks out, see if docker-compose is available and working
-                        Optional<String> composePath = getDockerComposePath();
-                        if (lastResult.isSuccess() && composePath.isPresent()) {
-                            isComposeAvailable = runCommand(composePath.get(), "version").isSuccess();
-                        }
+                        isComposeAvailable = runCommand(dockerPath, "compose", "version").isSuccess();
                     }
                 }
             }
