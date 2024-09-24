@@ -25,6 +25,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Bump `com.google.cloud:google-cloud-storage` from 1.113.1 to 2.43.0 ([#13677](https://github.com/opensearch-project/OpenSearch/pull/13677))
 
 ### Changed
+- Add support for docker compose v2 in TestFixturesPlugin ([#16049](https://github.com/opensearch-project/OpenSearch/pull/16049))
 
 
 ### Deprecated
