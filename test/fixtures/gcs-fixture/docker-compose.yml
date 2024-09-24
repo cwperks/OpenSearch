@@ -1,6 +1,6 @@
-version: '3'
 services:
   gcs-fixture:
+    image: gcs_fixture_image
     build:
       context: .
       args:
@@ -13,6 +13,7 @@ services:
     ports:
       - "80"
   gcs-fixture-third-party:
+    image: gcs_fixture_image
     build:
       context: .
       args:
@@ -25,6 +26,7 @@ services:
     ports:
       - "80"
   gcs-fixture-other:
+    image: gcs_fixture_image
     build:
       context: .
       args:
@@ -37,6 +39,7 @@ services:
     ports:
       - "80"
   gcs-fixture-repositories-metering:
+    image: gcs_fixture_image
     build:
       context: .
       args:
