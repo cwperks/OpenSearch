@@ -1325,6 +1325,8 @@ updates:
     labels:
       - "dependabot"
       - "dependencies"
+    additional-files:
+      - "buildSrc/version.properties"
   - directory: /test/
     open-pull-requests-limit: 1
     package-ecosystem: gradle

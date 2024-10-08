@@ -1,0 +1,23 @@
+name: Dependabot on Push
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  dependabot:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v3
+
+      - name: Trigger Dependabot Update
+        run: |
+          echo "Triggering Dependabot update..."
+          # Dependabot command can be simulated by updating config or forcing updates here.
+          # You can force update by changing a file or invoking an API if applicable.
+
+      - name: Run Dependabot
+        uses: dependabot/fetch-metadata@v1
