@@ -1,8 +1,0 @@
-job:
-  package-manager: gradle
-  allowed-updates:
-    - update-type: all
-  source:
-    provider: github
-    repo: cwperks/opensearch
-    directory: /
