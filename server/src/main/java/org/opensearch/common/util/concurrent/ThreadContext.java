@@ -123,6 +123,7 @@ public final class ThreadContext implements Writeable {
     private static final ThreadContextStruct DEFAULT_CONTEXT = new ThreadContextStruct();
     private final Map<String, String> defaultHeader;
     private final ThreadLocal<ThreadContextStruct> threadLocal;
+    private final ExecutionContext executionContext;
     private final int maxWarningHeaderCount;
     private final long maxWarningHeaderSize;
     private final List<ThreadContextStatePropagator> propagators;
@@ -134,6 +135,7 @@ public final class ThreadContext implements Writeable {
     public ThreadContext(Settings settings) {
         this.defaultHeader = buildDefaultHeaders(settings);
         this.threadLocal = ThreadLocal.withInitial(() -> DEFAULT_CONTEXT);
+        this.executionContext = new ExecutionContext();
         this.maxWarningHeaderCount = SETTING_HTTP_MAX_WARNING_HEADER_COUNT.get(settings);
         this.maxWarningHeaderSize = SETTING_HTTP_MAX_WARNING_HEADER_SIZE.get(settings).getBytes();
         this.propagators = new CopyOnWriteArrayList<>(List.of(new TaskThreadContextStatePropagator()));
@@ -145,6 +147,18 @@ public final class ThreadContext implements Writeable {
 
     public void unregisterThreadContextStatePropagator(final ThreadContextStatePropagator propagator) {
         propagators.remove(Objects.requireNonNull(propagator));
+    }
+
+    public void setExecutionContext(String pluginName) {
+        this.executionContext.set(pluginName);
+    }
+
+    public String getExecutionContext() {
+        return this.executionContext.get();
+    }
+
+    public void clearExecutionContext() {
+        this.executionContext.clear();
     }
 
     /**
