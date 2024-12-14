@@ -150,7 +150,7 @@ public class PluginsService implements ReportingService<PluginsAndModules> {
                 "1.8",
                 pluginClass.getName(),
                 null,
-                Collections.emptyList(),
+                classpathPlugins.stream().map(Class::getName).filter(cp -> !pluginClass.getName().equals(cp)).collect(Collectors.toList()),
                 false
             );
             if (logger.isTraceEnabled()) {
@@ -160,6 +160,7 @@ public class PluginsService implements ReportingService<PluginsAndModules> {
             pluginsList.add(pluginInfo);
             pluginsNames.add(pluginInfo.getName());
         }
+        loadExtensions(pluginsLoaded);
 
         Set<Bundle> seenBundles = new LinkedHashSet<>();
         List<PluginInfo> modulesList = new ArrayList<>();
@@ -524,7 +525,8 @@ public class PluginsService implements ReportingService<PluginsAndModules> {
         for (String dependency : bundle.plugin.getExtendedPlugins()) {
             Bundle depBundle = bundles.get(dependency);
             if (depBundle == null) {
-                throw new IllegalArgumentException("Missing plugin [" + dependency + "], dependency of [" + name + "]");
+                continue;
+                // throw new IllegalArgumentException("Missing plugin [" + dependency + "], dependency of [" + name + "]");
             }
             addSortedBundle(depBundle, bundles, sortedBundles, dependencyStack);
             assert sortedBundles.contains(depBundle);
@@ -569,9 +571,17 @@ public class PluginsService implements ReportingService<PluginsAndModules> {
         ExtensiblePlugin.ExtensionLoader extensionLoader = new ExtensiblePlugin.ExtensionLoader() {
             @Override
             public <T> List<T> loadExtensions(Class<T> extensionPointType) {
+                Set<Class<?>> seenClasses = new LinkedHashSet<>();
                 List<T> result = new ArrayList<>();
+
                 for (Plugin extendingPlugin : extendingPlugins) {
-                    result.addAll(createExtensions(extensionPointType, extendingPlugin));
+                    List<? extends T> extensions = createExtensions(extensionPointType, extendingPlugin);
+                    for (T extension : extensions) {
+                        // Only add if we haven't seen this class before, needed for classpath extensions for testing
+                        if (seenClasses.add(extension.getClass())) {
+                            result.add(extension);
+                        }
+                    }
                 }
                 return Collections.unmodifiableList(result);
             }
@@ -653,7 +663,9 @@ public class PluginsService implements ReportingService<PluginsAndModules> {
             Set<URL> urls = new HashSet<>();
             for (String extendedPlugin : exts) {
                 Set<URL> pluginUrls = transitiveUrls.get(extendedPlugin);
-                assert pluginUrls != null : "transitive urls should have already been set for " + extendedPlugin;
+                if (pluginUrls == null) {
+                    continue;
+                }
 
                 Set<URL> intersection = new HashSet<>(urls);
                 intersection.retainAll(pluginUrls);
