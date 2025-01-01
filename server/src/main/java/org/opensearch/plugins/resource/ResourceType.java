@@ -8,6 +8,9 @@
 
 package org.opensearch.plugins.resource;
 
+/**
+ * Interface for a resource type
+ */
 public interface ResourceType {
     /**
      * Type of the resource

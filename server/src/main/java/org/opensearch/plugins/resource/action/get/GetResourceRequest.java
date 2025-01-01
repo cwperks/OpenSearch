@@ -8,8 +8,8 @@
 
 package org.opensearch.plugins.resource.action.get;
 
+import org.opensearch.action.ResourceRequest;
 import org.opensearch.core.common.io.stream.StreamInput;
-import org.opensearch.plugins.resource.action.ResourceRequest;
 
 import java.io.IOException;
 

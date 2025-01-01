@@ -11,4 +11,8 @@ package org.opensearch.plugins.resource;
 import org.opensearch.core.common.io.stream.NamedWriteable;
 import org.opensearch.core.xcontent.ToXContentObject;
 
+/**
+ * Interface for a generic Resource. Resources are entities created by plugins that are typically
+ * stored in system indices. Access Control is provided by the ResourceAccessControlPlugin.
+ */
 public interface Resource extends NamedWriteable, ToXContentObject {}

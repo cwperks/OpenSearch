@@ -12,6 +12,9 @@ import org.opensearch.core.action.ActionListener;
 import org.opensearch.plugins.resource.ResourceSharingService;
 import org.opensearch.plugins.resource.ResourceType;
 
+/**
+ * Noop implementation of Resource Sharing Service
+ */
 public class NoopResourceSharingService implements ResourceSharingService {
 
     private final ResourceType resourceType;

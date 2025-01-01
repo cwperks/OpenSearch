@@ -6,15 +6,16 @@
  * compatible open source license.
  */
 
-package org.opensearch.plugins.resource.action;
+package org.opensearch.action;
 
-import org.opensearch.action.ActionRequest;
-import org.opensearch.action.ActionRequestValidationException;
 import org.opensearch.core.common.io.stream.StreamInput;
 import org.opensearch.core.common.io.stream.StreamOutput;
 
 import java.io.IOException;
 
+/**
+ * Base class for all resource requests
+ */
 public class ResourceRequest extends ActionRequest {
     protected final String resourceIndex;
 

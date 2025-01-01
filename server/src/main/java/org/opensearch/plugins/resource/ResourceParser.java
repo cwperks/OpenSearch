@@ -12,6 +12,11 @@ import org.opensearch.core.xcontent.XContentParser;
 
 import java.io.IOException;
 
+/**
+ * Parser for Resource
+ *
+ * @param <T> Returns instance of a Resource
+ */
 public interface ResourceParser<T extends Resource> {
     T parse(XContentParser xContentParser, String id) throws IOException;
 }

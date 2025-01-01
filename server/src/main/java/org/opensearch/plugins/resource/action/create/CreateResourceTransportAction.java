@@ -22,7 +22,7 @@ import org.opensearch.common.util.concurrent.ThreadContext;
 import org.opensearch.core.action.ActionListener;
 import org.opensearch.core.common.io.stream.Writeable;
 import org.opensearch.core.xcontent.ToXContent;
-import org.opensearch.security.spi.Resource;
+import org.opensearch.plugins.resource.Resource;
 import org.opensearch.tasks.Task;
 import org.opensearch.transport.TransportService;
 

@@ -10,6 +10,9 @@ package org.opensearch.plugins.resource;
 
 import org.opensearch.core.action.ActionListener;
 
+/**
+ * Interface for Resource Sharing Service
+ */
 public interface ResourceSharingService {
     ResourceType getResourceType();
 

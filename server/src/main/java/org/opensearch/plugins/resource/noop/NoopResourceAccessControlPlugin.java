@@ -12,6 +12,9 @@ import org.opensearch.plugins.ResourceAccessControlPlugin;
 import org.opensearch.plugins.resource.ResourceSharingService;
 import org.opensearch.plugins.resource.ResourceType;
 
+/**
+ * Noop implementation of Resource Access Control Plugin
+ */
 public class NoopResourceAccessControlPlugin implements ResourceAccessControlPlugin {
 
     @Override
