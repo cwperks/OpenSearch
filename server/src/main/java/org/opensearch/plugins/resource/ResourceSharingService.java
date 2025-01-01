@@ -14,7 +14,7 @@ import org.opensearch.core.action.ActionListener;
  * Interface for Resource Sharing Service
  */
 public interface ResourceSharingService {
-    ResourceType getResourceType();
+    String getResourceType();
 
     void isSharedWithCurrentRequester(String resourceId, ActionListener<Boolean> shareListener);
 }

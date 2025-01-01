@@ -25,6 +25,12 @@ public interface ResourceType {
     String getResourceIndex();
 
     /**
+     * This method is called when initializing ResourcePlugins to assign an instance
+     * of {@link ResourceSharingService} to the resource type.
+     */
+    void assignResourceSharingService(ResourceSharingService resourceSharingService);
+
+    /**
      * @return returns a parser for this resource
      */
     default ResourceParser<? extends Resource> getResourceParser() {

@@ -15,7 +15,6 @@ import org.opensearch.plugins.ResourceAccessControlPlugin;
 import org.opensearch.plugins.ResourcePlugin;
 import org.opensearch.plugins.resource.noop.NoopResourceAccessControlPlugin;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -48,12 +47,10 @@ public class ResourceService {
     public void initializeResourcePlugins(final List<ResourcePlugin> resourcePlugins) {
         if (resourcePlugins != null) {
             for (ResourcePlugin plugin : resourcePlugins) {
-                List<ResourceSharingService> sharingServices = new ArrayList<>();
                 List<ResourceType> pluginResourceTypes = plugin.getResourceTypes();
                 for (ResourceType resourceType : pluginResourceTypes) {
-                    sharingServices.add(resourceAccessControlPlugin.getResourceSharingService(resourceType));
+                    resourceAccessControlPlugin.assignResourceSharingService(resourceType);
                 }
-                plugin.assignResourceService(sharingServices);
             }
         }
     }

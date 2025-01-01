@@ -8,7 +8,6 @@
 
 package org.opensearch.plugins;
 
-import org.opensearch.plugins.resource.ResourceSharingService;
 import org.opensearch.plugins.resource.ResourceType;
 
 /**
@@ -17,5 +16,5 @@ import org.opensearch.plugins.resource.ResourceType;
  * ResourceAccessControlPlugin installed.
  */
 public interface ResourceAccessControlPlugin {
-    ResourceSharingService getResourceSharingService(ResourceType resourceType);
+    void assignResourceSharingService(ResourceType resourceType);
 }

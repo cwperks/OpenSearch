@@ -10,16 +10,15 @@ package org.opensearch.plugins.resource.noop;
 
 import org.opensearch.core.action.ActionListener;
 import org.opensearch.plugins.resource.ResourceSharingService;
-import org.opensearch.plugins.resource.ResourceType;
 
 /**
  * Noop implementation of Resource Sharing Service
  */
 public class NoopResourceSharingService implements ResourceSharingService {
 
-    private final ResourceType resourceType;
+    private final String resourceType;
 
-    public NoopResourceSharingService(ResourceType resourceType) {
+    public NoopResourceSharingService(String resourceType) {
         this.resourceType = resourceType;
     }
 
@@ -29,7 +28,7 @@ public class NoopResourceSharingService implements ResourceSharingService {
     }
 
     @Override
-    public ResourceType getResourceType() {
+    public String getResourceType() {
         return resourceType;
     }
 }

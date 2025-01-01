@@ -8,7 +8,6 @@
 
 package org.opensearch.plugins;
 
-import org.opensearch.plugins.resource.ResourceSharingService;
 import org.opensearch.plugins.resource.ResourceType;
 
 import java.util.List;
@@ -19,6 +18,4 @@ import java.util.List;
  */
 public interface ResourcePlugin {
     List<ResourceType> getResourceTypes();
-
-    void assignResourceService(List<ResourceSharingService> resourceService);
 }

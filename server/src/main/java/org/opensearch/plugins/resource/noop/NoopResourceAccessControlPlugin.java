@@ -9,7 +9,6 @@
 package org.opensearch.plugins.resource.noop;
 
 import org.opensearch.plugins.ResourceAccessControlPlugin;
-import org.opensearch.plugins.resource.ResourceSharingService;
 import org.opensearch.plugins.resource.ResourceType;
 
 /**
@@ -18,7 +17,7 @@ import org.opensearch.plugins.resource.ResourceType;
 public class NoopResourceAccessControlPlugin implements ResourceAccessControlPlugin {
 
     @Override
-    public ResourceSharingService getResourceSharingService(ResourceType resourceType) {
-        return new NoopResourceSharingService(resourceType);
+    public void assignResourceSharingService(ResourceType resourceType) {
+        resourceType.assignResourceSharingService(new NoopResourceSharingService(resourceType.getResourceType()));
     }
 }
