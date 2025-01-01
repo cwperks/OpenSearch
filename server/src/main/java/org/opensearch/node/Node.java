@@ -593,13 +593,6 @@ public class Node implements Closeable {
 
             final IdentityService identityService = new IdentityService(settings, threadPool, identityPlugins);
 
-            final List<ResourceAccessControlPlugin> resourceAccessControlPlugins = pluginsService.filterPlugins(
-                ResourceAccessControlPlugin.class
-            );
-            final List<ResourcePlugin> resourcePlugins = pluginsService.filterPlugins(ResourcePlugin.class);
-            ResourceService resourceService = new ResourceService(resourceAccessControlPlugins);
-            resourceService.initializeResourcePlugins(resourcePlugins);
-
             if (FeatureFlags.isEnabled(FeatureFlags.EXTENSIONS)) {
                 final List<ExtensionAwarePlugin> extensionAwarePlugins = pluginsService.filterPlugins(ExtensionAwarePlugin.class);
                 Set<Setting<?>> additionalSettings = new HashSet<>();
@@ -1055,6 +1048,13 @@ public class Node implements Closeable {
 
             List<IdentityAwarePlugin> identityAwarePlugins = pluginsService.filterPlugins(IdentityAwarePlugin.class);
             identityService.initializeIdentityAwarePlugins(identityAwarePlugins);
+
+            final List<ResourceAccessControlPlugin> resourceAccessControlPlugins = pluginsService.filterPlugins(
+                ResourceAccessControlPlugin.class
+            );
+            final List<ResourcePlugin> resourcePlugins = pluginsService.filterPlugins(ResourcePlugin.class);
+            ResourceService resourceService = new ResourceService(resourceAccessControlPlugins);
+            resourceService.initializeResourcePlugins(resourcePlugins);
 
             final QueryGroupResourceUsageTrackerService queryGroupResourceUsageTrackerService = new QueryGroupResourceUsageTrackerService(
                 taskResourceTrackingService
