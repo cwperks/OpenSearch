@@ -6,7 +6,7 @@
  * compatible open source license.
  */
 
-package org.opensearch.plugins.resource.action.get;
+package org.opensearch.plugins.resource.action.generic.get;
 
 import org.opensearch.action.ResourceRequest;
 import org.opensearch.core.common.io.stream.StreamInput;

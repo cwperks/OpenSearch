@@ -7,6 +7,6 @@
  */
 
 /**
- * Contains generic re-usable action for listing plugin resources
+ * Contains generic re-usable action for getting single plugin resource
  */
-package org.opensearch.plugins.resource.action.list;
+package org.opensearch.plugins.resource.action.generic.get;

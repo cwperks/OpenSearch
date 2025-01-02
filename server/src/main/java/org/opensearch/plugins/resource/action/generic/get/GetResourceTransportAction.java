@@ -6,7 +6,7 @@
  * compatible open source license.
  */
 
-package org.opensearch.plugins.resource.action.get;
+package org.opensearch.plugins.resource.action.generic.get;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
