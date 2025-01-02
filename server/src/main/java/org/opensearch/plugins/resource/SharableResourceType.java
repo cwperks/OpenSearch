@@ -19,8 +19,8 @@ public interface SharableResourceType {
     String getResourceType();
 
     /**
-     * The index where resource meta-data is stored
-     * @return the name of the parent index where resource meta-data is stored
+     * The index where resource metadata is stored
+     * @return the name of the index where resource metadata is stored
      */
     String getResourceIndex();
 
