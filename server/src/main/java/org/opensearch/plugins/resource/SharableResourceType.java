@@ -11,9 +11,9 @@ package org.opensearch.plugins.resource;
 /**
  * Interface for a resource type
  */
-public interface ResourceType {
+public interface SharableResourceType {
     /**
-     * Type of the resource
+     * Type of the resource. This must be unique across all registered resource types.
      * @return a string containing the type of the resource
      */
     String getResourceType();
@@ -33,7 +33,7 @@ public interface ResourceType {
     /**
      * @return returns a parser for this resource
      */
-    default ResourceParser<? extends Resource> getResourceParser() {
+    default ResourceParser<? extends SharableResource> getResourceParser() {
         return null;
     };
 }

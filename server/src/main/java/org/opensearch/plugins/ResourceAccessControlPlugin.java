@@ -8,13 +8,13 @@
 
 package org.opensearch.plugins;
 
-import org.opensearch.plugins.resource.ResourceType;
+import org.opensearch.plugins.resource.SharableResourceType;
 
 /**
  * A ResourceAccessControlPlugin is responsible for assigned a resource sharing service for each
- * {@link ResourceType} that is registered by a {@link ResourcePlugin}. There can only be a single
+ * {@link SharableResourceType} that is registered by a {@link ResourcePlugin}. There can only be a single
  * ResourceAccessControlPlugin installed.
  */
 public interface ResourceAccessControlPlugin {
-    void assignResourceSharingService(ResourceType resourceType);
+    void assignResourceSharingService(SharableResourceType resourceType);
 }

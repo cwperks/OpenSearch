@@ -8,14 +8,14 @@
 
 package org.opensearch.plugins;
 
-import org.opensearch.plugins.resource.ResourceType;
+import org.opensearch.plugins.resource.SharableResourceType;
 
 import java.util.List;
 
 /**
- * A ResourcePlugin registers a list of {@link ResourceType}. These are resources created by the plugin
+ * A ResourcePlugin registers a list of {@link SharableResourceType}. These are resources created by the plugin
  * and typically stored in a system index. Resources are provided protection by the {@link ResourceAccessControlPlugin}.
  */
 public interface ResourcePlugin {
-    List<ResourceType> getResourceTypes();
+    List<SharableResourceType> getResourceTypes();
 }

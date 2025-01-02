@@ -13,14 +13,14 @@ import org.opensearch.core.common.io.stream.StreamInput;
 import org.opensearch.core.common.io.stream.StreamOutput;
 import org.opensearch.core.xcontent.ToXContentObject;
 import org.opensearch.core.xcontent.XContentBuilder;
-import org.opensearch.plugins.resource.Resource;
+import org.opensearch.plugins.resource.SharableResource;
 
 import java.io.IOException;
 
 /**
  * Response to a GetResourceRequest
  */
-public class GetResourceResponse<T extends Resource> extends ActionResponse implements ToXContentObject {
+public class GetResourceResponse<T extends SharableResource> extends ActionResponse implements ToXContentObject {
     private final T resource;
 
     /**

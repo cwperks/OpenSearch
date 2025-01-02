@@ -23,9 +23,9 @@ import org.opensearch.common.xcontent.XContentType;
 import org.opensearch.core.action.ActionListener;
 import org.opensearch.core.xcontent.NamedXContentRegistry;
 import org.opensearch.core.xcontent.XContentParser;
-import org.opensearch.plugins.resource.Resource;
 import org.opensearch.plugins.resource.ResourceParser;
 import org.opensearch.plugins.resource.ResourceSharingService;
+import org.opensearch.plugins.resource.SharableResource;
 import org.opensearch.tasks.Task;
 import org.opensearch.transport.TransportService;
 
@@ -35,7 +35,9 @@ import java.util.Objects;
 /**
  * Transport action for GetResource.
  */
-public class GetResourceTransportAction<T extends Resource> extends HandledTransportAction<GetResourceRequest, GetResourceResponse<T>> {
+public class GetResourceTransportAction<T extends SharableResource> extends HandledTransportAction<
+    GetResourceRequest,
+    GetResourceResponse<T>> {
     private static final Logger log = LogManager.getLogger(GetResourceTransportAction.class);
 
     private final ResourceSharingService resourceSharingService;
@@ -74,7 +76,6 @@ public class GetResourceTransportAction<T extends Resource> extends HandledTrans
 
     private void getResource(GetResourceRequest request, ActionListener<GetResourceResponse<T>> listener) {
         ActionListener<T> getResourceListener = ActionListener.wrap(resource -> {
-            System.out.println("resource: " + resource);
             listener.onResponse(new GetResourceResponse<T>(resource));
         }, listener::onFailure);
 

@@ -17,6 +17,6 @@ import java.io.IOException;
  *
  * @param <T> Returns instance of a Resource
  */
-public interface ResourceParser<T extends Resource> {
+public interface ResourceParser<T extends SharableResource> {
     T parse(XContentParser xContentParser, String id) throws IOException;
 }

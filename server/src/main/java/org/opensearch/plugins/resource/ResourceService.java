@@ -26,20 +26,20 @@ import java.util.stream.Collectors;
 public class ResourceService {
     private static final Logger log = LogManager.getLogger(ResourceService.class);
 
-    private final ResourceAccessControlPlugin resourceAccessControlPlugin;
+    private final ResourceAccessControlPlugin controlPlugin;
 
-    public ResourceService(final List<ResourceAccessControlPlugin> resourceACPlugins) {
+    public ResourceService(final List<ResourceAccessControlPlugin> plugins) {
 
-        if (resourceACPlugins.isEmpty()) {
-            log.info("Security plugin disabled: Using DefaultResourceAccessControlPlugin");
-            resourceAccessControlPlugin = new NoopResourceAccessControlPlugin();
-        } else if (resourceACPlugins.size() == 1) {
-            log.info("Security plugin enabled: Using OpenSearchSecurityPlugin");
-            resourceAccessControlPlugin = resourceACPlugins.get(0);
+        if (plugins.isEmpty()) {
+            log.debug("resource access control plugins size is 0. Using noop.");
+            controlPlugin = new NoopResourceAccessControlPlugin();
+        } else if (plugins.size() == 1) {
+            log.debug("resource access control plugin installed.");
+            controlPlugin = plugins.get(0);
         } else {
             throw new OpenSearchException(
                 "Multiple resource access control plugins are not supported, found: "
-                    + resourceACPlugins.stream().map(Object::getClass).map(Class::getName).collect(Collectors.joining(","))
+                    + plugins.stream().map(Object::getClass).map(Class::getName).collect(Collectors.joining(","))
             );
         }
     }
@@ -47,9 +47,9 @@ public class ResourceService {
     public void initializeResourcePlugins(final List<ResourcePlugin> resourcePlugins) {
         if (resourcePlugins != null) {
             for (ResourcePlugin plugin : resourcePlugins) {
-                List<ResourceType> pluginResourceTypes = plugin.getResourceTypes();
-                for (ResourceType resourceType : pluginResourceTypes) {
-                    resourceAccessControlPlugin.assignResourceSharingService(resourceType);
+                List<SharableResourceType> pluginSharableResourceTypes = plugin.getResourceTypes();
+                for (SharableResourceType resourceType : pluginSharableResourceTypes) {
+                    controlPlugin.assignResourceSharingService(resourceType);
                 }
             }
         }
