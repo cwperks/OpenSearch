@@ -75,9 +75,10 @@ public class GetResourceTransportAction<T extends SharableResource> extends Hand
     }
 
     private void getResource(GetResourceRequest request, ActionListener<GetResourceResponse<T>> listener) {
-        ActionListener<T> getResourceListener = ActionListener.wrap(resource -> {
-            listener.onResponse(new GetResourceResponse<T>(resource));
-        }, listener::onFailure);
+        ActionListener<T> getResourceListener = ActionListener.wrap(
+            resource -> { listener.onResponse(new GetResourceResponse<T>(resource)); },
+            listener::onFailure
+        );
 
         try (ThreadContext.StoredContext ignore = client.threadPool().getThreadContext().stashContext()) {
             GetRequest gr = new GetRequest(resourceIndex);
@@ -126,6 +127,5 @@ public class GetResourceTransportAction<T extends SharableResource> extends Hand
             };
             client.get(gr, getListener);
         }
-        // resourceSharingService.getResource(request.getResourceId(), getResourceListener);
     }
 }
