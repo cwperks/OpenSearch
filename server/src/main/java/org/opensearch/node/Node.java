@@ -214,6 +214,8 @@ import org.opensearch.plugins.PersistentTaskPlugin;
 import org.opensearch.plugins.Plugin;
 import org.opensearch.plugins.PluginsService;
 import org.opensearch.plugins.RepositoryPlugin;
+import org.opensearch.plugins.ResourceAccessControlPlugin;
+import org.opensearch.plugins.ResourcePlugin;
 import org.opensearch.plugins.ScriptPlugin;
 import org.opensearch.plugins.SearchPipelinePlugin;
 import org.opensearch.plugins.SearchPlugin;
@@ -222,6 +224,7 @@ import org.opensearch.plugins.SystemIndexPlugin;
 import org.opensearch.plugins.TaskManagerClientPlugin;
 import org.opensearch.plugins.TelemetryAwarePlugin;
 import org.opensearch.plugins.TelemetryPlugin;
+import org.opensearch.plugins.resource.ResourceService;
 import org.opensearch.ratelimitting.admissioncontrol.AdmissionControlService;
 import org.opensearch.ratelimitting.admissioncontrol.transport.AdmissionControlTransportInterceptor;
 import org.opensearch.repositories.RepositoriesModule;
@@ -1045,6 +1048,13 @@ public class Node implements Closeable {
 
             List<IdentityAwarePlugin> identityAwarePlugins = pluginsService.filterPlugins(IdentityAwarePlugin.class);
             identityService.initializeIdentityAwarePlugins(identityAwarePlugins);
+
+            final List<ResourceAccessControlPlugin> resourceAccessControlPlugins = pluginsService.filterPlugins(
+                ResourceAccessControlPlugin.class
+            );
+            final List<ResourcePlugin> resourcePlugins = pluginsService.filterPlugins(ResourcePlugin.class);
+            ResourceService resourceService = new ResourceService(resourceAccessControlPlugins);
+            resourceService.initializeResourcePlugins(resourcePlugins);
 
             final QueryGroupResourceUsageTrackerService queryGroupResourceUsageTrackerService = new QueryGroupResourceUsageTrackerService(
                 taskResourceTrackingService
