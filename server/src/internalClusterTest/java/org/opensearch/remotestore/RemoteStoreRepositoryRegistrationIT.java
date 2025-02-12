@@ -11,7 +11,6 @@ package org.opensearch.remotestore;
 import org.opensearch.action.admin.cluster.repositories.get.GetRepositoriesAction;
 import org.opensearch.action.admin.cluster.repositories.get.GetRepositoriesRequest;
 import org.opensearch.action.admin.cluster.repositories.get.GetRepositoriesResponse;
-import org.opensearch.client.Client;
 import org.opensearch.cluster.metadata.RepositoryMetadata;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.common.xcontent.XContentType;
@@ -23,6 +22,7 @@ import org.opensearch.plugins.Plugin;
 import org.opensearch.test.OpenSearchIntegTestCase;
 import org.opensearch.test.disruption.NetworkDisruption;
 import org.opensearch.test.transport.MockTransportService;
+import org.opensearch.transport.client.Client;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -131,13 +131,15 @@ public class RemoteStoreRepositoryRegistrationIT extends RemoteStoreBaseIntegTes
             .get(0);
         Settings.Builder updatedSettings = Settings.builder().put(repositoryMetadata.settings()).put("chunk_size", new ByteSizeValue(20));
         updatedSettings.remove("system_repository");
-
-        client.admin()
-            .cluster()
-            .preparePutRepository(repositoryMetadata.name())
-            .setType(repositoryMetadata.type())
-            .setSettings(updatedSettings)
-            .get();
+        OpenSearchIntegTestCase.putRepositoryRequestBuilder(
+            client.admin().cluster(),
+            repositoryMetadata.name(),
+            repositoryMetadata.type(),
+            true,
+            updatedSettings,
+            null,
+            false
+        ).get();
 
         ensureStableCluster(3, nodesInOneSide.stream().findAny().get());
         networkDisruption.stopDisrupting();
@@ -161,12 +163,7 @@ public class RemoteStoreRepositoryRegistrationIT extends RemoteStoreBaseIntegTes
         Settings.Builder updatedSettings = Settings.builder().put(repositoryMetadata.settings()).put("chunk_size", new ByteSizeValue(20));
         updatedSettings.remove("system_repository");
 
-        client.admin()
-            .cluster()
-            .preparePutRepository(repositoryMetadata.name())
-            .setType(repositoryMetadata.type())
-            .setSettings(updatedSettings)
-            .get();
+        createRepository(repositoryMetadata.name(), repositoryMetadata.type(), updatedSettings);
 
         internalCluster().restartRandomDataNode();
 

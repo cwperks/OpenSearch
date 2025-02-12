@@ -227,6 +227,8 @@ public class MapperService extends AbstractIndexComponent implements Closeable {
     private final BooleanSupplier idFieldDataEnabled;
 
     private volatile Set<CompositeMappedFieldType> compositeMappedFieldTypes;
+    private volatile Set<String> fieldsPartOfCompositeMappings;
+    private volatile Set<String> nestedFieldsPartOfCompositeMappings;
 
     public MapperService(
         IndexSettings indexSettings,
@@ -547,7 +549,35 @@ public class MapperService extends AbstractIndexComponent implements Closeable {
 
         // initialize composite fields post merge
         this.compositeMappedFieldTypes = getCompositeFieldTypesFromMapper();
+        buildCompositeFieldLookup();
         return results;
+    }
+
+    private void buildCompositeFieldLookup() {
+        Set<String> fieldsPartOfCompositeMappings = new HashSet<>();
+        Set<String> nestedFieldsPartOfCompositeMappings = new HashSet<>();
+
+        for (CompositeMappedFieldType fieldType : compositeMappedFieldTypes) {
+            fieldsPartOfCompositeMappings.addAll(fieldType.fields());
+
+            for (String field : fieldType.fields()) {
+                String[] parts = field.split("\\.");
+                if (parts.length > 1) {
+                    StringBuilder path = new StringBuilder();
+                    for (int i = 0; i < parts.length; i++) {
+                        if (i == 0) {
+                            path.append(parts[i]);
+                        } else {
+                            path.append(".").append(parts[i]);
+                        }
+                        nestedFieldsPartOfCompositeMappings.add(path.toString());
+                    }
+                }
+            }
+        }
+
+        this.fieldsPartOfCompositeMappings = fieldsPartOfCompositeMappings;
+        this.nestedFieldsPartOfCompositeMappings = nestedFieldsPartOfCompositeMappings;
     }
 
     private boolean assertSerialization(DocumentMapper mapper) {
@@ -674,6 +704,15 @@ public class MapperService extends AbstractIndexComponent implements Closeable {
             }
         }
         return compositeMappedFieldTypes;
+    }
+
+    public boolean isFieldPartOfCompositeIndex(String field) {
+        return fieldsPartOfCompositeMappings.contains(field);
+    }
+
+    public boolean isCompositeIndexFieldNestedField(String field) {
+        return nestedFieldsPartOfCompositeMappings.contains(field);
+
     }
 
     public ObjectMapper getObjectMapper(String name) {

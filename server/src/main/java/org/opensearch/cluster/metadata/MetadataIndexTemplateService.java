@@ -38,8 +38,8 @@ import org.apache.lucene.util.automaton.Automaton;
 import org.apache.lucene.util.automaton.Operations;
 import org.opensearch.Version;
 import org.opensearch.action.admin.indices.alias.Alias;
+import org.opensearch.action.support.clustermanager.AcknowledgedResponse;
 import org.opensearch.action.support.clustermanager.ClusterManagerNodeRequest;
-import org.opensearch.action.support.master.AcknowledgedResponse;
 import org.opensearch.cluster.ClusterState;
 import org.opensearch.cluster.ClusterStateUpdateTask;
 import org.opensearch.cluster.applicationtemplates.ClusterStateSystemTemplateLoader;
@@ -71,9 +71,11 @@ import org.opensearch.core.xcontent.MediaTypeRegistry;
 import org.opensearch.core.xcontent.NamedXContentRegistry;
 import org.opensearch.core.xcontent.XContentBuilder;
 import org.opensearch.index.IndexService;
+import org.opensearch.index.IndexSettings;
 import org.opensearch.index.mapper.MapperParsingException;
 import org.opensearch.index.mapper.MapperService;
 import org.opensearch.index.mapper.MapperService.MergeReason;
+import org.opensearch.index.translog.Translog;
 import org.opensearch.indices.IndexTemplateMissingException;
 import org.opensearch.indices.IndicesService;
 import org.opensearch.indices.InvalidIndexTemplateException;
@@ -100,6 +102,7 @@ import java.util.stream.Collectors;
 
 import static org.opensearch.cluster.metadata.MetadataCreateDataStreamService.validateTimestampFieldMapping;
 import static org.opensearch.cluster.metadata.MetadataCreateIndexService.validateRefreshIntervalSettings;
+import static org.opensearch.cluster.metadata.MetadataCreateIndexService.validateTranslogFlushIntervalSettingsForCompositeIndex;
 import static org.opensearch.common.util.concurrent.ThreadContext.ACTION_ORIGIN_TRANSIENT_NAME;
 import static org.opensearch.indices.cluster.IndicesClusterStateService.AllocatedIndices.IndexRemovalReason.NO_LONGER_ASSIGNED;
 
@@ -452,7 +455,7 @@ public class MetadataIndexTemplateService {
         final Set<String> componentsBeingUsed = new HashSet<>();
         final List<String> templatesStillUsing = metadata.templatesV2().entrySet().stream().filter(e -> {
             Set<String> referredComponentTemplates = new HashSet<>(e.getValue().composedOf());
-            String systemTemplateUsed = findContextTemplate(metadata, e.getValue().context());
+            String systemTemplateUsed = findContextTemplateName(metadata, e.getValue().context());
             if (systemTemplateUsed != null) {
                 referredComponentTemplates.add(systemTemplateUsed);
             }
@@ -568,7 +571,7 @@ public class MetadataIndexTemplateService {
             );
         }
 
-        if (template.context() != null && findContextTemplate(metadata, template.context()) == null) {
+        if (template.context() != null && findContextTemplateName(metadata, template.context()) == null) {
             throw new InvalidIndexTemplateException(
                 name,
                 "index template [" + name + "] specifies a context which is not loaded on the cluster."
@@ -585,7 +588,12 @@ public class MetadataIndexTemplateService {
         }
     }
 
-    private static String findContextTemplate(Metadata metadata, Context context) {
+    static ComponentTemplate findComponentTemplate(Metadata metadata, Context context) {
+        String contextTemplateName = findContextTemplateName(metadata, context);
+        return metadata.componentTemplates().getOrDefault(contextTemplateName, null);
+    }
+
+    static String findContextTemplateName(Metadata metadata, Context context) {
         if (context == null) {
             return null;
         }
@@ -944,7 +952,7 @@ public class MetadataIndexTemplateService {
 
     static Set<String> dataStreamsUsingTemplate(final ClusterState state, final String templateName) {
         final ComposableIndexTemplate template = state.metadata().templatesV2().get(templateName);
-        if (template == null) {
+        if (template == null || template.getDataStreamTemplate() == null) {
             return Collections.emptySet();
         }
         final Set<String> dataStreams = state.metadata().dataStreams().keySet();
@@ -1246,7 +1254,7 @@ public class MetadataIndexTemplateService {
 
         // Now use context mappings which take the highest precedence
         Optional.ofNullable(template.context())
-            .map(ctx -> findContextTemplate(state.metadata(), ctx))
+            .map(ctx -> findContextTemplateName(state.metadata(), ctx))
             .map(name -> state.metadata().componentTemplates().get(name))
             .map(ComponentTemplate::template)
             .map(Template::mappings)
@@ -1317,8 +1325,7 @@ public class MetadataIndexTemplateService {
         Optional.ofNullable(template.template()).map(Template::settings).ifPresent(templateSettings::put);
 
         // Add the template referred by context since it will take the highest precedence.
-        final String systemTemplate = findContextTemplate(metadata, template.context());
-        final ComponentTemplate componentTemplate = metadata.componentTemplates().get(systemTemplate);
+        final ComponentTemplate componentTemplate = findComponentTemplate(metadata, template.context());
         Optional.ofNullable(componentTemplate).map(ComponentTemplate::template).map(Template::settings).ifPresent(templateSettings::put);
 
         return templateSettings.build();
@@ -1367,8 +1374,7 @@ public class MetadataIndexTemplateService {
 
         // Now use context referenced template's aliases which take the highest precedence
         if (template.context() != null) {
-            final String systemTemplate = findContextTemplate(metadata, template.context());
-            final ComponentTemplate componentTemplate = metadata.componentTemplates().get(systemTemplate);
+            final ComponentTemplate componentTemplate = findComponentTemplate(metadata, template.context());
             Optional.ofNullable(componentTemplate.template()).map(Template::aliases).ifPresent(aliases::add);
         }
 
@@ -1632,8 +1638,10 @@ public class MetadataIndexTemplateService {
             );
             validationErrors.addAll(indexSettingsValidation);
 
-            // validate index refresh interval settings
+            // validate index refresh interval and translog durability settings
             validateRefreshIntervalSettings(settings, clusterService.getClusterSettings());
+            validateTranslogFlushIntervalSettingsForCompositeIndex(settings, clusterService.getClusterSettings());
+            validateTranslogDurabilitySettingsInTemplate(settings, clusterService.getClusterSettings());
         }
 
         if (indexPatterns.stream().anyMatch(Regex::isMatchAllPattern)) {
@@ -1657,6 +1665,29 @@ public class MetadataIndexTemplateService {
                 );
             }
         }
+    }
+
+    /**
+     * Validates {@code index.translog.durability} is not async with the incoming index template
+     * if the {@code cluster.remote_store.index.restrict.async-durability} is set to true.
+     *
+     * @param requestSettings settings passed during template creation
+     * @param clusterSettings current cluster settings
+     */
+    private void validateTranslogDurabilitySettingsInTemplate(Settings requestSettings, ClusterSettings clusterSettings) {
+        if (IndexSettings.INDEX_TRANSLOG_DURABILITY_SETTING.exists(requestSettings) == false
+            || clusterSettings.get(IndicesService.CLUSTER_REMOTE_INDEX_RESTRICT_ASYNC_DURABILITY_SETTING) == false) {
+            return;
+        }
+        Translog.Durability durability = IndexSettings.INDEX_TRANSLOG_DURABILITY_SETTING.get(requestSettings);
+        if (durability.equals(Translog.Durability.ASYNC)) {
+            throw new IllegalArgumentException(
+                "index setting [index.translog.durability=async] is not allowed as cluster setting ["
+                    + IndicesService.CLUSTER_REMOTE_INDEX_RESTRICT_ASYNC_DURABILITY_SETTING.getKey()
+                    + "=true]"
+            );
+        }
+
     }
 
     /**
@@ -1688,10 +1719,6 @@ public class MetadataIndexTemplateService {
         List<Alias> aliases = new ArrayList<>();
 
         TimeValue clusterManagerTimeout = ClusterManagerNodeRequest.DEFAULT_CLUSTER_MANAGER_NODE_TIMEOUT;
-
-        /** @deprecated As of 2.1, because supporting inclusive language, replaced by {@link #clusterManagerTimeout} */
-        @Deprecated
-        TimeValue masterTimeout = ClusterManagerNodeRequest.DEFAULT_CLUSTER_MANAGER_NODE_TIMEOUT;
 
         public PutRequest(String cause, String name) {
             this.cause = cause;
@@ -1733,12 +1760,6 @@ public class MetadataIndexTemplateService {
             return this;
         }
 
-        /** @deprecated As of 2.2, because supporting inclusive language, replaced by {@link #clusterManagerTimeout(TimeValue)} */
-        @Deprecated
-        public PutRequest masterTimeout(TimeValue masterTimeout) {
-            return clusterManagerTimeout(masterTimeout);
-        }
-
         public PutRequest version(Integer version) {
             this.version = version;
             return this;
@@ -1771,10 +1792,6 @@ public class MetadataIndexTemplateService {
         final String name;
         TimeValue clusterManagerTimeout = ClusterManagerNodeRequest.DEFAULT_CLUSTER_MANAGER_NODE_TIMEOUT;
 
-        /** @deprecated As of 2.1, because supporting inclusive language, replaced by {@link #clusterManagerTimeout} */
-        @Deprecated
-        TimeValue masterTimeout = ClusterManagerNodeRequest.DEFAULT_CLUSTER_MANAGER_NODE_TIMEOUT;
-
         public RemoveRequest(String name) {
             this.name = name;
         }
@@ -1782,12 +1799,6 @@ public class MetadataIndexTemplateService {
         public RemoveRequest clusterManagerTimeout(TimeValue clusterManagerTimeout) {
             this.clusterManagerTimeout = clusterManagerTimeout;
             return this;
-        }
-
-        /** @deprecated As of 2.2, because supporting inclusive language, replaced by {@link #clusterManagerTimeout} */
-        @Deprecated
-        public RemoveRequest masterTimeout(TimeValue masterTimeout) {
-            return clusterManagerTimeout(masterTimeout);
         }
     }
 

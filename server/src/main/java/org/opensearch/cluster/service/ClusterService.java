@@ -41,7 +41,6 @@ import org.opensearch.cluster.ClusterStateTaskConfig;
 import org.opensearch.cluster.ClusterStateTaskExecutor;
 import org.opensearch.cluster.ClusterStateTaskListener;
 import org.opensearch.cluster.LocalNodeClusterManagerListener;
-import org.opensearch.cluster.LocalNodeMasterListener;
 import org.opensearch.cluster.NodeConnectionsService;
 import org.opensearch.cluster.node.DiscoveryNode;
 import org.opensearch.cluster.routing.OperationRouting;
@@ -184,6 +183,21 @@ public class ClusterService extends AbstractLifecycleComponent {
     }
 
     /**
+     * Returns true if the state in appliedClusterState is not null
+     */
+    public boolean isStateInitialised() {
+        return clusterApplierService.isStateInitialised();
+    }
+
+    /**
+     * The state that is persisted to store but may not be applied to cluster.
+     * @return ClusterState
+     */
+    public ClusterState preCommitState() {
+        return clusterApplierService.preCommitState();
+    }
+
+    /**
      * Adds a high priority applier of updated cluster states.
      */
     public void addHighPriorityApplier(ClusterStateApplier applier) {
@@ -232,22 +246,7 @@ public class ClusterService extends AbstractLifecycleComponent {
         clusterApplierService.addLocalNodeClusterManagerListener(listener);
     }
 
-    /**
-     * Add a listener for on/off local node cluster-manager events
-     * @deprecated As of 2.2, because supporting inclusive language, replaced by {@link #addLocalNodeClusterManagerListener}
-     */
-    @Deprecated
-    public void addLocalNodeMasterListener(LocalNodeMasterListener listener) {
-        addLocalNodeClusterManagerListener(listener);
-    }
-
     public ClusterManagerService getClusterManagerService() {
-        return clusterManagerService;
-    }
-
-    /** @deprecated As of 2.2, because supporting inclusive language, replaced by {@link #getClusterManagerService()} */
-    @Deprecated
-    public MasterService getMasterService() {
         return clusterManagerService;
     }
 
@@ -274,12 +273,6 @@ public class ClusterService extends AbstractLifecycleComponent {
             || Thread.currentThread().getName().contains(ClusterManagerService.CLUSTER_MANAGER_UPDATE_THREAD_NAME)
             : "not called from the master/cluster state update thread";
         return true;
-    }
-
-    /** @deprecated As of 2.2, because supporting inclusive language, replaced by {@link #assertClusterOrClusterManagerStateThread} */
-    @Deprecated
-    public static boolean assertClusterOrMasterStateThread() {
-        return assertClusterOrClusterManagerStateThread();
     }
 
     public ClusterName getClusterName() {

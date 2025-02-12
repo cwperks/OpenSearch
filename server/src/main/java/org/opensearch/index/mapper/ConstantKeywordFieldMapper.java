@@ -9,10 +9,22 @@
 package org.opensearch.index.mapper;
 
 import org.apache.lucene.search.MatchAllDocsQuery;
+import org.apache.lucene.search.MatchNoDocsQuery;
+import org.apache.lucene.search.MultiTermQuery;
 import org.apache.lucene.search.Query;
+import org.apache.lucene.search.RegexpQuery;
+import org.apache.lucene.util.BytesRef;
+import org.apache.lucene.util.automaton.Automaton;
+import org.apache.lucene.util.automaton.ByteRunAutomaton;
+import org.apache.lucene.util.automaton.Operations;
+import org.apache.lucene.util.automaton.RegExp;
 import org.opensearch.OpenSearchParseException;
+import org.opensearch.common.Nullable;
 import org.opensearch.common.annotation.PublicApi;
+import org.opensearch.common.geo.ShapeRelation;
+import org.opensearch.common.lucene.BytesRefs;
 import org.opensearch.common.regex.Regex;
+import org.opensearch.common.time.DateMathParser;
 import org.opensearch.index.fielddata.IndexFieldData;
 import org.opensearch.index.fielddata.plain.ConstantIndexFieldData;
 import org.opensearch.index.query.QueryShardContext;
@@ -20,6 +32,7 @@ import org.opensearch.search.aggregations.support.CoreValuesSourceType;
 import org.opensearch.search.lookup.SearchLookup;
 
 import java.io.IOException;
+import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -120,6 +133,61 @@ public class ConstantKeywordFieldMapper extends ParametrizedFieldMapper {
         @Override
         public Query existsQuery(QueryShardContext context) {
             return new MatchAllDocsQuery();
+        }
+
+        @Override
+        public Query rangeQuery(
+            Object lowerTerm,
+            Object upperTerm,
+            boolean includeLower,
+            boolean includeUpper,
+            ShapeRelation relation,
+            ZoneId timeZone,
+            DateMathParser parser,
+            QueryShardContext context
+        ) {
+            if (lowerTerm != null) {
+                lowerTerm = valueToString(lowerTerm);
+            }
+            if (upperTerm != null) {
+                upperTerm = valueToString(upperTerm);
+            }
+
+            if (lowerTerm != null && upperTerm != null && ((String) lowerTerm).compareTo((String) upperTerm) > 0) {
+                return new MatchNoDocsQuery();
+            }
+
+            if (lowerTerm != null && ((String) lowerTerm).compareTo(value) > (includeLower ? 0 : -1)) {
+                return new MatchNoDocsQuery();
+            }
+
+            if (upperTerm != null && ((String) upperTerm).compareTo(value) < (includeUpper ? 0 : 1)) {
+                return new MatchNoDocsQuery();
+            }
+            return new MatchAllDocsQuery();
+        }
+
+        @Override
+        public Query regexpQuery(
+            String value,
+            int syntaxFlags,
+            int matchFlags,
+            int maxDeterminizedStates,
+            @Nullable MultiTermQuery.RewriteMethod method,
+            QueryShardContext context
+        ) {
+            final RegExp regExp = new RegExp(value, syntaxFlags, matchFlags);
+            final Automaton automaton = Operations.determinize(
+                regExp.toAutomaton(RegexpQuery.DEFAULT_PROVIDER),
+                Operations.DEFAULT_DETERMINIZE_WORK_LIMIT
+            );
+            ByteRunAutomaton byteRunAutomaton = new ByteRunAutomaton(automaton);
+            BytesRef valueBytes = BytesRefs.toBytesRef(this.value);
+            if (byteRunAutomaton.run(valueBytes.bytes, valueBytes.offset, valueBytes.length)) {
+                return new MatchAllDocsQuery();
+            } else {
+                return new MatchNoDocsQuery();
+            }
         }
 
         @Override

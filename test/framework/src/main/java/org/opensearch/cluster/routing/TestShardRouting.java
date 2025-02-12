@@ -319,4 +319,49 @@ public class TestShardRouting {
             )
         );
     }
+
+    public static ShardRouting newShardRouting(
+        ShardId shardId,
+        String currentNodeId,
+        String relocatingNodeId,
+        boolean primary,
+        boolean searchOnly,
+        ShardRoutingState state,
+        UnassignedInfo unassignedInfo
+    ) {
+        return new ShardRouting(
+            shardId,
+            currentNodeId,
+            relocatingNodeId,
+            primary,
+            searchOnly,
+            state,
+            buildRecoveryTarget(primary, state),
+            unassignedInfo,
+            buildAllocationId(state),
+            -1
+        );
+    }
+
+    public static ShardRouting newShardRouting(
+        ShardId shardId,
+        String currentNodeId,
+        boolean primary,
+        boolean searchOnly,
+        ShardRoutingState state,
+        RecoverySource recoverySource
+    ) {
+        return new ShardRouting(
+            shardId,
+            currentNodeId,
+            null,
+            primary,
+            searchOnly,
+            state,
+            recoverySource,
+            buildUnassignedInfo(state),
+            buildAllocationId(state),
+            -1
+        );
+    }
 }

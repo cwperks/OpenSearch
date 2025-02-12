@@ -317,6 +317,10 @@ public abstract class Translog extends AbstractIndexShardComponent implements In
      */
     public static long parseIdFromFileName(Path translogFile) {
         final String fileName = translogFile.getFileName().toString();
+        return parseIdFromFileName(fileName);
+    }
+
+    public static long parseIdFromFileName(String fileName) {
         final Matcher matcher = PARSE_STRICT_ID_PATTERN.matcher(fileName);
         if (matcher.matches()) {
             try {
@@ -954,6 +958,21 @@ public abstract class Translog extends AbstractIndexShardComponent implements In
             return result;
         }
     }
+
+    public static final Translog.Snapshot EMPTY_TRANSLOG_SNAPSHOT = new Translog.Snapshot() {
+        @Override
+        public void close() {}
+
+        @Override
+        public int totalOperations() {
+            return 0;
+        }
+
+        @Override
+        public Translog.Operation next() {
+            return null;
+        }
+    };
 
     /**
      * A snapshot of the transaction log, allows to iterate over all the transaction log operations.

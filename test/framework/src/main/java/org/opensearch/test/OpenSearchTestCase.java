@@ -63,8 +63,6 @@ import org.apache.lucene.tests.util.TestUtil;
 import org.apache.lucene.tests.util.TimeUnits;
 import org.opensearch.Version;
 import org.opensearch.bootstrap.BootstrapForTesting;
-import org.opensearch.client.Client;
-import org.opensearch.client.Requests;
 import org.opensearch.cluster.ClusterModule;
 import org.opensearch.cluster.ClusterState;
 import org.opensearch.cluster.coordination.PersistedStateRegistry;
@@ -137,6 +135,8 @@ import org.opensearch.test.junit.listeners.LoggingListener;
 import org.opensearch.test.junit.listeners.ReproduceInfoPrinter;
 import org.opensearch.threadpool.ThreadPool;
 import org.opensearch.transport.TransportService;
+import org.opensearch.transport.client.Client;
+import org.opensearch.transport.client.Requests;
 import org.opensearch.transport.nio.MockNioTransportPlugin;
 import org.joda.time.DateTimeZone;
 import org.junit.After;
@@ -813,6 +813,14 @@ public abstract class OpenSearchTestCase extends LuceneTestCase {
     public static long randomNonNegativeLong() {
         long randomLong = randomLong();
         return randomLong == Long.MIN_VALUE ? 0 : Math.abs(randomLong);
+    }
+
+    /**
+     * @return a <code>int</code> between <code>0</code> and <code>Integer.MAX_VALUE</code> (inclusive) chosen uniformly at random.
+     */
+    public static int randomNonNegativeInt() {
+        int randomInt = randomInt();
+        return randomInt == Integer.MIN_VALUE ? 0 : Math.abs(randomInt);
     }
 
     public static float randomFloat() {
@@ -1809,7 +1817,8 @@ public abstract class OpenSearchTestCase extends LuceneTestCase {
         BlobPath basePath,
         String shardId,
         RemoteStoreEnums.DataCategory dataCategory,
-        RemoteStoreEnums.DataType dataType
+        RemoteStoreEnums.DataType dataType,
+        String fixedPrefix
     ) {
         String indexUUID = client.admin()
             .indices()
@@ -1834,6 +1843,7 @@ public abstract class OpenSearchTestCase extends LuceneTestCase {
             .shardId(shardId)
             .dataCategory(dataCategory)
             .dataType(dataType)
+            .fixedPrefix(fixedPrefix)
             .build();
         return type.path(pathInput, hashAlgorithm);
     }

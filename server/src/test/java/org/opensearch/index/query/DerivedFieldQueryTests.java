@@ -88,7 +88,7 @@ public class DerivedFieldQueryTests extends OpenSearchTestCase {
         // Create DerivedFieldQuery
         DerivedFieldQuery derivedFieldQuery = new DerivedFieldQuery(
             new TermQuery(new Term("ip_from_raw_request", "247.37.0.0")),
-            valueFetcher,
+            () -> valueFetcher,
             searchLookup,
             Lucene.STANDARD_ANALYZER,
             indexableFieldFunction,
@@ -106,7 +106,7 @@ public class DerivedFieldQueryTests extends OpenSearchTestCase {
                 iw.close();
                 IndexSearcher searcher = new IndexSearcher(reader);
                 TopDocs topDocs = searcher.search(derivedFieldQuery, 10);
-                assertEquals(3, topDocs.totalHits.value);
+                assertEquals(3, topDocs.totalHits.value());
             }
         }
     }
@@ -157,7 +157,7 @@ public class DerivedFieldQueryTests extends OpenSearchTestCase {
                 // Create DerivedFieldQuery
                 DerivedFieldQuery derivedFieldQuery = new DerivedFieldQuery(
                     new TermQuery(new Term("ip_from_raw_request", "247.37.0.0")),
-                    valueFetcher,
+                    () -> valueFetcher,
                     searchLookup,
                     Lucene.STANDARD_ANALYZER,
                     badIndexableFieldFunction,
@@ -169,7 +169,7 @@ public class DerivedFieldQueryTests extends OpenSearchTestCase {
                 // set ignore_malformed as true, query should pass
                 derivedFieldQuery = new DerivedFieldQuery(
                     new TermQuery(new Term("ip_from_raw_request", "247.37.0.0")),
-                    valueFetcher,
+                    () -> valueFetcher,
                     searchLookup,
                     Lucene.STANDARD_ANALYZER,
                     badIndexableFieldFunction,
@@ -177,7 +177,7 @@ public class DerivedFieldQueryTests extends OpenSearchTestCase {
                 );
                 searcher.search(derivedFieldQuery, 10);
                 TopDocs topDocs = searcher.search(derivedFieldQuery, 10);
-                assertEquals(0, topDocs.totalHits.value);
+                assertEquals(0, topDocs.totalHits.value());
             }
         }
     }

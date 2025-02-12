@@ -8,14 +8,14 @@
 package org.opensearch.index.compositeindex.datacube.startree.aggregators;
 
 import org.opensearch.index.compositeindex.datacube.MetricStat;
-import org.opensearch.index.compositeindex.datacube.startree.aggregators.numerictype.StarTreeNumericType;
-import org.opensearch.index.fielddata.IndexNumericFieldData;
+import org.opensearch.index.mapper.FieldValueConverter;
 
 import java.util.Comparator;
 import java.util.Objects;
 
 /**
  * Builds aggregation function and doc values field pair to support various aggregations
+ *
  * @opensearch.experimental
  */
 public class MetricAggregatorInfo implements Comparable<MetricAggregatorInfo> {
@@ -26,15 +26,15 @@ public class MetricAggregatorInfo implements Comparable<MetricAggregatorInfo> {
     private final MetricStat metricStat;
     private final String field;
     private final ValueAggregator valueAggregators;
-    private final StarTreeNumericType starTreeNumericType;
+    private final FieldValueConverter fieldValueConverter;
 
     /**
      * Constructor for MetricAggregatorInfo
      */
-    public MetricAggregatorInfo(MetricStat metricStat, String field, String starFieldName, IndexNumericFieldData.NumericType numericType) {
+    public MetricAggregatorInfo(MetricStat metricStat, String field, String starFieldName, FieldValueConverter fieldValueConverter) {
         this.metricStat = metricStat;
-        this.starTreeNumericType = StarTreeNumericType.fromNumericType(numericType);
-        this.valueAggregators = ValueAggregatorFactory.getValueAggregator(metricStat, this.starTreeNumericType);
+        this.fieldValueConverter = fieldValueConverter;
+        this.valueAggregators = ValueAggregatorFactory.getValueAggregator(metricStat, this.fieldValueConverter);
         this.field = field;
         this.starFieldName = starFieldName;
         this.metric = toFieldName();
@@ -71,15 +71,23 @@ public class MetricAggregatorInfo implements Comparable<MetricAggregatorInfo> {
     /**
      * @return star tree aggregated value type
      */
-    public StarTreeNumericType getAggregatedValueType() {
-        return starTreeNumericType;
+    public FieldValueConverter getNumericFieldConverter() {
+        return fieldValueConverter;
     }
 
     /**
      * @return field name with metric type and field
      */
     public String toFieldName() {
-        return starFieldName + DELIMITER + field + DELIMITER + metricStat.getTypeName();
+        return toFieldName(starFieldName, field, metricStat.getTypeName());
+
+    }
+
+    /**
+     * @return field name with star-tree field name metric type and field
+     */
+    public static String toFieldName(String starFieldName, String field, String metricName) {
+        return starFieldName + DELIMITER + field + DELIMITER + metricName;
     }
 
     @Override
@@ -94,7 +102,7 @@ public class MetricAggregatorInfo implements Comparable<MetricAggregatorInfo> {
         }
         if (obj instanceof MetricAggregatorInfo) {
             MetricAggregatorInfo anotherPair = (MetricAggregatorInfo) obj;
-            return metricStat == anotherPair.metricStat && field.equals(anotherPair.field);
+            return metricStat.equals(anotherPair.metricStat) && field.equals(anotherPair.field);
         }
         return false;
     }

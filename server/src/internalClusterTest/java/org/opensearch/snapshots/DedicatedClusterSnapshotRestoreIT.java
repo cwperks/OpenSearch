@@ -42,9 +42,7 @@ import org.opensearch.action.admin.cluster.snapshots.status.SnapshotsStatusRespo
 import org.opensearch.action.admin.indices.stats.ShardStats;
 import org.opensearch.action.index.IndexRequestBuilder;
 import org.opensearch.action.support.ActiveShardCount;
-import org.opensearch.action.support.master.AcknowledgedResponse;
-import org.opensearch.client.Client;
-import org.opensearch.client.node.NodeClient;
+import org.opensearch.action.support.clustermanager.AcknowledgedResponse;
 import org.opensearch.cluster.ClusterState;
 import org.opensearch.cluster.NamedDiff;
 import org.opensearch.cluster.SnapshotsInProgress;
@@ -86,6 +84,7 @@ import org.opensearch.rest.action.admin.cluster.RestClusterStateAction;
 import org.opensearch.rest.action.admin.cluster.RestGetRepositoriesAction;
 import org.opensearch.snapshots.mockstore.MockRepository;
 import org.opensearch.test.InternalTestCluster;
+import org.opensearch.test.OpenSearchIntegTestCase;
 import org.opensearch.test.OpenSearchIntegTestCase.ClusterScope;
 import org.opensearch.test.OpenSearchIntegTestCase.Scope;
 import org.opensearch.test.TestCustomMetadata;
@@ -97,6 +96,8 @@ import org.opensearch.transport.TransportMessageListener;
 import org.opensearch.transport.TransportRequest;
 import org.opensearch.transport.TransportRequestOptions;
 import org.opensearch.transport.TransportService;
+import org.opensearch.transport.client.Client;
+import org.opensearch.transport.client.node.NodeClient;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -759,18 +760,26 @@ public class DedicatedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTest
         internalCluster().startNode(nonClusterManagerNode());
         // Register mock repositories
         for (int i = 0; i < 5; i++) {
-            clusterAdmin().preparePutRepository("test-repo" + i)
-                .setType("mock")
-                .setSettings(Settings.builder().put("location", randomRepoPath()))
-                .setVerify(false)
-                .get();
+            OpenSearchIntegTestCase.putRepositoryRequestBuilder(
+                clusterAdmin(),
+                "test-repo" + i,
+                "mock",
+                false,
+                Settings.builder().put("location", randomRepoPath()),
+                null,
+                false
+            ).get();
         }
         logger.info("--> make sure that properly setup repository can be registered on all nodes");
-        clusterAdmin().preparePutRepository("test-repo-0")
-            .setType("fs")
-            .setSettings(Settings.builder().put("location", randomRepoPath()))
-            .get();
-
+        OpenSearchIntegTestCase.putRepositoryRequestBuilder(
+            clusterAdmin(),
+            "test-repo-0",
+            "fs",
+            true,
+            Settings.builder().put("location", randomRepoPath()),
+            null,
+            false
+        ).get();
     }
 
     public void testThatSensitiveRepositorySettingsAreNotExposed() throws Exception {
@@ -979,11 +988,7 @@ public class DedicatedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTest
         final String snapshotName = "<snapshot-{now/d}>";
 
         logger.info("-->  creating repository");
-        assertAcked(
-            clusterAdmin().preparePutRepository(repo)
-                .setType("fs")
-                .setSettings(Settings.builder().put("location", randomRepoPath()).put("compress", randomBoolean()))
-        );
+        createRepository(repo, "fs", Settings.builder().put("location", randomRepoPath()).put("compress", randomBoolean()));
 
         final String expression1 = nameExpressionResolver.resolveDateMathExpression(snapshotName);
         logger.info("-->  creating date math snapshot");

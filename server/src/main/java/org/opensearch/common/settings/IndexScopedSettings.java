@@ -91,6 +91,9 @@ public final class IndexScopedSettings extends AbstractScopedSettings {
                 MergeSchedulerConfig.MAX_MERGE_COUNT_SETTING,
                 MergeSchedulerConfig.MAX_THREAD_COUNT_SETTING,
                 IndexMetadata.SETTING_INDEX_VERSION_CREATED,
+                IndexMetadata.SETTING_INDEX_CREATION_DATE,
+                IndexMetadata.INDEX_UUID_SETTING,
+                IndexMetadata.SETTING_INDEX_HISTORY_UUID,
                 IndexMetadata.INDEX_ROUTING_EXCLUDE_GROUP_SETTING,
                 IndexMetadata.INDEX_ROUTING_INCLUDE_GROUP_SETTING,
                 IndexMetadata.INDEX_ROUTING_REQUIRE_GROUP_SETTING,
@@ -109,6 +112,7 @@ public final class IndexScopedSettings extends AbstractScopedSettings {
                 IndexMetadata.INDEX_FORMAT_SETTING,
                 IndexMetadata.INDEX_HIDDEN_SETTING,
                 IndexMetadata.INDEX_REPLICATION_TYPE_SETTING,
+                IndexMetadata.INDEX_APPEND_ONLY_ENABLED_SETTING,
                 SearchSlowLog.INDEX_SEARCH_SLOWLOG_THRESHOLD_FETCH_DEBUG_SETTING,
                 SearchSlowLog.INDEX_SEARCH_SLOWLOG_THRESHOLD_FETCH_WARN_SETTING,
                 SearchSlowLog.INDEX_SEARCH_SLOWLOG_THRESHOLD_FETCH_INFO_SETTING,
@@ -223,6 +227,7 @@ public final class IndexScopedSettings extends AbstractScopedSettings {
                 IndexSettings.SEARCHABLE_SNAPSHOT_INDEX_ID,
                 IndexSettings.SEARCHABLE_SNAPSHOT_ID_NAME,
                 IndexSettings.SEARCHABLE_SNAPSHOT_ID_UUID,
+                IndexSettings.SEARCHABLE_SNAPSHOT_SHARD_PATH_TYPE,
 
                 // Settings for remote translog
                 IndexSettings.INDEX_REMOTE_TRANSLOG_BUFFER_INTERVAL_SETTING,
@@ -237,7 +242,9 @@ public final class IndexScopedSettings extends AbstractScopedSettings {
                 IndexSettings.INDEX_DOC_ID_FUZZY_SET_FALSE_POSITIVE_PROBABILITY_SETTING,
 
                 // Settings for concurrent segment search
-                IndexSettings.INDEX_CONCURRENT_SEGMENT_SEARCH_SETTING,
+                IndexSettings.INDEX_CONCURRENT_SEGMENT_SEARCH_SETTING, // deprecated
+                IndexSettings.INDEX_CONCURRENT_SEGMENT_SEARCH_MODE,
+                IndexSettings.INDEX_CONCURRENT_SEGMENT_SEARCH_MAX_SLICE_COUNT,
                 IndexSettings.ALLOW_DERIVED_FIELDS,
 
                 // Settings for star tree index
@@ -247,6 +254,16 @@ public final class IndexScopedSettings extends AbstractScopedSettings {
                 StarTreeIndexSettings.DEFAULT_METRICS_LIST,
                 StarTreeIndexSettings.DEFAULT_DATE_INTERVALS,
                 StarTreeIndexSettings.STAR_TREE_MAX_DATE_INTERVALS_SETTING,
+                StarTreeIndexSettings.STAR_TREE_MAX_BASE_METRICS_SETTING,
+                StarTreeIndexSettings.IS_COMPOSITE_INDEX_SETTING,
+
+                IndexSettings.INDEX_CONTEXT_CREATED_VERSION,
+                IndexSettings.INDEX_CONTEXT_CURRENT_VERSION,
+
+                // Settings for ingestion source
+                IndexMetadata.INGESTION_SOURCE_TYPE_SETTING,
+                IndexMetadata.INGESTION_SOURCE_POINTER_INIT_RESET_SETTING,
+                IndexMetadata.INGESTION_SOURCE_PARAMS_SETTING,
 
                 // validate that built-in similarities don't get redefined
                 Setting.groupSetting("index.similarity.", (s) -> {
@@ -272,7 +289,9 @@ public final class IndexScopedSettings extends AbstractScopedSettings {
      */
     public static final Map<String, List<Setting>> FEATURE_FLAGGED_INDEX_SETTINGS = Map.of(
         FeatureFlags.TIERED_REMOTE_INDEX,
-        List.of(IndexModule.INDEX_STORE_LOCALITY_SETTING, IndexModule.INDEX_TIERING_STATE)
+        List.of(IndexModule.INDEX_STORE_LOCALITY_SETTING, IndexModule.INDEX_TIERING_STATE),
+        FeatureFlags.READER_WRITER_SPLIT_EXPERIMENTAL,
+        List.of(IndexMetadata.INDEX_NUMBER_OF_SEARCH_REPLICAS_SETTING)
     );
 
     public static final IndexScopedSettings DEFAULT_SCOPED_SETTINGS = new IndexScopedSettings(Settings.EMPTY, BUILT_IN_INDEX_SETTINGS);
@@ -300,9 +319,6 @@ public final class IndexScopedSettings extends AbstractScopedSettings {
     @Override
     public boolean isPrivateSetting(String key) {
         switch (key) {
-            case IndexMetadata.SETTING_CREATION_DATE:
-            case IndexMetadata.SETTING_INDEX_UUID:
-            case IndexMetadata.SETTING_HISTORY_UUID:
             case IndexMetadata.SETTING_VERSION_UPGRADED:
             case IndexMetadata.SETTING_INDEX_PROVIDED_NAME:
             case MergePolicyProvider.INDEX_MERGE_ENABLED:

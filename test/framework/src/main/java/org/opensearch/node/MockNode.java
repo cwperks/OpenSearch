@@ -32,7 +32,6 @@
 
 package org.opensearch.node;
 
-import org.opensearch.client.node.NodeClient;
 import org.opensearch.cluster.ClusterInfoService;
 import org.opensearch.cluster.MockInternalClusterInfoService;
 import org.opensearch.cluster.node.DiscoveryNode;
@@ -57,6 +56,7 @@ import org.opensearch.script.ScriptEngine;
 import org.opensearch.script.ScriptService;
 import org.opensearch.search.MockSearchService;
 import org.opensearch.search.SearchService;
+import org.opensearch.search.deciders.ConcurrentSearchRequestDecider;
 import org.opensearch.search.fetch.FetchPhase;
 import org.opensearch.search.query.QueryPhase;
 import org.opensearch.tasks.TaskResourceTrackingService;
@@ -67,6 +67,7 @@ import org.opensearch.threadpool.ThreadPool;
 import org.opensearch.transport.Transport;
 import org.opensearch.transport.TransportInterceptor;
 import org.opensearch.transport.TransportService;
+import org.opensearch.transport.client.node.NodeClient;
 
 import java.nio.file.Path;
 import java.util.Collection;
@@ -156,7 +157,8 @@ public class MockNode extends Node {
         ResponseCollectorService responseCollectorService,
         CircuitBreakerService circuitBreakerService,
         Executor indexSearcherExecutor,
-        TaskResourceTrackingService taskResourceTrackingService
+        TaskResourceTrackingService taskResourceTrackingService,
+        Collection<ConcurrentSearchRequestDecider.Factory> concurrentSearchDeciderFactories
     ) {
         if (getPluginsService().filterPlugins(MockSearchService.TestPlugin.class).isEmpty()) {
             return super.newSearchService(
@@ -170,7 +172,8 @@ public class MockNode extends Node {
                 responseCollectorService,
                 circuitBreakerService,
                 indexSearcherExecutor,
-                taskResourceTrackingService
+                taskResourceTrackingService,
+                concurrentSearchDeciderFactories
             );
         }
         return new MockSearchService(

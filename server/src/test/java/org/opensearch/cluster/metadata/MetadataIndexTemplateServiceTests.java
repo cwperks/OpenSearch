@@ -34,7 +34,7 @@ package org.opensearch.cluster.metadata;
 
 import org.opensearch.Version;
 import org.opensearch.action.admin.indices.alias.Alias;
-import org.opensearch.action.support.master.AcknowledgedResponse;
+import org.opensearch.action.support.clustermanager.AcknowledgedResponse;
 import org.opensearch.cluster.ClusterState;
 import org.opensearch.cluster.applicationtemplates.ClusterStateSystemTemplateLoader;
 import org.opensearch.cluster.applicationtemplates.SystemTemplateMetadata;
@@ -57,7 +57,10 @@ import org.opensearch.core.xcontent.MediaTypeRegistry;
 import org.opensearch.core.xcontent.NamedXContentRegistry;
 import org.opensearch.core.xcontent.XContentParser;
 import org.opensearch.env.Environment;
+import org.opensearch.index.IndexSettings;
 import org.opensearch.index.codec.CodecService;
+import org.opensearch.index.compositeindex.CompositeIndexSettings;
+import org.opensearch.index.compositeindex.datacube.startree.StarTreeIndexSettings;
 import org.opensearch.index.engine.EngineConfig;
 import org.opensearch.index.mapper.MapperParsingException;
 import org.opensearch.index.mapper.MapperService;
@@ -559,6 +562,64 @@ public class MetadataIndexTemplateServiceTests extends OpenSearchSingleNodeTestC
         assertTemplatesEqual(state.metadata().templatesV2().get("foo"), template);
 
         ClusterState updatedState = MetadataIndexTemplateService.innerRemoveIndexTemplateV2(state, "foo");
+        assertNull(updatedState.metadata().templatesV2().get("foo"));
+
+        // test remove a template which is not used by a data stream but index patterns can match
+        Settings settings = Settings.builder()
+            .put(IndexMetadata.SETTING_BLOCKS_READ, randomBoolean())
+            .put(IndexMetadata.SETTING_BLOCKS_WRITE, randomBoolean())
+            .put(IndexMetadata.SETTING_NUMBER_OF_SHARDS, randomIntBetween(1, 10))
+            .put(IndexMetadata.SETTING_NUMBER_OF_REPLICAS, randomIntBetween(0, 5))
+            .put(IndexMetadata.SETTING_BLOCKS_WRITE, randomBoolean())
+            .put(IndexMetadata.SETTING_PRIORITY, randomIntBetween(0, 100000))
+            .build();
+        CompressedXContent mappings = new CompressedXContent(
+            "{\"properties\":{\"" + randomAlphaOfLength(5) + "\":{\"type\":\"keyword\"}}}"
+        );
+
+        Map<String, Object> meta = Collections.singletonMap(randomAlphaOfLength(4), randomAlphaOfLength(4));
+        List<String> indexPatterns = List.of("foo*");
+        List<String> componentTemplates = randomList(0, 10, () -> randomAlphaOfLength(5));
+        ComposableIndexTemplate templateToRemove = new ComposableIndexTemplate(
+            indexPatterns,
+            new Template(settings, mappings, null),
+            componentTemplates,
+            randomBoolean() ? null : randomNonNegativeLong(),
+            randomBoolean() ? null : randomNonNegativeLong(),
+            meta,
+            null
+        );
+
+        ClusterState stateWithDS = ClusterState.builder(state)
+            .metadata(
+                Metadata.builder(state.metadata())
+                    .put(
+                        new DataStream(
+                            "foo",
+                            new DataStream.TimestampField("@timestamp"),
+                            Collections.singletonList(new Index(".ds-foo-000001", "uuid2"))
+                        )
+                    )
+                    .put(
+                        IndexMetadata.builder(".ds-foo-000001")
+                            .settings(
+                                Settings.builder()
+                                    .put(IndexMetadata.SETTING_INDEX_UUID, "uuid2")
+                                    .put(IndexMetadata.SETTING_NUMBER_OF_SHARDS, 1)
+                                    .put(IndexMetadata.SETTING_NUMBER_OF_REPLICAS, 0)
+                                    .put(IndexMetadata.SETTING_VERSION_CREATED, Version.CURRENT)
+                                    .build()
+                            )
+                    )
+                    .build()
+            )
+            .build();
+
+        final ClusterState clusterState = metadataIndexTemplateService.addIndexTemplateV2(stateWithDS, false, "foo", templateToRemove);
+        assertNotNull(clusterState.metadata().templatesV2().get("foo"));
+        assertTemplatesEqual(clusterState.metadata().templatesV2().get("foo"), templateToRemove);
+
+        updatedState = MetadataIndexTemplateService.innerRemoveIndexTemplateV2(clusterState, "foo");
         assertNull(updatedState.metadata().templatesV2().get("foo"));
     }
 
@@ -2352,9 +2413,44 @@ public class MetadataIndexTemplateServiceTests extends OpenSearchSingleNodeTestC
         assertThat(MetadataIndexTemplateService.innerPutTemplate(state, pr, new IndexTemplateMetadata.Builder("id")), equalTo(state));
     }
 
+    public void testAsyncTranslogDurabilityBlocked() {
+        Settings clusterSettings = Settings.builder()
+            .put(IndicesService.CLUSTER_REMOTE_INDEX_RESTRICT_ASYNC_DURABILITY_SETTING.getKey(), true)
+            .build();
+        PutRequest request = new PutRequest("test", "test_replicas");
+        request.patterns(singletonList("test_shards_wait*"));
+        Settings.Builder settingsBuilder = builder().put(IndexMetadata.SETTING_NUMBER_OF_REPLICAS, "1")
+            .put(IndexMetadata.SETTING_NUMBER_OF_SHARDS, "1")
+            .put(IndexSettings.INDEX_TRANSLOG_DURABILITY_SETTING.getKey(), "async");
+        request.settings(settingsBuilder.build());
+        List<Throwable> throwables = putTemplate(xContentRegistry(), request, clusterSettings);
+        assertThat(throwables.get(0), instanceOf(IllegalArgumentException.class));
+    }
+
+    public void testMaxTranslogFlushSizeWithCompositeIndex() {
+        Settings clusterSettings = Settings.builder()
+            .put(CompositeIndexSettings.COMPOSITE_INDEX_MAX_TRANSLOG_FLUSH_THRESHOLD_SIZE_SETTING.getKey(), "130m")
+            .build();
+        PutRequest request = new PutRequest("test", "test_replicas");
+        request.patterns(singletonList("test_shards_wait*"));
+        Settings.Builder settingsBuilder = builder().put(StarTreeIndexSettings.IS_COMPOSITE_INDEX_SETTING.getKey(), "true")
+            .put(IndexSettings.INDEX_TRANSLOG_FLUSH_THRESHOLD_SIZE_SETTING.getKey(), "131m");
+        request.settings(settingsBuilder.build());
+        List<Throwable> throwables = putTemplate(xContentRegistry(), request, clusterSettings);
+        assertThat(throwables.get(0), instanceOf(IllegalArgumentException.class));
+    }
+
     private static List<Throwable> putTemplate(NamedXContentRegistry xContentRegistry, PutRequest request) {
+        return putTemplate(xContentRegistry, request, Settings.EMPTY);
+    }
+
+    private static List<Throwable> putTemplate(
+        NamedXContentRegistry xContentRegistry,
+        PutRequest request,
+        Settings incomingNodeScopedSettings
+    ) {
         ClusterService clusterService = mock(ClusterService.class);
-        Settings settings = Settings.builder().put(PATH_HOME_SETTING.getKey(), "dummy").build();
+        Settings settings = Settings.builder().put(incomingNodeScopedSettings).put(PATH_HOME_SETTING.getKey(), "dummy").build();
         ClusterSettings clusterSettings = new ClusterSettings(settings, ClusterSettings.BUILT_IN_CLUSTER_SETTINGS);
         Metadata metadata = Metadata.builder().build();
         ClusterState clusterState = ClusterState.builder(org.opensearch.cluster.ClusterName.CLUSTER_NAME_SETTING.getDefault(Settings.EMPTY))

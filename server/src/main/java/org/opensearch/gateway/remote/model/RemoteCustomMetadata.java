@@ -8,9 +8,10 @@
 
 package org.opensearch.gateway.remote.model;
 
+import org.opensearch.Version;
 import org.opensearch.cluster.metadata.Metadata.Custom;
 import org.opensearch.common.io.Streams;
-import org.opensearch.common.remote.AbstractRemoteWritableBlobEntity;
+import org.opensearch.common.remote.AbstractClusterMetadataWriteableBlobEntity;
 import org.opensearch.common.remote.BlobPathParameters;
 import org.opensearch.core.common.io.stream.NamedWriteableAwareStreamInput;
 import org.opensearch.core.common.io.stream.NamedWriteableRegistry;
@@ -32,7 +33,7 @@ import static org.opensearch.gateway.remote.RemoteClusterStateUtils.GLOBAL_METAD
 /**
  * Wrapper class for uploading/downloading {@link Custom} to/from remote blob store
  */
-public class RemoteCustomMetadata extends AbstractRemoteWritableBlobEntity<Custom> {
+public class RemoteCustomMetadata extends AbstractClusterMetadataWriteableBlobEntity<Custom> {
 
     public static final String CUSTOM_METADATA = "custom";
     public static final String CUSTOM_DELIMITER = "--";
@@ -67,16 +68,17 @@ public class RemoteCustomMetadata extends AbstractRemoteWritableBlobEntity<Custo
         final String customType,
         final String clusterUUID,
         final Compressor compressor,
-        final NamedWriteableRegistry namedWriteableRegistry
+        final NamedWriteableRegistry namedWriteableRegistry,
+        final Version version
     ) {
         super(clusterUUID, compressor, null);
         this.blobName = blobName;
         this.customType = customType;
         this.namedWriteableRegistry = namedWriteableRegistry;
-        this.customBlobStoreFormat = new ChecksumWritableBlobStoreFormat<>(
-            "custom",
-            is -> readFrom(is, namedWriteableRegistry, customType)
-        );
+        this.customBlobStoreFormat = new ChecksumWritableBlobStoreFormat<>("custom", is -> {
+            is.setVersion(version);
+            return readFrom(is, namedWriteableRegistry, customType);
+        });
     }
 
     @Override

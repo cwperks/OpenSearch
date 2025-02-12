@@ -521,38 +521,8 @@ public abstract class TcpTransport extends AbstractLifecycleComponent implements
             throw new BindTransportException("Failed to resolve publish address", e);
         }
 
-        final int publishPort = resolvePublishPort(profileSettings, boundAddresses, publishInetAddress);
-        final TransportAddress publishAddress = new TransportAddress(new InetSocketAddress(publishInetAddress, publishPort));
-        return new BoundTransportAddress(transportBoundAddresses, publishAddress);
-    }
-
-    // package private for tests
-    static int resolvePublishPort(ProfileSettings profileSettings, List<InetSocketAddress> boundAddresses, InetAddress publishInetAddress) {
-        int publishPort = profileSettings.publishPort;
-
-        // if port not explicitly provided, search for port of address in boundAddresses that matches publishInetAddress
-        if (publishPort < 0) {
-            for (InetSocketAddress boundAddress : boundAddresses) {
-                InetAddress boundInetAddress = boundAddress.getAddress();
-                if (boundInetAddress.isAnyLocalAddress() || boundInetAddress.equals(publishInetAddress)) {
-                    publishPort = boundAddress.getPort();
-                    break;
-                }
-            }
-        }
-
-        // if no matching boundAddress found, check if there is a unique port for all bound addresses
-        if (publishPort < 0) {
-            final Set<Integer> ports = new HashSet<>();
-            for (InetSocketAddress boundAddress : boundAddresses) {
-                ports.add(boundAddress.getPort());
-            }
-            if (ports.size() == 1) {
-                publishPort = ports.iterator().next();
-            }
-        }
-
-        if (publishPort < 0) {
+        final int publishPort = Transport.resolvePublishPort(profileSettings.publishPort, boundAddresses, publishInetAddress);
+        if (publishPort == -1) {
             String profileExplanation = profileSettings.isDefaultProfile ? "" : " for profile " + profileSettings.profileName;
             throw new BindTransportException(
                 "Failed to auto-resolve publish port"
@@ -568,7 +538,9 @@ public abstract class TcpTransport extends AbstractLifecycleComponent implements
                     + TransportSettings.PUBLISH_PORT.getKey()
             );
         }
-        return publishPort;
+
+        final TransportAddress publishAddress = new TransportAddress(new InetSocketAddress(publishInetAddress, publishPort));
+        return new BoundTransportAddress(transportBoundAddresses, publishAddress);
     }
 
     @Override
@@ -778,12 +750,20 @@ public abstract class TcpTransport extends AbstractLifecycleComponent implements
     protected abstract void stopInternal();
 
     /**
+     * @deprecated Use {{@link #inboundMessage(TcpChannel, InboundMessage)}} instead
+     */
+    @Deprecated
+    public void inboundMessage(TcpChannel channel, ProtocolInboundMessage message) {
+        inboundMessage(channel, (InboundMessage) message);
+    }
+
+    /**
      * Handles inbound message that has been decoded.
      *
      * @param channel the channel the message is from
      * @param message the message
      */
-    public void inboundMessage(TcpChannel channel, ProtocolInboundMessage message) {
+    public void inboundMessage(TcpChannel channel, InboundMessage message) {
         try {
             inboundHandler.inboundMessage(channel, message);
         } catch (Exception e) {

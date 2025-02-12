@@ -14,9 +14,9 @@ import org.apache.lucene.document.InetAddressPoint;
 import org.apache.lucene.document.KeywordField;
 import org.apache.lucene.document.LatLonPoint;
 import org.apache.lucene.document.LongField;
-import org.apache.lucene.document.LongPoint;
 import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.memory.MemoryIndex;
+import org.apache.lucene.queries.spans.SpanMultiTermQueryWrapper;
 import org.apache.lucene.util.BytesRef;
 import org.opensearch.OpenSearchException;
 import org.opensearch.common.collect.Tuple;
@@ -59,12 +59,13 @@ public class DerivedFieldTypeTests extends FieldTypeTestCase {
         assertTrue(dft.getFieldMapper() instanceof BooleanFieldMapper);
         assertTrue(dft.getIndexableFieldGenerator().apply(true) instanceof Field);
         assertTrue(dft.getIndexableFieldGenerator().apply(false) instanceof Field);
+        assertEquals("derived", dft.typeName());
     }
 
     public void testDateType() {
         DerivedFieldType dft = createDerivedFieldType("date");
         assertTrue(dft.getFieldMapper() instanceof DateFieldMapper);
-        assertTrue(dft.getIndexableFieldGenerator().apply(System.currentTimeMillis()) instanceof LongPoint);
+        assertTrue(dft.getIndexableFieldGenerator().apply(System.currentTimeMillis()) instanceof LongField);
         expectThrows(Exception.class, () -> dft.getIndexableFieldGenerator().apply("blah"));
     }
 
@@ -81,7 +82,7 @@ public class DerivedFieldTypeTests extends FieldTypeTestCase {
     public void testIPType() {
         DerivedFieldType dft = createDerivedFieldType("ip");
         assertTrue(dft.getFieldMapper() instanceof IpFieldMapper);
-        assertTrue(dft.getIndexableFieldGenerator().apply("127.0.0.1") instanceof InetAddressPoint);
+        assertTrue(dft.getIndexableFieldGenerator().apply("127.0.0.1") instanceof IpFieldMapper.InetAddressField);
         expectThrows(Exception.class, () -> dft.getIndexableFieldGenerator().apply("blah"));
     }
 
@@ -157,6 +158,22 @@ public class DerivedFieldTypeTests extends FieldTypeTestCase {
         // test execute
         List<Object> result = (List<Object>) script.execute();
         assertEquals(new BytesRef(InetAddressPoint.encode(InetAddresses.forString((String) expected.get(0)))), result.get(0));
+    }
+
+    public void testDerivedFieldValueFetcherDoesNotSupportCustomFormats() {
+        DerivedFieldType dft = createDerivedFieldType("boolean");
+        expectThrows(
+            IllegalArgumentException.class,
+            () -> dft.valueFetcher(mock(QueryShardContext.class), mock(SearchLookup.class), "yyyy-MM-dd")
+        );
+    }
+
+    public void testSpanPrefixQueryNotSupported() {
+        DerivedFieldType dft = createDerivedFieldType("boolean");
+        expectThrows(
+            IllegalArgumentException.class,
+            () -> dft.spanPrefixQuery("value", mock(SpanMultiTermQueryWrapper.SpanRewriteMethod.class), mock(QueryShardContext.class))
+        );
     }
 
     private static LeafSearchLookup mockValueFetcherForAggs(QueryShardContext mockContext, DerivedFieldType dft, List<Object> expected) {

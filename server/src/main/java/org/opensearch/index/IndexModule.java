@@ -38,10 +38,8 @@ import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.LeafReader;
 import org.apache.lucene.search.similarities.BM25Similarity;
 import org.apache.lucene.search.similarities.Similarity;
-import org.apache.lucene.store.MMapDirectory;
 import org.apache.lucene.util.Constants;
 import org.opensearch.Version;
-import org.opensearch.client.Client;
 import org.opensearch.cluster.metadata.IndexNameExpressionResolver;
 import org.opensearch.cluster.routing.ShardRouting;
 import org.opensearch.cluster.service.ClusterService;
@@ -73,6 +71,7 @@ import org.opensearch.index.engine.EngineConfigFactory;
 import org.opensearch.index.engine.EngineFactory;
 import org.opensearch.index.mapper.MapperService;
 import org.opensearch.index.shard.IndexEventListener;
+import org.opensearch.index.shard.IndexShard;
 import org.opensearch.index.shard.IndexingOperationListener;
 import org.opensearch.index.shard.SearchOperationListener;
 import org.opensearch.index.similarity.SimilarityService;
@@ -91,6 +90,7 @@ import org.opensearch.repositories.RepositoriesService;
 import org.opensearch.script.ScriptService;
 import org.opensearch.search.aggregations.support.ValuesSourceRegistry;
 import org.opensearch.threadpool.ThreadPool;
+import org.opensearch.transport.client.Client;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -98,6 +98,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -107,8 +108,6 @@ import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
-
-import static org.apache.logging.log4j.util.Strings.toRootUpperCase;
 
 /**
  * IndexModule represents the central extension point for index level custom implementations like:
@@ -580,7 +579,7 @@ public final class IndexModule {
 
         public static DataLocalityType getValueOf(final String localityType) {
             Objects.requireNonNull(localityType, "No locality type given.");
-            final String localityTypeName = toRootUpperCase(localityType.trim());
+            final String localityTypeName = localityType.trim().toUpperCase(Locale.ROOT);
             final DataLocalityType type = LOCALITY_TYPES.get(localityTypeName);
             if (type != null) {
                 return type;
@@ -590,7 +589,7 @@ public final class IndexModule {
     }
 
     public static Type defaultStoreType(final boolean allowMmap) {
-        if (allowMmap && Constants.JRE_IS_64BIT && MMapDirectory.UNMAP_SUPPORTED) {
+        if (allowMmap && Constants.JRE_IS_64BIT) {
             return Type.HYBRIDFS;
         } else {
             return Type.NIOFS;
@@ -630,6 +629,56 @@ public final class IndexModule {
         Supplier<TimeValue> clusterDefaultRefreshIntervalSupplier,
         RecoverySettings recoverySettings,
         RemoteStoreSettings remoteStoreSettings
+    ) throws IOException {
+        return newIndexService(
+            indexCreationContext,
+            environment,
+            xContentRegistry,
+            shardStoreDeleter,
+            circuitBreakerService,
+            bigArrays,
+            threadPool,
+            scriptService,
+            clusterService,
+            client,
+            indicesQueryCache,
+            mapperRegistry,
+            indicesFieldDataCache,
+            namedWriteableRegistry,
+            idFieldDataEnabled,
+            valuesSourceRegistry,
+            remoteDirectoryFactory,
+            translogFactorySupplier,
+            clusterDefaultRefreshIntervalSupplier,
+            recoverySettings,
+            remoteStoreSettings,
+            (s) -> {}
+        );
+    }
+
+    public IndexService newIndexService(
+        IndexService.IndexCreationContext indexCreationContext,
+        NodeEnvironment environment,
+        NamedXContentRegistry xContentRegistry,
+        IndexService.ShardStoreDeleter shardStoreDeleter,
+        CircuitBreakerService circuitBreakerService,
+        BigArrays bigArrays,
+        ThreadPool threadPool,
+        ScriptService scriptService,
+        ClusterService clusterService,
+        Client client,
+        IndicesQueryCache indicesQueryCache,
+        MapperRegistry mapperRegistry,
+        IndicesFieldDataCache indicesFieldDataCache,
+        NamedWriteableRegistry namedWriteableRegistry,
+        BooleanSupplier idFieldDataEnabled,
+        ValuesSourceRegistry valuesSourceRegistry,
+        IndexStorePlugin.DirectoryFactory remoteDirectoryFactory,
+        BiFunction<IndexSettings, ShardRouting, TranslogFactory> translogFactorySupplier,
+        Supplier<TimeValue> clusterDefaultRefreshIntervalSupplier,
+        RecoverySettings recoverySettings,
+        RemoteStoreSettings remoteStoreSettings,
+        Consumer<IndexShard> replicator
     ) throws IOException {
         final IndexEventListener eventListener = freeze();
         Function<IndexService, CheckedFunction<DirectoryReader, DirectoryReader, IOException>> readerWrapperFactory = indexReaderWrapper
@@ -690,7 +739,8 @@ public final class IndexModule {
                 recoverySettings,
                 remoteStoreSettings,
                 fileCache,
-                compositeIndexSettings
+                compositeIndexSettings,
+                replicator
             );
             success = true;
             return indexService;

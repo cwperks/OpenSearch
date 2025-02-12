@@ -741,14 +741,7 @@ public class IndexRecoveryIT extends OpenSearchIntegTestCase {
         String nodeA = internalCluster().startNode();
 
         logger.info("--> create repository");
-        assertAcked(
-            client().admin()
-                .cluster()
-                .preparePutRepository(REPO_NAME)
-                .setType("fs")
-                .setSettings(Settings.builder().put("location", randomRepoPath()).put("compress", false))
-                .get()
-        );
+        createRepository(REPO_NAME, "fs", Settings.builder().put("location", randomRepoPath()).put("compress", false));
 
         ensureGreen();
 
@@ -848,7 +841,7 @@ public class IndexRecoveryIT extends OpenSearchIntegTestCase {
 
         indexRandom(true, docs);
         flush();
-        assertThat(client().prepareSearch(name).setSize(0).get().getHits().getTotalHits().value, equalTo((long) numDocs));
+        assertThat(client().prepareSearch(name).setSize(0).get().getHits().getTotalHits().value(), equalTo((long) numDocs));
         return client().admin().indices().prepareStats(name).execute().actionGet();
     }
 

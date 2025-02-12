@@ -20,6 +20,7 @@ import org.apache.lucene.search.Query;
 import org.apache.lucene.search.QueryVisitor;
 import org.apache.lucene.search.ScoreMode;
 import org.apache.lucene.search.Scorer;
+import org.apache.lucene.search.ScorerSupplier;
 import org.apache.lucene.search.TwoPhaseIterator;
 import org.apache.lucene.search.Weight;
 import org.opensearch.index.mapper.DerivedFieldValueFetcher;
@@ -30,6 +31,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 /**
  * DerivedFieldQuery used for querying derived fields. It contains the logic to execute an input lucene query against
@@ -37,7 +39,7 @@ import java.util.function.Function;
  */
 public final class DerivedFieldQuery extends Query {
     private final Query query;
-    private final DerivedFieldValueFetcher valueFetcher;
+    private final Supplier<DerivedFieldValueFetcher> valueFetcherSupplier;
     private final SearchLookup searchLookup;
     private final Analyzer indexAnalyzer;
     private final boolean ignoreMalformed;
@@ -46,20 +48,19 @@ public final class DerivedFieldQuery extends Query {
 
     /**
      * @param query lucene query to be executed against the derived field
-     * @param valueFetcher DerivedFieldValueFetcher ValueFetcher to fetch the value of a derived field from _source
-     *                     using LeafSearchLookup
+     * @param valueFetcherSupplier Supplier of a DerivedFieldValueFetcher that will be reconstructed per leaf
      * @param searchLookup SearchLookup to get the LeafSearchLookup look used by valueFetcher to fetch the _source
      */
     public DerivedFieldQuery(
         Query query,
-        DerivedFieldValueFetcher valueFetcher,
+        Supplier<DerivedFieldValueFetcher> valueFetcherSupplier,
         SearchLookup searchLookup,
         Analyzer indexAnalyzer,
         Function<Object, IndexableField> indexableFieldGenerator,
         boolean ignoreMalformed
     ) {
         this.query = query;
-        this.valueFetcher = valueFetcher;
+        this.valueFetcherSupplier = valueFetcherSupplier;
         this.searchLookup = searchLookup;
         this.indexAnalyzer = indexAnalyzer;
         this.indexableFieldGenerator = indexableFieldGenerator;
@@ -77,7 +78,15 @@ public final class DerivedFieldQuery extends Query {
         if (rewritten == query) {
             return this;
         }
-        return new DerivedFieldQuery(rewritten, valueFetcher, searchLookup, indexAnalyzer, indexableFieldGenerator, ignoreMalformed);
+        ;
+        return new DerivedFieldQuery(
+            rewritten,
+            valueFetcherSupplier,
+            searchLookup,
+            indexAnalyzer,
+            indexableFieldGenerator,
+            ignoreMalformed
+        );
     }
 
     @Override
@@ -85,9 +94,14 @@ public final class DerivedFieldQuery extends Query {
 
         return new ConstantScoreWeight(this, boost) {
             @Override
-            public Scorer scorer(LeafReaderContext context) {
+            public ScorerSupplier scorerSupplier(LeafReaderContext context) throws IOException {
                 DocIdSetIterator approximation;
                 approximation = DocIdSetIterator.all(context.reader().maxDoc());
+
+                // Create a new ValueFetcher per thread.
+                // ValueFetcher.setNextReader creates a DerivedFieldScript and internally SourceLookup and these objects are not
+                // thread safe.
+                final DerivedFieldValueFetcher valueFetcher = valueFetcherSupplier.get();
                 valueFetcher.setNextReader(context);
                 LeafSearchLookup leafSearchLookup = searchLookup.getLeafSearchLookup(context);
                 TwoPhaseIterator twoPhase = new TwoPhaseIterator(approximation) {
@@ -117,7 +131,8 @@ public final class DerivedFieldQuery extends Query {
                         return 1000f;
                     }
                 };
-                return new ConstantScoreScorer(this, score(), scoreMode, twoPhase);
+                final Scorer scorer = new ConstantScoreScorer(score(), scoreMode, twoPhase);
+                return new DefaultScorerSupplier(scorer);
             }
 
             @Override

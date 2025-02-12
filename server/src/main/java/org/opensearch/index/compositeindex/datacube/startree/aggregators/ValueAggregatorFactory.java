@@ -8,7 +8,7 @@
 package org.opensearch.index.compositeindex.datacube.startree.aggregators;
 
 import org.opensearch.index.compositeindex.datacube.MetricStat;
-import org.opensearch.index.compositeindex.datacube.startree.aggregators.numerictype.StarTreeNumericType;
+import org.opensearch.index.mapper.FieldValueConverter;
 
 /**
  * Value aggregator factory for a given aggregation type
@@ -22,36 +22,25 @@ public class ValueAggregatorFactory {
      * Returns a new instance of value aggregator for the given aggregation type.
      *
      * @param aggregationType     Aggregation type
-     * @param starTreeNumericType Numeric type associated with star tree field ( as specified in index mapping )
+     * @param fieldValueConverter Numeric type converter associated with star tree field ( as specified in index mapping )
      * @return Value aggregator
      */
-    public static ValueAggregator getValueAggregator(MetricStat aggregationType, StarTreeNumericType starTreeNumericType) {
+    public static ValueAggregator getValueAggregator(MetricStat aggregationType, FieldValueConverter fieldValueConverter) {
         switch (aggregationType) {
-            // other metric types (count, min, max, avg) will be supported in the future
+            // avg aggregator will be covered in the part of query (using count and sum)
             case SUM:
-                return new SumValueAggregator(starTreeNumericType);
-            case COUNT:
-                return new CountValueAggregator(starTreeNumericType);
+                return new SumValueAggregator(fieldValueConverter);
+            case VALUE_COUNT:
+                return new CountValueAggregator();
+            case MIN:
+                return new MinValueAggregator(fieldValueConverter);
+            case MAX:
+                return new MaxValueAggregator(fieldValueConverter);
+            case DOC_COUNT:
+                return new DocCountAggregator();
             default:
                 throw new IllegalStateException("Unsupported aggregation type: " + aggregationType);
         }
     }
 
-    /**
-     * Returns the data type of the aggregated value for the given aggregation type.
-     *
-     * @param aggregationType Aggregation type
-     * @return Data type of the aggregated value
-     */
-    public static StarTreeNumericType getAggregatedValueType(MetricStat aggregationType) {
-        switch (aggregationType) {
-            // other metric types (count, min, max, avg) will be supported in the future
-            case SUM:
-                return SumValueAggregator.VALUE_AGGREGATOR_TYPE;
-            case COUNT:
-                return CountValueAggregator.VALUE_AGGREGATOR_TYPE;
-            default:
-                throw new IllegalStateException("Unsupported aggregation type: " + aggregationType);
-        }
-    }
 }

@@ -124,7 +124,6 @@ public abstract class SearchContext implements Releasable {
     private final List<Releasable> releasables = new CopyOnWriteArrayList<>();
     private final AtomicBoolean closed = new AtomicBoolean(false);
     private InnerHitsContext innerHitsContext;
-
     private volatile boolean searchTimedOut;
 
     protected SearchContext() {}
@@ -525,5 +524,9 @@ public abstract class SearchContext implements Releasable {
 
     public int cardinalityAggregationPruningThreshold() {
         return 0;
+    }
+
+    public boolean keywordIndexOrDocValuesEnabled() {
+        return false;
     }
 }

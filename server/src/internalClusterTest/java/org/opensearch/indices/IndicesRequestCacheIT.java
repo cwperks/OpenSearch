@@ -34,15 +34,21 @@ package org.opensearch.indices;
 
 import com.carrotsearch.randomizedtesting.annotations.ParametersFactory;
 
+import org.apache.lucene.index.Term;
+import org.apache.lucene.search.IndexSearcher;
+import org.apache.lucene.search.Query;
+import org.apache.lucene.search.ScoreMode;
+import org.apache.lucene.search.TermQuery;
+import org.apache.lucene.search.Weight;
 import org.opensearch.action.admin.cluster.health.ClusterHealthResponse;
 import org.opensearch.action.admin.cluster.node.stats.NodeStats;
 import org.opensearch.action.admin.cluster.node.stats.NodesStatsResponse;
+import org.opensearch.action.admin.cluster.settings.ClusterUpdateSettingsRequest;
 import org.opensearch.action.admin.indices.alias.Alias;
 import org.opensearch.action.admin.indices.cache.clear.ClearIndicesCacheRequest;
 import org.opensearch.action.admin.indices.forcemerge.ForceMergeResponse;
 import org.opensearch.action.search.SearchResponse;
 import org.opensearch.action.search.SearchType;
-import org.opensearch.client.Client;
 import org.opensearch.cluster.ClusterState;
 import org.opensearch.cluster.metadata.IndexMetadata;
 import org.opensearch.cluster.routing.allocation.command.MoveAllocationCommand;
@@ -56,7 +62,10 @@ import org.opensearch.core.index.shard.ShardId;
 import org.opensearch.env.NodeEnvironment;
 import org.opensearch.index.IndexSettings;
 import org.opensearch.index.cache.request.RequestCacheStats;
+import org.opensearch.index.query.QueryBuilder;
 import org.opensearch.index.query.QueryBuilders;
+import org.opensearch.index.query.QueryShardContext;
+import org.opensearch.index.query.TermQueryBuilder;
 import org.opensearch.search.aggregations.bucket.global.GlobalAggregationBuilder;
 import org.opensearch.search.aggregations.bucket.histogram.DateHistogramInterval;
 import org.opensearch.search.aggregations.bucket.histogram.Histogram;
@@ -64,7 +73,9 @@ import org.opensearch.search.aggregations.bucket.histogram.Histogram.Bucket;
 import org.opensearch.test.OpenSearchIntegTestCase;
 import org.opensearch.test.ParameterizedStaticSettingsOpenSearchIntegTestCase;
 import org.opensearch.test.hamcrest.OpenSearchAssertions;
+import org.opensearch.transport.client.Client;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.ZoneId;
@@ -74,10 +85,12 @@ import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import static org.opensearch.cluster.metadata.IndexMetadata.SETTING_NUMBER_OF_REPLICAS;
 import static org.opensearch.cluster.metadata.IndexMetadata.SETTING_NUMBER_OF_SHARDS;
 import static org.opensearch.cluster.routing.allocation.decider.EnableAllocationDecider.CLUSTER_ROUTING_ALLOCATION_ENABLE_SETTING;
+import static org.opensearch.indices.IndicesRequestCache.INDICES_REQUEST_CACHE_MAX_SIZE_ALLOWED_IN_CACHE_SETTING;
 import static org.opensearch.search.SearchService.CLUSTER_CONCURRENT_SEGMENT_SEARCH_SETTING;
 import static org.opensearch.search.aggregations.AggregationBuilders.dateHistogram;
 import static org.opensearch.search.aggregations.AggregationBuilders.dateRange;
@@ -229,7 +242,7 @@ public class IndicesRequestCacheIT extends ParameterizedStaticSettingsOpenSearch
             .addAggregation(new GlobalAggregationBuilder("global"))
             .get();
         OpenSearchAssertions.assertAllSuccessful(r1);
-        assertThat(r1.getHits().getTotalHits().value, equalTo(7L));
+        assertThat(r1.getHits().getTotalHits().value(), equalTo(7L));
         assertCacheState(client, index, 0, 5);
 
         final SearchResponse r2 = client.prepareSearch(index)
@@ -239,7 +252,7 @@ public class IndicesRequestCacheIT extends ParameterizedStaticSettingsOpenSearch
             .addAggregation(new GlobalAggregationBuilder("global"))
             .get();
         OpenSearchAssertions.assertAllSuccessful(r2);
-        assertThat(r2.getHits().getTotalHits().value, equalTo(7L));
+        assertThat(r2.getHits().getTotalHits().value(), equalTo(7L));
         assertCacheState(client, index, 3, 7);
 
         final SearchResponse r3 = client.prepareSearch(index)
@@ -249,7 +262,7 @@ public class IndicesRequestCacheIT extends ParameterizedStaticSettingsOpenSearch
             .addAggregation(new GlobalAggregationBuilder("global"))
             .get();
         OpenSearchAssertions.assertAllSuccessful(r3);
-        assertThat(r3.getHits().getTotalHits().value, equalTo(7L));
+        assertThat(r3.getHits().getTotalHits().value(), equalTo(7L));
         assertCacheState(client, index, 6, 9);
     }
 
@@ -297,7 +310,7 @@ public class IndicesRequestCacheIT extends ParameterizedStaticSettingsOpenSearch
             .setQuery(QueryBuilders.rangeQuery("s").gte("2016-03-19").lte("2016-03-28"))
             .get();
         OpenSearchAssertions.assertAllSuccessful(r1);
-        assertThat(r1.getHits().getTotalHits().value, equalTo(8L));
+        assertThat(r1.getHits().getTotalHits().value(), equalTo(8L));
         assertCacheState(client, index, 0, 1);
 
         final SearchResponse r2 = client.prepareSearch(index)
@@ -306,7 +319,7 @@ public class IndicesRequestCacheIT extends ParameterizedStaticSettingsOpenSearch
             .setQuery(QueryBuilders.rangeQuery("s").gte("2016-03-19").lte("2016-03-28"))
             .get();
         OpenSearchAssertions.assertAllSuccessful(r2);
-        assertThat(r2.getHits().getTotalHits().value, equalTo(8L));
+        assertThat(r2.getHits().getTotalHits().value(), equalTo(8L));
         assertCacheState(client, index, 1, 1);
 
         final SearchResponse r3 = client.prepareSearch(index)
@@ -315,7 +328,7 @@ public class IndicesRequestCacheIT extends ParameterizedStaticSettingsOpenSearch
             .setQuery(QueryBuilders.rangeQuery("s").gte("2016-03-19").lte("2016-03-28"))
             .get();
         OpenSearchAssertions.assertAllSuccessful(r3);
-        assertThat(r3.getHits().getTotalHits().value, equalTo(8L));
+        assertThat(r3.getHits().getTotalHits().value(), equalTo(8L));
         assertCacheState(client, index, 2, 1);
     }
 
@@ -365,7 +378,7 @@ public class IndicesRequestCacheIT extends ParameterizedStaticSettingsOpenSearch
             .addAggregation(new GlobalAggregationBuilder("global"))
             .get();
         OpenSearchAssertions.assertAllSuccessful(r1);
-        assertThat(r1.getHits().getTotalHits().value, equalTo(9L));
+        assertThat(r1.getHits().getTotalHits().value(), equalTo(9L));
         assertCacheState(client, index, 0, 1);
 
         final SearchResponse r2 = client.prepareSearch(index)
@@ -375,7 +388,7 @@ public class IndicesRequestCacheIT extends ParameterizedStaticSettingsOpenSearch
             .addAggregation(new GlobalAggregationBuilder("global"))
             .get();
         OpenSearchAssertions.assertAllSuccessful(r2);
-        assertThat(r2.getHits().getTotalHits().value, equalTo(9L));
+        assertThat(r2.getHits().getTotalHits().value(), equalTo(9L));
         assertCacheState(client, index, 1, 1);
 
         final SearchResponse r3 = client.prepareSearch(index)
@@ -385,7 +398,7 @@ public class IndicesRequestCacheIT extends ParameterizedStaticSettingsOpenSearch
             .addAggregation(new GlobalAggregationBuilder("global"))
             .get();
         OpenSearchAssertions.assertAllSuccessful(r3);
-        assertThat(r3.getHits().getTotalHits().value, equalTo(9L));
+        assertThat(r3.getHits().getTotalHits().value(), equalTo(9L));
         assertCacheState(client, index, 2, 1);
     }
 
@@ -440,7 +453,7 @@ public class IndicesRequestCacheIT extends ParameterizedStaticSettingsOpenSearch
             .setQuery(QueryBuilders.rangeQuery("d").gte("now-7d/d").lte("now"))
             .get();
         OpenSearchAssertions.assertAllSuccessful(r1);
-        assertThat(r1.getHits().getTotalHits().value, equalTo(8L));
+        assertThat(r1.getHits().getTotalHits().value(), equalTo(8L));
         assertCacheState(client, "index-1", 0, 1);
         assertCacheState(client, "index-2", 0, 1);
         // Because the query will INTERSECT with the 3rd index it will not be
@@ -454,7 +467,7 @@ public class IndicesRequestCacheIT extends ParameterizedStaticSettingsOpenSearch
             .setQuery(QueryBuilders.rangeQuery("d").gte("now-7d/d").lte("now"))
             .get();
         OpenSearchAssertions.assertAllSuccessful(r2);
-        assertThat(r2.getHits().getTotalHits().value, equalTo(8L));
+        assertThat(r2.getHits().getTotalHits().value(), equalTo(8L));
         assertCacheState(client, "index-1", 1, 1);
         assertCacheState(client, "index-2", 1, 1);
         assertCacheState(client, "index-3", 0, 0);
@@ -465,7 +478,7 @@ public class IndicesRequestCacheIT extends ParameterizedStaticSettingsOpenSearch
             .setQuery(QueryBuilders.rangeQuery("d").gte("now-7d/d").lte("now"))
             .get();
         OpenSearchAssertions.assertAllSuccessful(r3);
-        assertThat(r3.getHits().getTotalHits().value, equalTo(8L));
+        assertThat(r3.getHits().getTotalHits().value(), equalTo(8L));
         assertCacheState(client, "index-1", 2, 1);
         assertCacheState(client, "index-2", 2, 1);
         assertCacheState(client, "index-3", 0, 0);
@@ -509,7 +522,7 @@ public class IndicesRequestCacheIT extends ParameterizedStaticSettingsOpenSearch
             .setQuery(QueryBuilders.rangeQuery("s").gte("2016-03-19").lte("2016-03-25"))
             .get();
         OpenSearchAssertions.assertAllSuccessful(r1);
-        assertThat(r1.getHits().getTotalHits().value, equalTo(7L));
+        assertThat(r1.getHits().getTotalHits().value(), equalTo(7L));
         assertCacheState(client, index, 0, 0);
 
         // If search type is DFS_QUERY_THEN_FETCH we should not cache
@@ -519,7 +532,7 @@ public class IndicesRequestCacheIT extends ParameterizedStaticSettingsOpenSearch
             .setQuery(QueryBuilders.rangeQuery("s").gte("2016-03-20").lte("2016-03-26"))
             .get();
         OpenSearchAssertions.assertAllSuccessful(r2);
-        assertThat(r2.getHits().getTotalHits().value, equalTo(7L));
+        assertThat(r2.getHits().getTotalHits().value(), equalTo(7L));
         assertCacheState(client, index, 0, 0);
 
         // If search type is DFS_QUERY_THEN_FETCH we should not cache even if
@@ -531,7 +544,7 @@ public class IndicesRequestCacheIT extends ParameterizedStaticSettingsOpenSearch
             .setQuery(QueryBuilders.rangeQuery("s").gte("2016-03-20").lte("2016-03-26"))
             .get();
         OpenSearchAssertions.assertAllSuccessful(r3);
-        assertThat(r3.getHits().getTotalHits().value, equalTo(7L));
+        assertThat(r3.getHits().getTotalHits().value(), equalTo(7L));
         assertCacheState(client, index, 0, 0);
 
         // If the request has an non-filter aggregation containing now we should not cache
@@ -543,7 +556,7 @@ public class IndicesRequestCacheIT extends ParameterizedStaticSettingsOpenSearch
             .addAggregation(dateRange("foo").field("s").addRange("now-10y", "now"))
             .get();
         OpenSearchAssertions.assertAllSuccessful(r5);
-        assertThat(r5.getHits().getTotalHits().value, equalTo(7L));
+        assertThat(r5.getHits().getTotalHits().value(), equalTo(7L));
         assertCacheState(client, index, 0, 0);
 
         // If size > 1 and cache flag is set on the request we should cache
@@ -554,7 +567,7 @@ public class IndicesRequestCacheIT extends ParameterizedStaticSettingsOpenSearch
             .setQuery(QueryBuilders.rangeQuery("s").gte("2016-03-21").lte("2016-03-27"))
             .get();
         OpenSearchAssertions.assertAllSuccessful(r6);
-        assertThat(r6.getHits().getTotalHits().value, equalTo(7L));
+        assertThat(r6.getHits().getTotalHits().value(), equalTo(7L));
         assertCacheState(client, index, 0, 2);
 
         // If the request has a filter aggregation containing now we should cache since it gets rewritten
@@ -566,8 +579,36 @@ public class IndicesRequestCacheIT extends ParameterizedStaticSettingsOpenSearch
             .addAggregation(filter("foo", QueryBuilders.rangeQuery("s").from("now-10y").to("now")))
             .get();
         OpenSearchAssertions.assertAllSuccessful(r4);
-        assertThat(r4.getHits().getTotalHits().value, equalTo(7L));
+        assertThat(r4.getHits().getTotalHits().value(), equalTo(7L));
         assertCacheState(client, index, 0, 4);
+
+        // Update max cacheable size for request cache from default value of 0
+        ClusterUpdateSettingsRequest updateSettingsRequest = new ClusterUpdateSettingsRequest();
+        int maxCacheableSize = 5;
+        updateSettingsRequest.persistentSettings(
+            Settings.builder().put(INDICES_REQUEST_CACHE_MAX_SIZE_ALLOWED_IN_CACHE_SETTING.getKey(), maxCacheableSize)
+        );
+        assertAcked(client().admin().cluster().updateSettings(updateSettingsRequest).actionGet());
+
+        // Sizes <= the cluster setting value should be cached
+        final SearchResponse r7 = client.prepareSearch(index)
+            .setSearchType(SearchType.QUERY_THEN_FETCH)
+            .setSize(maxCacheableSize)
+            .setQuery(QueryBuilders.rangeQuery("s").gte("2016-03-22").lte("2016-03-26"))
+            .get();
+        OpenSearchAssertions.assertAllSuccessful(r7);
+        assertThat(r7.getHits().getTotalHits().value(), equalTo(5L));
+        assertCacheState(client, index, 0, 6);
+
+        // Sizes > the cluster setting value should not be cached
+        final SearchResponse r8 = client.prepareSearch(index)
+            .setSearchType(SearchType.QUERY_THEN_FETCH)
+            .setSize(maxCacheableSize + 1)
+            .setQuery(QueryBuilders.rangeQuery("s").gte("2016-03-22").lte("2016-03-26"))
+            .get();
+        OpenSearchAssertions.assertAllSuccessful(r8);
+        assertThat(r8.getHits().getTotalHits().value(), equalTo(5L));
+        assertCacheState(client, index, 0, 6);
     }
 
     public void testCacheWithFilteredAlias() throws InterruptedException {
@@ -576,6 +617,7 @@ public class IndicesRequestCacheIT extends ParameterizedStaticSettingsOpenSearch
             .put(IndicesRequestCache.INDEX_CACHE_REQUEST_ENABLED_SETTING.getKey(), true)
             .put(IndexMetadata.SETTING_NUMBER_OF_SHARDS, 1)
             .put(IndexMetadata.SETTING_NUMBER_OF_REPLICAS, 0)
+            .put(IndexSettings.INDEX_REFRESH_INTERVAL_SETTING.getKey(), TimeValue.timeValueMillis(-1))
             .build();
         String index = "index";
         assertAcked(
@@ -589,12 +631,13 @@ public class IndicesRequestCacheIT extends ParameterizedStaticSettingsOpenSearch
         );
         ZonedDateTime now = ZonedDateTime.now(ZoneOffset.UTC);
         client.prepareIndex(index).setId("1").setRouting("1").setSource("created_at", DateTimeFormatter.ISO_LOCAL_DATE.format(now)).get();
-        // Force merge the index to ensure there can be no background merges during the subsequent searches that would invalidate the cache
-        ForceMergeResponse forceMergeResponse = client.admin().indices().prepareForceMerge(index).setFlush(true).get();
-        OpenSearchAssertions.assertAllSuccessful(forceMergeResponse);
         refreshAndWaitForReplication();
 
         indexRandomForConcurrentSearch(index);
+
+        // Force merge the index to ensure there can be no background merges during the subsequent searches that would invalidate the cache
+        ForceMergeResponse forceMergeResponse = client.admin().indices().prepareForceMerge(index).setFlush(true).get();
+        OpenSearchAssertions.assertAllSuccessful(forceMergeResponse);
 
         assertCacheState(client, index, 0, 0);
 
@@ -604,7 +647,7 @@ public class IndicesRequestCacheIT extends ParameterizedStaticSettingsOpenSearch
             .setQuery(QueryBuilders.rangeQuery("created_at").gte("now-7d/d"))
             .get();
         OpenSearchAssertions.assertAllSuccessful(r1);
-        assertThat(r1.getHits().getTotalHits().value, equalTo(1L));
+        assertThat(r1.getHits().getTotalHits().value(), equalTo(1L));
         assertCacheState(client, index, 0, 1);
 
         r1 = client.prepareSearch(index)
@@ -613,17 +656,17 @@ public class IndicesRequestCacheIT extends ParameterizedStaticSettingsOpenSearch
             .setQuery(QueryBuilders.rangeQuery("created_at").gte("now-7d/d"))
             .get();
         OpenSearchAssertions.assertAllSuccessful(r1);
-        assertThat(r1.getHits().getTotalHits().value, equalTo(1L));
+        assertThat(r1.getHits().getTotalHits().value(), equalTo(1L));
         assertCacheState(client, index, 1, 1);
 
         r1 = client.prepareSearch("last_week").setSearchType(SearchType.QUERY_THEN_FETCH).setSize(0).get();
         OpenSearchAssertions.assertAllSuccessful(r1);
-        assertThat(r1.getHits().getTotalHits().value, equalTo(1L));
+        assertThat(r1.getHits().getTotalHits().value(), equalTo(1L));
         assertCacheState(client, index, 1, 2);
 
         r1 = client.prepareSearch("last_week").setSearchType(SearchType.QUERY_THEN_FETCH).setSize(0).get();
         OpenSearchAssertions.assertAllSuccessful(r1);
-        assertThat(r1.getHits().getTotalHits().value, equalTo(1L));
+        assertThat(r1.getHits().getTotalHits().value(), equalTo(1L));
         assertCacheState(client, index, 2, 2);
     }
 
@@ -661,7 +704,7 @@ public class IndicesRequestCacheIT extends ParameterizedStaticSettingsOpenSearch
                 .get();
             assertSearchResponse(resp);
             OpenSearchAssertions.assertAllSuccessful(resp);
-            assertThat(resp.getHits().getTotalHits().value, equalTo(1L));
+            assertThat(resp.getHits().getTotalHits().value(), equalTo(1L));
             if (profile == false) {
                 if (i == 1) {
                     expectedMisses++;
@@ -766,6 +809,59 @@ public class IndicesRequestCacheIT extends ParameterizedStaticSettingsOpenSearch
         assertTrue(stats.getMemorySizeInBytes() == 0);
         stats = getNodeCacheStats(client(node_2));
         assertTrue(stats.getMemorySizeInBytes() == 0);
+    }
+
+    public void testTimedOutQuery() throws Exception {
+        // A timed out query should be cached and then invalidated
+        Client client = client();
+        String index = "index";
+        assertAcked(
+            client.admin()
+                .indices()
+                .prepareCreate(index)
+                .setMapping("k", "type=keyword")
+                .setSettings(
+                    Settings.builder()
+                        .put(IndicesRequestCache.INDEX_CACHE_REQUEST_ENABLED_SETTING.getKey(), true)
+                        .put(IndexMetadata.SETTING_NUMBER_OF_SHARDS, 1)
+                        .put(IndexMetadata.SETTING_NUMBER_OF_REPLICAS, 0)
+                        // Disable index refreshing to avoid cache being invalidated mid-test
+                        .put(IndexSettings.INDEX_REFRESH_INTERVAL_SETTING.getKey(), TimeValue.timeValueMillis(-1))
+                )
+                .get()
+        );
+        indexRandom(true, client.prepareIndex(index).setSource("k", "hello"));
+        ensureSearchable(index);
+        // Force merge the index to ensure there can be no background merges during the subsequent searches that would invalidate the cache
+        forceMerge(client, index);
+
+        QueryBuilder timeoutQueryBuilder = new TermQueryBuilder("k", "hello") {
+            @Override
+            protected Query doToQuery(QueryShardContext context) {
+                return new TermQuery(new Term("k", "hello")) {
+                    @Override
+                    public Weight createWeight(IndexSearcher searcher, ScoreMode scoreMode, float boost) throws IOException {
+                        // Create the weight before sleeping. Otherwise, TermStates.build() (in the call to super.createWeight()) will
+                        // sometimes throw an exception on timeout, rather than timing out gracefully.
+                        Weight result = super.createWeight(searcher, scoreMode, boost);
+                        try {
+                            Thread.sleep(500);
+                        } catch (InterruptedException ignored) {}
+                        return result;
+                    }
+                };
+            }
+        };
+
+        SearchResponse resp = client.prepareSearch(index)
+            .setRequestCache(true)
+            .setQuery(timeoutQueryBuilder)
+            .setTimeout(new TimeValue(5, TimeUnit.MILLISECONDS))
+            .get();
+        assertTrue(resp.isTimedOut());
+        RequestCacheStats requestCacheStats = getRequestCacheStats(client, index);
+        // The cache should be empty as the timed-out query was invalidated
+        assertEquals(0, requestCacheStats.getMemorySizeInBytes());
     }
 
     private Path[] shardDirectory(String server, Index index, int shard) {
