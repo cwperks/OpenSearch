@@ -6,7 +6,6 @@ import java.io.FilePermission;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.ObjectInputStream;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.net.MalformedURLException;
@@ -37,8 +36,6 @@ import static java.nio.charset.StandardCharsets.UTF_8;
  */
 @SuppressWarnings("removal")
 public class PolicyFile extends java.security.Policy {
-    private static final String SELF = "${{self}}";
-    private static final String X500PRINCIPAL = "javax.security.auth.x500.X500Principal";
     private static final String POLICY = "java.security.policy";
     private static final String POLICY_URL = "policy.url.";
 
@@ -48,8 +45,6 @@ public class PolicyFile extends java.security.Policy {
     // can be updated if refresh() is called
     private volatile PolicyInfo policyInfo;
 
-    private boolean expandProperties = true;
-    private boolean allowSystemProperties = true;
     private boolean notUtf8 = false;
     private URL url;
 
@@ -132,31 +127,29 @@ public class PolicyFile extends java.security.Policy {
     private boolean initPolicyFile(final String propname, final String urlname, final PolicyInfo newInfo) {
         boolean loaded_policy = false;
 
-        if (allowSystemProperties) {
-            String extra_policy = System.getProperty(propname);
-            if (extra_policy != null) {
-                boolean overrideAll = false;
-                if (extra_policy.startsWith("=")) {
-                    overrideAll = true;
-                    extra_policy = extra_policy.substring(1);
-                }
-                try {
-                    extra_policy = PropertyExpander.expand(extra_policy);
-                    URL policyURL;
+        String extra_policy = System.getProperty(propname);
+        if (extra_policy != null) {
+            boolean overrideAll = false;
+            if (extra_policy.startsWith("=")) {
+                overrideAll = true;
+                extra_policy = extra_policy.substring(1);
+            }
+            try {
+                extra_policy = PropertyExpander.expand(extra_policy);
+                URL policyURL;
 
-                    File policyFile = new File(extra_policy);
-                    if (policyFile.exists()) {
-                        policyURL = ParseUtil.fileToEncodedURL(new File(policyFile.getCanonicalPath()));
-                    } else {
-                        policyURL = newURL(extra_policy);
-                    }
-                    if (init(policyURL, newInfo)) {
-                        loaded_policy = true;
-                    }
-                } catch (Exception e) {}
-                if (overrideAll) {
-                    return Boolean.valueOf(loaded_policy);
+                File policyFile = new File(extra_policy);
+                if (policyFile.exists()) {
+                    policyURL = ParseUtil.fileToEncodedURL(new File(policyFile.getCanonicalPath()));
+                } else {
+                    policyURL = newURL(extra_policy);
                 }
+                if (init(policyURL, newInfo)) {
+                    loaded_policy = true;
+                }
+            } catch (Exception e) {}
+            if (overrideAll) {
+                return Boolean.valueOf(loaded_policy);
             }
         }
 
@@ -204,7 +197,7 @@ public class PolicyFile extends java.security.Policy {
 
         try (InputStreamReader isr = getInputStreamReader(getInputStream(policy))) {
 
-            PolicyParser pp = new PolicyParser(expandProperties);
+            PolicyParser pp = new PolicyParser();
             pp.read(isr);
 
             Enumeration<PolicyParser.GrantEntry> enum_ = pp.grantElements();
@@ -281,18 +274,7 @@ public class PolicyFile extends java.security.Policy {
                 PolicyParser.PermissionEntry pe = enum_.nextElement();
 
                 try {
-                    Permission perm;
-
-                    // check for self
-                    if (pe.name != null && pe.name.contains(SELF)) {
-                        // Create a "SelfPermission" , it could be an
-                        // an unresolved permission which will be resolved
-                        // when implies is called
-                        // Add it to entry
-                        perm = new SelfPermission(pe.permission, pe.name, pe.action);
-                    } else {
-                        perm = getInstance(pe.permission, pe.name, pe.action);
-                    }
+                    Permission perm = getInstance(pe.permission, pe.name, pe.action);
                     entry.add(perm);
                 } catch (ClassNotFoundException cnfe) {
                     // maybe FIX ME.
@@ -443,20 +425,6 @@ public class PolicyFile extends java.security.Policy {
      * the permissions currently associated with the domain as well
      * as the policy permissions granted to the domain's
      * CodeSource and ClassLoader.
-     *
-     * <p>
-     * Note that this <code>Policy</code> implementation has
-     * special handling for PrivateCredentialPermissions.
-     * When this method encounters a <code>PrivateCredentialPermission</code>
-     * which specifies "self" as the <code>Principal</code> class and name,
-     * it does not add that <code>Permission</code> to the returned
-     * <code>PermissionCollection</code>. Instead, it builds
-     * a new <code>PrivateCredentialPermission</code>
-     * for each <code>Principal</code> associated with the provided
-     * <code>Subject</code>. Each new <code>PrivateCredentialPermission</code>
-     * contains the same Credential class as specified in the
-     * originally granted permission, as well as the Class and name
-     * for the respective <code>Principal</code>.
      *
      * @param domain the Permissions granted to this
      *               <code>ProtectionDomain</code> are returned.
@@ -731,163 +699,6 @@ public class PolicyFile extends java.security.Policy {
             sb.append("}");
             sb.append("\n");
             return sb.toString();
-        }
-    }
-
-    private static class SelfPermission extends Permission {
-
-        @java.io.Serial
-        private static final long serialVersionUID = -8315562579967246806L;
-
-        /**
-         * The class name of the Permission class that will be
-         * created when this self permission is expanded .
-         *
-         * @serial
-         */
-        private String type;
-
-        /**
-         * The permission name.
-         *
-         * @serial
-         */
-        private String name;
-
-        /**
-         * The actions of the permission.
-         *
-         * @serial
-         */
-        private String actions;
-
-        /**
-         * Creates a new SelfPermission containing the permission
-         * information needed later to expand the self
-         *
-         * @param type    the class name of the Permission class that will be
-         *                created when this permission is expanded and if necessary
-         *                resolved.
-         * @param name    the name of the permission.
-         * @param actions the actions of the permission.
-         *                This is a list of certificate chains, where each chain is
-         *                composed of
-         *                a signer certificate and optionally its supporting certificate
-         *                chain.
-         *                Each chain is ordered bottom-to-top (i.e., with the signer
-         *                certificate first and the (root) certificate authority last).
-         */
-        public SelfPermission(String type, String name, String actions) {
-            super(type);
-            if (type == null) {
-                throw new NullPointerException("Ttype cannot be null");
-            }
-            this.type = type;
-            this.name = name;
-            this.actions = actions;
-        }
-
-        /**
-         * This method always returns false for SelfPermission permissions.
-         * That is, an SelfPermission never considered to
-         * imply another permission.
-         *
-         * @param p the permission to check against.
-         *
-         * @return false.
-         */
-        @Override
-        public boolean implies(Permission p) {
-            return false;
-        }
-
-        /**
-         * Checks two SelfPermission objects for equality.
-         *
-         * Checks that <i>obj</i> is an SelfPermission, and has
-         * the same type (class) name, permission name, actions, and
-         * certificates as this object.
-         *
-         * @param obj the object we are testing for equality with this object.
-         *
-         * @return true if obj is an SelfPermission, and has the same
-         *         type (class) name, permission name, actions, and
-         *         certificates as this object.
-         */
-        @Override
-        public boolean equals(Object obj) {
-            if (obj == this) return true;
-
-            if (!(obj instanceof SelfPermission)) return false;
-            SelfPermission that = (SelfPermission) obj;
-
-            if (!(this.type.equals(that.type) && this.name.equals(that.name) && this.actions.equals(that.actions))) return false;
-
-            return true;
-        }
-
-        /**
-         * Returns the hash code value for this object.
-         *
-         * @return a hash code value for this object.
-         */
-        @Override
-        public int hashCode() {
-            int hash = type.hashCode();
-            if (name != null) hash ^= name.hashCode();
-            if (actions != null) hash ^= actions.hashCode();
-            return hash;
-        }
-
-        /**
-         * Returns the canonical string representation of the actions,
-         * which currently is the empty string "", since there are no actions
-         * for an SelfPermission. That is, the actions for the
-         * permission that will be created when this SelfPermission
-         * is resolved may be non-null, but an SelfPermission
-         * itself is never considered to have any actions.
-         *
-         * @return the empty string "".
-         */
-        @Override
-        public String getActions() {
-            return "";
-        }
-
-        public String getSelfType() {
-            return type;
-        }
-
-        public String getSelfName() {
-            return name;
-        }
-
-        public String getSelfActions() {
-            return actions;
-        }
-
-        /**
-         * Returns a string describing this SelfPermission. The convention
-         * is to specify the class name, the permission name, and the actions,
-         * in the following format: '(unresolved "ClassName" "name" "actions")'.
-         *
-         * @return information about this SelfPermission.
-         */
-        @Override
-        public String toString() {
-            return "(SelfPermission " + type + " " + name + " " + actions + ")";
-        }
-
-        /**
-         * Restores the state of this object from the stream.
-         *
-         * @param stream the {@code ObjectInputStream} from which data is read
-         * @throws IOException            if an I/O error occurs
-         * @throws ClassNotFoundException if a serialized class cannot be loaded
-         */
-        @java.io.Serial
-        private void readObject(ObjectInputStream stream) throws IOException, ClassNotFoundException {
-            stream.defaultReadObject();
         }
     }
 

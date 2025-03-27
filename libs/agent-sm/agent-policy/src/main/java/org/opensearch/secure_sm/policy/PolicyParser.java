@@ -54,22 +54,13 @@ public class PolicyParser {
 
     private StreamTokenizer st;
     private int lookahead;
-    private boolean expandProp = false;
-    private String keyStoreUrlString = null; // unexpanded
-    private String keyStoreType = null;
-    private String keyStoreProvider = null;
-    private String storePassURL = null;
 
     private String expand(String value) throws PropertyExpander.ExpandException {
         return expand(value, false);
     }
 
     private String expand(String value, boolean encodeURL) throws PropertyExpander.ExpandException {
-        if (!expandProp) {
-            return value;
-        } else {
-            return PropertyExpander.expand(value, encodeURL);
-        }
+        return PropertyExpander.expand(value, encodeURL);
     }
 
     /**
@@ -78,11 +69,6 @@ public class PolicyParser {
 
     public PolicyParser() {
         grantEntries = new Vector<>();
-    }
-
-    public PolicyParser(boolean expandProp) {
-        this();
-        this.expandProp = expandProp;
     }
 
     /**
