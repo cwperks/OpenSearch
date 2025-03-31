@@ -65,14 +65,6 @@ public class PolicyFile extends java.security.Policy {
 
     /**
      * Initializes the Policy object and reads the default policy
-     * configuration file(s) into the Policy object.
-     */
-    public PolicyFile() {
-        init((URL) null);
-    }
-
-    /**
-     * Initializes the Policy object and reads the default policy
      * from the specified URL only.
      */
     public PolicyFile(URL url) {
@@ -248,7 +240,7 @@ public class PolicyFile extends java.security.Policy {
      *
      * @return null if signedBy alias is not recognized
      */
-    private CodeSource getCodeSource(PolicyParser.GrantEntry ge, PolicyInfo newInfo) throws java.net.MalformedURLException {
+    private CodeSource getCodeSource(PolicyParser.GrantEntry ge) throws java.net.MalformedURLException {
         Certificate[] certs = null;
         URL location;
 
@@ -264,7 +256,7 @@ public class PolicyFile extends java.security.Policy {
     private void addGrantEntry(PolicyParser.GrantEntry ge, PolicyInfo newInfo) {
 
         try {
-            CodeSource codesource = getCodeSource(ge, newInfo);
+            CodeSource codesource = getCodeSource(ge);
             // skip if signedBy alias was unknown...
             if (codesource == null) return;
 
@@ -611,19 +603,11 @@ public class PolicyFile extends java.security.Policy {
      * The Permission contains the (Type, Name, Action) triplet.
      * <p>
      *
-     * For now, the Policy object retrieves the public key from the
-     * X.509 certificate on disk that corresponds to the signedBy
-     * alias specified in the Policy config file. For reasons of
-     * efficiency, the Policy object keeps a hashtable of certs already
-     * read in. This could be replaced by a secure internal key
-     * store.
-     *
      * <p>
      * For example, the entry
      *
      * <pre>
      *          permission java.io.File "/tmp", "read,write",
-     *          signedBy "Duke";
      * </pre>
      *
      * is represented internally
@@ -631,9 +615,8 @@ public class PolicyFile extends java.security.Policy {
      * <pre>
      *
      * FilePermission f = new FilePermission("/tmp", "read,write");
-     * PublicKey p = publickeys.get("Duke");
      * URL u = InetAddress.getLocalHost();
-     * CodeBase c = new CodeBase(p, u);
+     * CodeBase c = new CodeBase(u);
      * pe = new PolicyEntry(f, c);
      * </pre>
      *
