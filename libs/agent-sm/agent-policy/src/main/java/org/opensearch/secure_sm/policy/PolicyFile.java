@@ -40,9 +40,8 @@ import java.util.concurrent.ConcurrentHashMap;
 public class PolicyFile extends java.security.Policy {
     public static final SocketPermission LOCAL_LISTEN_PERMISSION = new SocketPermission("localhost:0", "listen");
 
-    private static final int DEFAULT_CACHE_SIZE = 1;
     private volatile PolicyInfo policyInfo;
-    private URL url;
+    private final URL url;
 
     /**
      * When a policy file has a syntax error, the exception code may generate
@@ -71,8 +70,7 @@ public class PolicyFile extends java.security.Policy {
      * initialize the Policy object.
      */
     private void init(URL url) {
-        int numCaches = DEFAULT_CACHE_SIZE;
-        PolicyInfo newInfo = new PolicyInfo(numCaches);
+        PolicyInfo newInfo = new PolicyInfo();
         initPolicyFile(newInfo, url);
         policyInfo = newInfo;
     }
@@ -129,7 +127,7 @@ public class PolicyFile extends java.security.Policy {
      *
      * @return null if signedBy alias is not recognized
      */
-    private CodeSource getCodeSource(PolicyParser.GrantEntry ge, PolicyInfo newInfo) throws java.net.MalformedURLException {
+    private CodeSource getCodeSource(PolicyParser.GrantEntry ge) throws java.net.MalformedURLException {
         Certificate[] certs = null;
         URL location;
 
@@ -141,7 +139,7 @@ public class PolicyFile extends java.security.Policy {
 
     private void addGrantEntry(PolicyParser.GrantEntry ge, PolicyInfo newInfo) throws Exception {
 
-        CodeSource codesource = getCodeSource(ge, newInfo);
+        CodeSource codesource = getCodeSource(ge);
         if (codesource == null) return;
 
         PolicyEntry entry = new PolicyEntry(codesource);
@@ -149,9 +147,6 @@ public class PolicyFile extends java.security.Policy {
         while (enum_.hasMoreElements()) {
             PolicyParser.PermissionEntry pe = enum_.nextElement();
             try {
-                // Store the original name before expansion
-                expandPermissionName(pe);
-
                 Optional<Permission> perm = getInstance(pe.permission, pe.name, pe.action);
                 perm.ifPresent(entry::add);
             } catch (ClassNotFoundException cfne) {
@@ -159,29 +154,6 @@ public class PolicyFile extends java.security.Policy {
             }
         }
         newInfo.policyEntries.add(entry);
-    }
-
-    private void expandPermissionName(PermissionEntry pe) {
-        if (pe.name == null || !pe.name.contains("${{")) {
-            return;
-        }
-
-        int startIndex = 0;
-        int b, e;
-        StringBuilder sb = new StringBuilder();
-
-        while ((b = pe.name.indexOf("${{", startIndex)) != -1 && (e = pe.name.indexOf("}}", b)) != -1) {
-
-            sb.append(pe.name, startIndex, b);
-            String value = pe.name.substring(b + 3, e);
-
-            sb.append("${{").append(value).append("}}");
-
-            startIndex = e + 2;
-        }
-
-        sb.append(pe.name.substring(startIndex));
-        pe.name = sb.toString();
     }
 
     private static final Optional<Permission> getInstance(String type, String name, String actions) throws ClassNotFoundException {
@@ -385,13 +357,13 @@ public class PolicyFile extends java.security.Policy {
     }
 
     /**
-     * holds policy information that we need to synch on
+     * holds policy information that we need to sync on
      */
     private static class PolicyInfo {
         // Stores grant entries in the policy
         final List<PolicyEntry> policyEntries;
 
-        PolicyInfo(int numCaches) {
+        PolicyInfo() {
             policyEntries = new ArrayList<>();
         }
     }
