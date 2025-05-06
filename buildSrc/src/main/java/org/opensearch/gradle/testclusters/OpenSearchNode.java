@@ -157,6 +157,7 @@ public class OpenSearchNode implements TestClusterConfiguration {
     private final LazyPropertyList<CharSequence> jvmArgs = new LazyPropertyList<>("JVM arguments", this);
     private final LazyPropertyMap<String, File> extraConfigFiles = new LazyPropertyMap<>("Extra config files", this, FileEntry::new);
     private final LazyPropertyList<File> extraJarFiles = new LazyPropertyList<>("Extra jar files", this);
+    private final LazyPropertyMap<String, File> removeJarFiles = new LazyPropertyMap<>("Jar files to remove", this);
     private final List<Map<String, String>> credentials = new ArrayList<>();
     final LinkedHashMap<String, String> defaultConfig = new LinkedHashMap<>();
 
@@ -661,6 +662,21 @@ public class OpenSearchNode implements TestClusterConfiguration {
                 throw new UncheckedIOException("Can't copy extra jar dependency " + from.getName() + " to " + destination, e);
             }
         });
+        try {
+            Files.deleteIfExists(getDistroDir().resolve("modules/reindex/bcutil-fips-2.0.3.jar"));
+            Files.deleteIfExists(getDistroDir().resolve("modules/reindex/bcpkix-fips-2.0.7.jar"));
+            Files.deleteIfExists(getDistroDir().resolve("modules/reindex/bc-fips-2.0.0.jar"));
+            Files.deleteIfExists(getDistroDir().resolve("modules/reindex/bctls-fips-2.0.19.jar"));
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        if (removeJarFiles.isEmpty() == false) {
+            // TODO make this message more verbose
+            logToProcessStdout("Removing jar files " + removeJarFiles.size());
+        }
+//        for (String module : removeJarFiles.keySet()) {
+//            Files.deleteIfExists(getDistroDir().resolve("modules/" + module + "/" + from))
+//        }
     }
 
     private void installModules() {
@@ -710,6 +726,14 @@ public class OpenSearchNode implements TestClusterConfiguration {
             throw new IllegalArgumentException("extra jar file " + from.toString() + " doesn't appear to be a JAR");
         }
         extraJarFiles.add(from);
+    }
+
+    @Override
+    public void removeJarFile(File from, String module) {
+        if (from.toString().endsWith(".jar") == false) {
+            throw new IllegalArgumentException("jar file to remove " + from.toString() + " doesn't appear to be a JAR");
+        }
+        // extraJarFiles.add(from);
     }
 
     @Override

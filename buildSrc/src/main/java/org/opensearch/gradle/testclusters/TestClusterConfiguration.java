@@ -122,6 +122,8 @@ public interface TestClusterConfiguration {
 
     void extraJarFile(File from);
 
+    void removeJarFile(File from, String module);
+
     void user(Map<String, String> userSpec);
 
     String getHttpSocketURI();
