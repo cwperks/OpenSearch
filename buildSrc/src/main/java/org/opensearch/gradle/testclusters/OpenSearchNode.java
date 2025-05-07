@@ -157,6 +157,7 @@ public class OpenSearchNode implements TestClusterConfiguration {
     private final LazyPropertyList<CharSequence> jvmArgs = new LazyPropertyList<>("JVM arguments", this);
     private final LazyPropertyMap<String, File> extraConfigFiles = new LazyPropertyMap<>("Extra config files", this, FileEntry::new);
     private final LazyPropertyList<File> extraJarFiles = new LazyPropertyList<>("Extra jar files", this);
+    private final LazyPropertyMap<String, List<File>> removeJarFiles = new LazyPropertyMap<>("Jar files to remove", this);
     private final List<Map<String, String>> credentials = new ArrayList<>();
     final LinkedHashMap<String, String> defaultConfig = new LinkedHashMap<>();
 
@@ -661,6 +662,20 @@ public class OpenSearchNode implements TestClusterConfiguration {
                 throw new UncheckedIOException("Can't copy extra jar dependency " + from.getName() + " to " + destination, e);
             }
         });
+        if (removeJarFiles.isEmpty() == false) {
+            // TODO make this message more verbose
+            logToProcessStdout("Removing jar files from " + removeJarFiles.size() + "modules");
+        }
+        for (String module : removeJarFiles.keySet()) {
+            List<File> jarsToDelete = removeJarFiles.get(module);
+            for (File from : jarsToDelete) {
+                try {
+                    Files.deleteIfExists(getDistroDir().resolve("modules/" + module + "/" + from.getName()));
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        }
     }
 
     private void installModules() {
@@ -710,6 +725,14 @@ public class OpenSearchNode implements TestClusterConfiguration {
             throw new IllegalArgumentException("extra jar file " + from.toString() + " doesn't appear to be a JAR");
         }
         extraJarFiles.add(from);
+    }
+
+    @Override
+    public void removeJarFile(File from, String module) {
+        if (from.toString().endsWith(".jar") == false) {
+            throw new IllegalArgumentException("jar file to remove " + from.toString() + " doesn't appear to be a JAR");
+        }
+        removeJarFiles.computeIfAbsent(module, k -> new ArrayList<>()).add(from);
     }
 
     @Override

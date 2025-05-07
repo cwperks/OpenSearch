@@ -470,6 +470,11 @@ public class OpenSearchCluster implements TestClusterConfiguration, Named {
     }
 
     @Override
+    public void removeJarFile(File from, String module) {
+        nodes.all(node -> node.removeJarFile(from, module));
+    }
+
+    @Override
     public void user(Map<String, String> userSpec) {
         nodes.all(node -> node.user(userSpec));
     }
