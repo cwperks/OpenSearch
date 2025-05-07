@@ -143,8 +143,6 @@ public final class Randomness {
             Method isApprovedOnlyMethod = registrarClass.getMethod("isInApprovedOnlyMode");
             boolean approvedOnly = (Boolean) isApprovedOnlyMethod.invoke(null);
 
-            System.out.println("approvedOnly: " + approvedOnly);
-
             if (approvedOnly) {
                 Class<?> basicEntropyProviderClass = Class.forName("org.bouncycastle.crypto.util.BasicEntropySourceProvider");
                 Constructor<?> entropyConstructor = basicEntropyProviderClass.getConstructor(SecureRandom.class, boolean.class);
@@ -168,7 +166,6 @@ public final class Randomness {
 
             return SecureRandom.getInstanceStrong();
         } catch (ReflectiveOperationException | GeneralSecurityException e) {
-            System.out.println("Using default SecureRandom");
             try {
                 return SecureRandom.getInstanceStrong();
             } catch (NoSuchAlgorithmException ex) {

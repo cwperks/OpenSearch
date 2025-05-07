@@ -664,7 +664,7 @@ public class OpenSearchNode implements TestClusterConfiguration {
         });
         if (removeJarFiles.isEmpty() == false) {
             // TODO make this message more verbose
-            logToProcessStdout("Removing jar files " + removeJarFiles.size());
+            logToProcessStdout("Removing jar files from " + removeJarFiles.size() + "modules");
         }
         for (String module : removeJarFiles.keySet()) {
             List<File> jarsToDelete = removeJarFiles.get(module);
