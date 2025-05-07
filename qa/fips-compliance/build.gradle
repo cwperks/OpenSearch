@@ -33,14 +33,6 @@ testClusters.integTest {
   // TODO Remove BCFIPS jars from modules/reindex
   configurations.bouncycastleFips.files.each { jarFile ->
     extraJarFile jarFile
-  }
-//  delete fileTree("${project.buildDir}/lib") {
-//    include 'bc-fips-*.jar', 'bcpkix-fips-*.jar'
-//  }
-  nodes.each { node ->
-    String homeDir = node.distroDir.toString()
-
-    // Example usage:
-    println "Test cluster home directory: " + homeDir
+    removeJarFile(jarFile, "reindex")
   }
 }
