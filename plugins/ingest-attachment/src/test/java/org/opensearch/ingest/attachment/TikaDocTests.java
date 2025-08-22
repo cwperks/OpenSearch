@@ -68,8 +68,6 @@ public class TikaDocTests extends OpenSearchTestCase {
             String parsedContent = tryParse(doc);
             assertNotNull(parsedContent);
             assertFalse(parsedContent.isEmpty());
-            System.out.println("doc: " + doc);
-            System.out.println("parsedContent: " + parsedContent);
 
             String check = checksums.get(doc.getFileName().toString()).toString();
             if (!check.isEmpty()) {
