@@ -418,7 +418,7 @@ gradle.taskGraph.afterTask { Task task, TaskState state ->
 
 /** Downloads latest released version from maven repository */
 tasks.register("downloadJapicmpCompareTarget", Copy) {
-    def mavenSnapshotRepoUrl = "https://aws.oss.sonatype.org/content/repositories/snapshots/"
+    def mavenSnapshotRepoUrl = "https://central.sonatype.com/repository/maven-snapshots/"
     def groupId = "org.opensearch"
     def artifactId = "opensearch"
 
