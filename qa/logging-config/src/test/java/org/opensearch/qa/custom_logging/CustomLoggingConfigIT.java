@@ -33,6 +33,7 @@
 package org.opensearch.qa.custom_logging;
 
 import org.opensearch.common.SuppressForbidden;
+import org.opensearch.secure_sm.AccessController;
 import org.opensearch.test.hamcrest.RegexMatcher;
 import org.opensearch.test.rest.OpenSearchRestTestCase;
 import org.hamcrest.Matchers;
@@ -43,7 +44,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.List;
 
@@ -62,9 +62,8 @@ public class CustomLoggingConfigIT extends OpenSearchRestTestCase {
         });
     }
 
-    @SuppressWarnings("removal")
     private List<String> readAllLines(Path logFile) {
-        return AccessController.doPrivileged((PrivilegedAction<List<String>>) () -> {
+        return AccessController.doPrivileged(() -> {
             try {
                 return Files.readAllLines(logFile, StandardCharsets.UTF_8);
             } catch (IOException e) {

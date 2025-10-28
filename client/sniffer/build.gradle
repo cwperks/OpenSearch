@@ -31,8 +31,8 @@ apply plugin: 'opensearch.build'
 apply plugin: 'opensearch.publish'
 
 java {
-  targetCompatibility = JavaVersion.VERSION_11
-  sourceCompatibility = JavaVersion.VERSION_11
+  targetCompatibility = JavaVersion.VERSION_21
+  sourceCompatibility = JavaVersion.VERSION_21
 }
 
 base {
@@ -47,6 +47,7 @@ dependencies {
   api "commons-codec:commons-codec:${versions.commonscodec}"
   api "commons-logging:commons-logging:${versions.commonslogging}"
   api "com.fasterxml.jackson.core:jackson-core:${versions.jackson}"
+  implementation project(":libs:agent-sm:agent-policy")
 
   testImplementation project(":client:test")
   testImplementation "com.carrotsearch.randomizedtesting:randomizedtesting-runner:${versions.randomizedrunner}"

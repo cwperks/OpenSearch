@@ -41,6 +41,7 @@ import org.apache.hc.core5.http.HttpHost;
 import org.apache.hc.core5.ssl.SSLContextBuilder;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.opensearch.secure_sm.AccessController;
 
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
@@ -51,7 +52,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.security.AccessController;
 import java.security.KeyStore;
 import java.security.PrivilegedAction;
 import java.security.SecureRandom;
@@ -155,7 +155,7 @@ public class RestClientBuilderIntegTests extends RestClientTestCase {
      * 12.0.1 so we pin to TLSv1.2 when running on an earlier JDK.
      */
     private static String getProtocol() {
-        String version = AccessController.doPrivileged((PrivilegedAction<String>) () -> System.getProperty("java.version"));
+        String version = AccessController.doPrivileged(() -> System.getProperty("java.version"));
         String[] parts = version.split("-");
         String[] numericComponents;
         if (parts.length == 1) {

@@ -45,13 +45,13 @@ import org.apache.logging.log4j.message.ParameterizedMessage;
 import org.opensearch.SpecialPermission;
 import org.opensearch.common.SuppressForbidden;
 import org.opensearch.common.util.io.IOUtils;
+import org.opensearch.secure_sm.AccessController;
 
 import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.nio.file.NoSuchFileException;
-import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.List;
@@ -106,10 +106,9 @@ class GoogleCloudStorageRetryingInputStream extends InputStream {
         currentStream = openStream();
     }
 
-    @SuppressWarnings("removal")
     @SuppressForbidden(reason = "need access to storage client")
     private static com.google.api.services.storage.Storage getStorage(Storage client) {
-        return AccessController.doPrivileged((PrivilegedAction<com.google.api.services.storage.Storage>) () -> {
+        return AccessController.doPrivileged(() -> {
             assert client.getOptions().getRpc() instanceof HttpStorageRpc;
             assert Stream.of(client.getOptions().getRpc().getClass().getDeclaredFields()).anyMatch(f -> f.getName().equals("storage"));
             try {

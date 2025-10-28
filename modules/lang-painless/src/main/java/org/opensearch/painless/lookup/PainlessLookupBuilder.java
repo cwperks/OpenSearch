@@ -48,6 +48,7 @@ import org.opensearch.painless.spi.annotation.NoImportAnnotation;
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.commons.GeneratorAdapter;
+import org.opensearch.secure_sm.AccessController;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
@@ -58,7 +59,6 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.net.MalformedURLException;
 import java.net.URI;
-import java.security.AccessController;
 import java.security.CodeSource;
 import java.security.PrivilegedAction;
 import java.security.SecureClassLoader;
@@ -2189,13 +2189,7 @@ public final class PainlessLookupBuilder {
             bridgeClassWriter.visitEnd();
 
             try {
-                @SuppressWarnings("removal")
-                BridgeLoader bridgeLoader = AccessController.doPrivileged(new PrivilegedAction<BridgeLoader>() {
-                    @Override
-                    public BridgeLoader run() {
-                        return new BridgeLoader(javaMethod.getDeclaringClass().getClassLoader());
-                    }
-                });
+                BridgeLoader bridgeLoader = AccessController.doPrivileged(() -> new BridgeLoader(javaMethod.getDeclaringClass().getClassLoader()));
 
                 Class<?> bridgeClass = bridgeLoader.defineBridge(bridgeClassName.replace('/', '.'), bridgeClassWriter.toByteArray());
                 Method bridgeMethod = bridgeClass.getMethod(

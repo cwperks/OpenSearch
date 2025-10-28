@@ -12,12 +12,12 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.opensearch.SpecialPermission;
 import org.opensearch.common.settings.Settings;
+import org.opensearch.secure_sm.AccessController;
 import org.opensearch.telemetry.OTelTelemetrySettings;
 
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 import java.lang.reflect.Method;
-import java.security.AccessController;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 
@@ -51,12 +51,11 @@ public class OTelMetricsExporterFactory {
         return metricExporter;
     }
 
-    @SuppressWarnings("removal")
     private static MetricExporter instantiateExporter(Class<MetricExporter> exporterProviderClass) {
         try {
             // Check we ourselves are not being called by unprivileged code.
             SpecialPermission.check();
-            return AccessController.doPrivileged((PrivilegedExceptionAction<MetricExporter>) () -> {
+            return AccessController.doPrivilegedChecked(() -> {
                 String methodName = "create";
                 String getDefaultMethod = "getDefault";
                 for (Method m : exporterProviderClass.getMethods()) {
@@ -81,7 +80,7 @@ public class OTelMetricsExporterFactory {
                     }
                 }
             });
-        } catch (PrivilegedActionException ex) {
+        } catch (Exception ex) {
             throw new IllegalStateException(
                 "MetricExporter instantiation failed for class [" + exporterProviderClass.getName() + "]",
                 ex.getCause()

@@ -34,14 +34,12 @@ package org.opensearch.unconfigured_node_name;
 
 import org.opensearch.common.logging.JsonLogsIntegTestCase;
 import org.hamcrest.Matcher;
+import org.opensearch.secure_sm.AccessController;
 
 import java.io.BufferedReader;
-import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
 
 import static org.hamcrest.Matchers.equalTo;
 
@@ -61,13 +59,12 @@ public class JsonLogsFormatAndParseIT extends JsonLogsIntegTestCase {
         return equalTo(HOSTNAME);
     }
 
-    @SuppressWarnings("removal")
     @Override
     protected BufferedReader openReader(Path logFile) {
-        return AccessController.doPrivileged((PrivilegedAction<BufferedReader>) () -> {
+        return AccessController.doPrivileged(() -> {
             try {
                 return Files.newBufferedReader(logFile, StandardCharsets.UTF_8);
-            } catch (IOException e) {
+            } catch (Exception e) {
                 throw new RuntimeException(e);
             }
         });

@@ -37,11 +37,10 @@ import org.apache.commons.logging.LogFactory;
 import org.opensearch.client.Node;
 import org.opensearch.client.RestClient;
 import org.opensearch.client.RestClientBuilder;
+import org.opensearch.secure_sm.AccessController;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.Executors;
@@ -305,7 +304,6 @@ public class Sniffer implements Closeable {
         }
     }
 
-    @SuppressWarnings("removal")
     static class SnifferThreadFactory implements ThreadFactory {
         private final AtomicInteger threadNumber = new AtomicInteger(1);
         private final String namePrefix;
@@ -313,25 +311,17 @@ public class Sniffer implements Closeable {
 
         private SnifferThreadFactory(String namePrefix) {
             this.namePrefix = namePrefix;
-            this.originalThreadFactory = AccessController.doPrivileged(new PrivilegedAction<ThreadFactory>() {
-                @Override
-                public ThreadFactory run() {
-                    return Executors.defaultThreadFactory();
-                }
-            });
+            this.originalThreadFactory = AccessController.doPrivileged(() -> Executors.defaultThreadFactory());
         }
 
         @Override
         public Thread newThread(final Runnable r) {
-            return AccessController.doPrivileged(new PrivilegedAction<Thread>() {
-                @Override
-                public Thread run() {
+            return AccessController.doPrivileged(() -> {
                     Thread t = originalThreadFactory.newThread(r);
                     t.setName(namePrefix + "[T#" + threadNumber.getAndIncrement() + "]");
                     t.setDaemon(true);
                     return t;
-                }
-            });
+                });
         }
     }
 }

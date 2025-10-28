@@ -34,6 +34,10 @@ apply plugin: 'opensearch.testclusters'
 apply plugin: 'opensearch.standalone-rest-test'
 apply plugin: 'opensearch.rest-test'
 
+dependencies {
+  testImplementation project(":libs:agent-sm:agent-policy")
+}
+
 testClusters.integTest {
   nameCustomization = { null }
 }

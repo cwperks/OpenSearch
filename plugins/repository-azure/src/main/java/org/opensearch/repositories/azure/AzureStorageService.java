@@ -60,7 +60,6 @@ import org.opensearch.core.common.unit.ByteSizeValue;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
-import java.security.AccessController;
 import java.security.InvalidKeyException;
 import java.security.PrivilegedAction;
 import java.time.Duration;
@@ -78,6 +77,7 @@ import java.util.function.Supplier;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.util.concurrent.Future;
+import org.opensearch.secure_sm.AccessController;
 import reactor.core.publisher.Mono;
 
 import static java.util.Collections.emptyMap;
@@ -117,17 +117,7 @@ public class AzureStorageService implements AutoCloseable {
 
         @Override
         public Thread newThread(Runnable r) {
-            Thread t = new Thread(group, new Runnable() {
-                @SuppressWarnings("removal")
-                public void run() {
-                    AccessController.doPrivileged(new PrivilegedAction<>() {
-                        public Void run() {
-                            r.run();
-                            return null;
-                        }
-                    });
-                }
-            }, namePrefix + "[T#" + threadNumber.getAndIncrement() + "]", 0);
+            Thread t = new Thread(group, () -> AccessController.doPrivileged(r), namePrefix + "[T#" + threadNumber.getAndIncrement() + "]", 0);
             t.setDaemon(true);
             return t;
         }
@@ -439,16 +429,7 @@ public class AzureStorageService implements AutoCloseable {
         }
 
         public Thread newThread(Runnable r) {
-            final Thread t = new Thread(group, new Runnable() {
-                @SuppressWarnings({ "deprecation", "removal" })
-                @Override
-                public void run() {
-                    AccessController.doPrivileged((PrivilegedAction<Void>) () -> {
-                        r.run();
-                        return null;
-                    });
-                }
-            }, namePrefix + threadNumber.getAndIncrement(), 0);
+            final Thread t = new Thread(group, () -> AccessController.doPrivileged(r), namePrefix + threadNumber.getAndIncrement(), 0);
 
             if (t.isDaemon()) {
                 t.setDaemon(false);
