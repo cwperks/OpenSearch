@@ -6,7 +6,7 @@ bundled_jdk_vendor = "adoptium"
 bundled_jdk = "25.0.1+8"
 
 # optional dependencies
-spatial4j         = "0.7"
+spatial4j         = "0.8"
 jts               = "1.15.0"
 jackson           = "2.18.2"
 jackson_databind  = "2.18.2"
