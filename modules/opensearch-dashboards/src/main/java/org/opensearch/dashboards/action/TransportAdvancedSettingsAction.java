@@ -10,6 +10,7 @@ package org.opensearch.dashboards.action;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.opensearch.OpenSearchStatusException;
 import org.opensearch.Version;
 import org.opensearch.action.get.GetRequest;
 import org.opensearch.action.index.IndexRequest;
@@ -19,6 +20,7 @@ import org.opensearch.common.inject.Inject;
 import org.opensearch.common.time.DateFormatter;
 import org.opensearch.common.util.concurrent.ThreadContext;
 import org.opensearch.core.action.ActionListener;
+import org.opensearch.core.rest.RestStatus;
 import org.opensearch.tasks.Task;
 import org.opensearch.transport.TransportService;
 import org.opensearch.transport.client.Client;
@@ -48,7 +50,7 @@ public class TransportAdvancedSettingsAction extends HandledTransportAction<Adva
                 Map<String, Object> doc = Map.of(
                     "type",
                     "config",
-                    "attributes",
+                    "config",
                     request.getSettings(),
                     "references",
                     List.of(),
@@ -73,9 +75,10 @@ public class TransportAdvancedSettingsAction extends HandledTransportAction<Adva
 
                 client.get(getRequest, ActionListener.wrap(getResponse -> {
                     if (getResponse.isExists()) {
-                        listener.onResponse(new AdvancedSettingsResponse(getResponse.getSourceAsMap()));
+                        Map<String, Object> source = getResponse.getSourceAsMap();
+                        listener.onResponse(new AdvancedSettingsResponse(source));
                     } else {
-                        listener.onResponse(new AdvancedSettingsResponse(Map.of()));
+                        listener.onFailure(new OpenSearchStatusException("Advanced settings not found", RestStatus.NOT_FOUND));
                     }
                 }, listener::onFailure));
             }
