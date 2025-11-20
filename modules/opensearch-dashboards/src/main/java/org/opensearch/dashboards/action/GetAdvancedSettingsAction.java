@@ -10,12 +10,12 @@ package org.opensearch.dashboards.action;
 
 import org.opensearch.action.ActionType;
 
-public class AdvancedSettingsAction extends ActionType<AdvancedSettingsResponse> {
+public class GetAdvancedSettingsAction extends ActionType<AdvancedSettingsResponse> {
 
-    public static final AdvancedSettingsAction INSTANCE = new AdvancedSettingsAction();
-    public static final String NAME = "osd:admin/advanced_settings";
+    public static final GetAdvancedSettingsAction INSTANCE = new GetAdvancedSettingsAction();
+    public static final String NAME = "osd:admin/advanced_settings/get";
 
-    private AdvancedSettingsAction() {
+    private GetAdvancedSettingsAction() {
         super(NAME, AdvancedSettingsResponse::new);
     }
 }
