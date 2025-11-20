@@ -10,12 +10,16 @@ package org.opensearch.dashboards.action;
 
 import org.opensearch.action.ActionRequest;
 import org.opensearch.action.ActionRequestValidationException;
+import org.opensearch.action.IndicesRequest;
+import org.opensearch.action.support.IndicesOptions;
 import org.opensearch.core.common.io.stream.StreamInput;
 import org.opensearch.core.common.io.stream.StreamOutput;
 
 import java.io.IOException;
 
-public class GetAdvancedSettingsRequest extends ActionRequest {
+import static org.opensearch.action.search.SearchRequest.DEFAULT_INDICES_OPTIONS;
+
+public class GetAdvancedSettingsRequest extends ActionRequest implements IndicesRequest.Replaceable {
 
     private String index;
 
@@ -43,5 +47,21 @@ public class GetAdvancedSettingsRequest extends ActionRequest {
 
     public String getIndex() {
         return index;
+    }
+
+    @Override
+    public IndicesRequest indices(String... indices) {
+        index = indices[0];
+        return this;
+    }
+
+    @Override
+    public String[] indices() {
+        return new String[] { this.index };
+    }
+
+    @Override
+    public IndicesOptions indicesOptions() {
+        return DEFAULT_INDICES_OPTIONS;
     }
 }

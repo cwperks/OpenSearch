@@ -63,12 +63,7 @@ public class TransportWriteAdvancedSettingsAction extends HandledTransportAction
                 }
 
                 // Merge new settings with existing ones
-                Object newConfigObj = request.getSettings().getOrDefault("config", Collections.emptyMap());
-                if (newConfigObj instanceof Map) {
-                    @SuppressWarnings("unchecked")
-                    Map<String, Object> newConfig = (Map<String, Object>) newConfigObj;
-                    existingConfig.putAll(newConfig);
-                }
+                existingConfig.putAll(request.getSettings());
 
                 Map<String, Object> doc = Map.of(
                     "type",
