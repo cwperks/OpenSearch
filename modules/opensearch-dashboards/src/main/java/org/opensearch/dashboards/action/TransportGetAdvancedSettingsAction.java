@@ -46,6 +46,7 @@ public class TransportGetAdvancedSettingsAction extends HandledTransportAction<G
             GetRequest getRequest = new GetRequest(request.getIndex(), configKey);
 
             client.get(getRequest, ActionListener.wrap(getResponse -> {
+                ctx.restore();
                 if (getResponse.isExists()) {
                     Map<String, Object> source = getResponse.getSourceAsMap();
                     listener.onResponse(new AdvancedSettingsResponse(source));
@@ -53,6 +54,7 @@ public class TransportGetAdvancedSettingsAction extends HandledTransportAction<G
                     listener.onFailure(new OpenSearchStatusException("Advanced settings not found", RestStatus.NOT_FOUND));
                 }
             }, (e) -> {
+                ctx.restore();
                 if (e instanceof IndexNotFoundException) {
                     listener.onFailure(new OpenSearchStatusException("Advanced settings not found", RestStatus.NOT_FOUND));
                 } else {

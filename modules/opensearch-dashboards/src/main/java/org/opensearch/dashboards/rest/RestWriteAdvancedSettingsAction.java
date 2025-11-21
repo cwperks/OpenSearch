@@ -8,7 +8,10 @@
 
 package org.opensearch.dashboards.rest;
 
+import org.opensearch.core.action.ActionListener;
 import org.opensearch.core.xcontent.XContentParser;
+import org.opensearch.dashboards.action.GetAdvancedSettingsAction;
+import org.opensearch.dashboards.action.GetAdvancedSettingsRequest;
 import org.opensearch.dashboards.action.WriteAdvancedSettingsAction;
 import org.opensearch.dashboards.action.WriteAdvancedSettingsRequest;
 import org.opensearch.rest.BaseRestHandler;
@@ -17,6 +20,7 @@ import org.opensearch.rest.action.RestToXContentListener;
 import org.opensearch.transport.client.node.NodeClient;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -38,15 +42,43 @@ public class RestWriteAdvancedSettingsAction extends BaseRestHandler {
     protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
         String index = request.param("index");
 
-        Map<String, Object> settings = null;
+        final Map<String, Object> newSettings = new HashMap<>();
         if (request.hasContent()) {
             try (XContentParser parser = request.contentParser()) {
-                settings = parser.map();
+                newSettings.putAll(parser.map());
             }
         }
 
-        WriteAdvancedSettingsRequest writeRequest = new WriteAdvancedSettingsRequest(index, settings);
+        return channel -> {
+            GetAdvancedSettingsRequest getRequest = new GetAdvancedSettingsRequest(index);
 
-        return channel -> client.execute(WriteAdvancedSettingsAction.INSTANCE, writeRequest, new RestToXContentListener<>(channel));
+            client.execute(GetAdvancedSettingsAction.INSTANCE, getRequest, ActionListener.wrap(getResponse -> {
+                Map<String, Object> updatedSettings = new HashMap<>();
+
+                Object config = getResponse.getSettings().get("config");
+                if (config instanceof Map) {
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> configMap = (Map<String, Object>) config;
+                    updatedSettings.putAll(configMap);
+                }
+                updatedSettings.putAll(newSettings);
+
+                // Document exists, use UPDATE operation
+                WriteAdvancedSettingsRequest writeRequest = new WriteAdvancedSettingsRequest(
+                    index,
+                    updatedSettings,
+                    WriteAdvancedSettingsRequest.OperationType.UPDATE
+                );
+                client.execute(WriteAdvancedSettingsAction.INSTANCE, writeRequest, new RestToXContentListener<>(channel));
+            }, e -> {
+                // Document doesn't exist, use CREATE operation
+                WriteAdvancedSettingsRequest writeRequest = new WriteAdvancedSettingsRequest(
+                    index,
+                    newSettings,
+                    WriteAdvancedSettingsRequest.OperationType.CREATE
+                );
+                client.execute(WriteAdvancedSettingsAction.INSTANCE, writeRequest, new RestToXContentListener<>(channel));
+            }));
+        };
     }
 }

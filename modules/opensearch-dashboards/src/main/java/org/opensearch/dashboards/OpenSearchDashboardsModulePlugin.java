@@ -50,6 +50,7 @@ import org.opensearch.dashboards.rest.RestGetAdvancedSettingsAction;
 import org.opensearch.dashboards.rest.RestWriteAdvancedSettingsAction;
 import org.opensearch.index.reindex.RestDeleteByQueryAction;
 import org.opensearch.indices.SystemIndexDescriptor;
+import org.opensearch.plugins.ExtensiblePlugin;
 import org.opensearch.plugins.Plugin;
 import org.opensearch.plugins.SystemIndexPlugin;
 import org.opensearch.rest.BaseRestHandler;
@@ -84,7 +85,7 @@ import java.util.stream.Collectors;
 
 import static java.util.Collections.unmodifiableList;
 
-public class OpenSearchDashboardsModulePlugin extends Plugin implements SystemIndexPlugin {
+public class OpenSearchDashboardsModulePlugin extends Plugin implements SystemIndexPlugin, ExtensiblePlugin {
 
     public static final Setting<List<String>> OPENSEARCH_DASHBOARDS_INDEX_NAMES_SETTING = Setting.listSetting(
         "opensearch_dashboards.system_indices",

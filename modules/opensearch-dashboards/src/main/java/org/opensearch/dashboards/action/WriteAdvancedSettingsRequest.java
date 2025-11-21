@@ -22,20 +22,36 @@ import static org.opensearch.action.search.SearchRequest.DEFAULT_INDICES_OPTIONS
 
 public class WriteAdvancedSettingsRequest extends ActionRequest implements IndicesRequest.Replaceable {
 
+    public enum OperationType {
+        CREATE,
+        UPDATE
+    }
+
     private String index;
     private Map<String, Object> settings;
+    private OperationType operationType;
 
-    public WriteAdvancedSettingsRequest() {}
+    public WriteAdvancedSettingsRequest() {
+        this.operationType = OperationType.UPDATE;
+    }
 
     public WriteAdvancedSettingsRequest(String index, Map<String, Object> settings) {
         this.index = index;
         this.settings = settings;
+        this.operationType = OperationType.UPDATE;
+    }
+
+    public WriteAdvancedSettingsRequest(String index, Map<String, Object> settings, OperationType operationType) {
+        this.index = index;
+        this.settings = settings;
+        this.operationType = operationType;
     }
 
     public WriteAdvancedSettingsRequest(StreamInput in) throws IOException {
         super(in);
         this.index = in.readString();
         this.settings = in.readMap();
+        this.operationType = in.readEnum(OperationType.class);
     }
 
     @Override
@@ -43,6 +59,7 @@ public class WriteAdvancedSettingsRequest extends ActionRequest implements Indic
         super.writeTo(out);
         out.writeString(index);
         out.writeMap(settings);
+        out.writeEnum(operationType);
     }
 
     @Override
@@ -56,6 +73,14 @@ public class WriteAdvancedSettingsRequest extends ActionRequest implements Indic
 
     public Map<String, Object> getSettings() {
         return settings;
+    }
+
+    public OperationType getOperationType() {
+        return operationType;
+    }
+
+    public boolean isCreateOperation() {
+        return operationType == OperationType.CREATE;
     }
 
     @Override
