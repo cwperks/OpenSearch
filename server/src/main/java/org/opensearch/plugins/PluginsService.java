@@ -605,12 +605,13 @@ public class PluginsService implements ReportingService<PluginsAndModules> {
     private List<Tuple<PluginInfo, Plugin>> loadBundles(Set<Bundle> bundles) {
         List<Tuple<PluginInfo, Plugin>> plugins = new ArrayList<>();
         Map<String, Plugin> loaded = new HashMap<>();
+        Map<String, PluginInfo> loadedInfos = new HashMap<>();
         Map<String, Set<URL>> transitiveUrls = new HashMap<>();
         List<Bundle> sortedBundles = sortBundles(bundles);
         for (Bundle bundle : sortedBundles) {
             checkBundleJarHell(JarHell.parseClassPath(), bundle, transitiveUrls);
 
-            final Plugin plugin = loadBundle(bundle, loaded);
+            final Plugin plugin = loadBundle(bundle, loaded, loadedInfos);
             plugins.add(new Tuple<>(bundle.plugin, plugin));
         }
 
@@ -619,15 +620,42 @@ public class PluginsService implements ReportingService<PluginsAndModules> {
 
     // package-private for test visibility
     static void loadExtensions(List<Tuple<PluginInfo, Plugin>> plugins) {
-        Map<String, List<Plugin>> extendingPluginsByName = plugins.stream()
-            .flatMap(t -> t.v1().getExtendedPlugins().stream().map(extendedPlugin -> Tuple.tuple(extendedPlugin, t.v2())))
-            .collect(Collectors.groupingBy(Tuple::v1, Collectors.mapping(Tuple::v2, Collectors.toList())));
+        Map<String, PluginInfo> pluginInfoMap = plugins.stream().collect(Collectors.toMap(t -> t.v1().getName(), Tuple::v1));
+        Map<String, List<Plugin>> extendingPluginsByName = new HashMap<>();
+
+        for (Tuple<PluginInfo, Plugin> pluginTuple : plugins) {
+            Set<String> visited = new HashSet<>();
+            registerWithAncestors(pluginTuple.v1(), pluginTuple.v2(), pluginInfoMap, extendingPluginsByName, visited);
+        }
+
         for (Tuple<PluginInfo, Plugin> pluginTuple : plugins) {
             if (pluginTuple.v2() instanceof ExtensiblePlugin extensiblePlugin) {
                 loadExtensionsForPlugin(
                     extensiblePlugin,
                     extendingPluginsByName.getOrDefault(pluginTuple.v1().getName(), Collections.emptyList())
                 );
+            }
+        }
+    }
+
+    private static void registerWithAncestors(
+        PluginInfo pluginInfo,
+        Plugin plugin,
+        Map<String, PluginInfo> pluginInfoMap,
+        Map<String, List<Plugin>> extendingPluginsByName,
+        Set<String> visited
+    ) {
+        for (String extendedPluginName : pluginInfo.getExtendedPlugins()) {
+            if (visited.contains(extendedPluginName)) {
+                continue;
+            }
+            visited.add(extendedPluginName);
+
+            extendingPluginsByName.computeIfAbsent(extendedPluginName, k -> new ArrayList<>()).add(plugin);
+
+            PluginInfo extendedPluginInfo = pluginInfoMap.get(extendedPluginName);
+            if (extendedPluginInfo != null) {
+                registerWithAncestors(extendedPluginInfo, plugin, pluginInfoMap, extendingPluginsByName, visited);
             }
         }
     }
@@ -765,24 +793,16 @@ public class PluginsService implements ReportingService<PluginsAndModules> {
     }
 
     @SuppressWarnings("removal")
-    private Plugin loadBundle(Bundle bundle, Map<String, Plugin> loaded) {
+    private Plugin loadBundle(Bundle bundle, Map<String, Plugin> loaded, Map<String, PluginInfo> loadedInfos) {
         String name = bundle.plugin.getName();
 
         verifyCompatibility(bundle.plugin);
 
-        // collect loaders of extended plugins
+        // collect loaders of extended plugins and their transitive dependencies
         List<ClassLoader> extendedLoaders = new ArrayList<>();
+        Set<String> visited = new HashSet<>();
         for (String extendedPluginName : bundle.plugin.getExtendedPlugins()) {
-            Plugin extendedPlugin = loaded.get(extendedPluginName);
-            if (extendedPlugin == null && bundle.plugin.isExtendedPluginOptional(extendedPluginName)) {
-                // extended plugin is optional and is not installed
-                continue;
-            }
-            assert extendedPlugin != null;
-            if (ExtensiblePlugin.class.isInstance(extendedPlugin) == false) {
-                throw new IllegalStateException("Plugin [" + name + "] cannot extend non-extensible plugin [" + extendedPluginName + "]");
-            }
-            extendedLoaders.add(extendedPlugin.getClass().getClassLoader());
+            collectTransitiveClassLoaders(extendedPluginName, loaded, loadedInfos, bundle.plugin, extendedLoaders, visited);
         }
 
         // create a child to load the plugin in this bundle
@@ -814,6 +834,7 @@ public class PluginsService implements ReportingService<PluginsAndModules> {
             }
             Plugin plugin = loadPlugin(pluginClass, settings, configPath);
             loaded.put(name, plugin);
+            loadedInfos.put(name, bundle.plugin);
             return plugin;
         } finally {
             Thread.currentThread().setContextClassLoader(cl);
@@ -883,6 +904,41 @@ public class PluginsService implements ReportingService<PluginsAndModules> {
             "(org.opensearch.common.settings.Settings)",
             "()"
         );
+    }
+
+    private void collectTransitiveClassLoaders(
+        String pluginName,
+        Map<String, Plugin> loaded,
+        Map<String, PluginInfo> loadedInfos,
+        PluginInfo currentPlugin,
+        List<ClassLoader> loaders,
+        Set<String> visited
+    ) {
+        if (visited.contains(pluginName)) {
+            return;
+        }
+        visited.add(pluginName);
+
+        Plugin plugin = loaded.get(pluginName);
+        if (plugin == null && currentPlugin.isExtendedPluginOptional(pluginName)) {
+            return;
+        }
+        assert plugin != null;
+        if (ExtensiblePlugin.class.isInstance(plugin) == false) {
+            throw new IllegalStateException(
+                "Plugin [" + currentPlugin.getName() + "] cannot extend non-extensible plugin [" + pluginName + "]"
+            );
+        }
+
+        // Recursively collect classloaders from plugins that this plugin extends
+        PluginInfo pluginInfo = loadedInfos.get(pluginName);
+        if (pluginInfo != null) {
+            for (String extendedPluginName : pluginInfo.getExtendedPlugins()) {
+                collectTransitiveClassLoaders(extendedPluginName, loaded, loadedInfos, pluginInfo, loaders, visited);
+            }
+        }
+
+        loaders.add(plugin.getClass().getClassLoader());
     }
 
     public <T> List<T> filterPlugins(Class<T> type) {
