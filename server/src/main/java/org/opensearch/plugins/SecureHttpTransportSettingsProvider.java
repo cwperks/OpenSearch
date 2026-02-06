@@ -32,12 +32,12 @@ public interface SecureHttpTransportSettingsProvider {
     /**
      * The well-known name of header verifier {@link TransportAdapterProvider} provider instance
      */
-    final String REQUEST_HEADER_VERIFIER = "HeaderVerifier";
+    String REQUEST_HEADER_VERIFIER = "HeaderVerifier";
 
     /**
      * The well-known name of request decompressor {@link TransportAdapterProvider} provider instance
      */
-    final String REQUEST_DECOMPRESSOR = "RequestDecompressor";
+    String REQUEST_DECOMPRESSOR = "RequestDecompressor";
 
     /**
      * Dynamic parameters that can be provided by the {@link SecureHttpTransportParameters}
