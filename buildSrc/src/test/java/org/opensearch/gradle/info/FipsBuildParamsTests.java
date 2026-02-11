@@ -22,9 +22,15 @@ public class FipsBuildParamsTests extends GradleUnitTestCase {
         assertTrue(FipsBuildParams.isInFipsMode());
 
         FipsBuildParams.init(param -> "FIPS-140-2");
-        assertFalse(FipsBuildParams.isInFipsMode());
+        assertTrue(FipsBuildParams.isInFipsMode()); // unrecognized defaults to FIPS
 
         FipsBuildParams.init(param -> null);
+        assertTrue(FipsBuildParams.isInFipsMode()); // null defaults to FIPS
+
+        FipsBuildParams.init(param -> "any-supported");
+        assertFalse(FipsBuildParams.isInFipsMode());
+
+        FipsBuildParams.init(param -> "none");
         assertFalse(FipsBuildParams.isInFipsMode());
     }
 
@@ -36,9 +42,15 @@ public class FipsBuildParamsTests extends GradleUnitTestCase {
         assertEquals("FIPS-140-3", FipsBuildParams.getFipsMode());
 
         FipsBuildParams.init(param -> "FIPS-140-2");
-        assertEquals("any-supported", FipsBuildParams.getFipsMode());
+        assertEquals("FIPS-140-3", FipsBuildParams.getFipsMode()); // unrecognized defaults to FIPS
 
         FipsBuildParams.init(param -> null);
+        assertEquals("FIPS-140-3", FipsBuildParams.getFipsMode()); // null defaults to FIPS
+
+        FipsBuildParams.init(param -> "any-supported");
+        assertEquals("any-supported", FipsBuildParams.getFipsMode());
+
+        FipsBuildParams.init(param -> "none");
         assertEquals("any-supported", FipsBuildParams.getFipsMode());
     }
 

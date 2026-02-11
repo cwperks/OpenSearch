@@ -32,6 +32,7 @@
 
 package org.opensearch.gradle.http;
 
+import org.opensearch.gradle.info.FipsBuildParams;
 import org.opensearch.gradle.test.GradleUnitTestCase;
 
 import java.io.File;
@@ -43,10 +44,12 @@ import java.security.cert.X509Certificate;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.junit.Assume.assumeFalse;
 
 public class WaitForHttpResourceTests extends GradleUnitTestCase {
 
     public void testBuildTrustStoreFromFile() throws Exception {
+        assumeFalse("PKCS12 keystores not supported in FIPS mode", FipsBuildParams.isInFipsMode());
         final WaitForHttpResource http = new WaitForHttpResource(new URL("https://localhost/"));
         final URL ca = getClass().getResource("/ca.p12");
         assertThat(ca, notNullValue());

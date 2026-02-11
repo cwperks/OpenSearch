@@ -8,9 +8,14 @@
 
 package org.opensearch.gradle.info;
 
+import java.util.Set;
 import java.util.function.Function;
+import java.util.logging.Logger;
 
 public class FipsBuildParams {
+
+    private static final Logger LOGGER = Logger.getLogger(FipsBuildParams.class.getName());
+    private static final Set<String> VALID_MODES = Set.of("FIPS-140-3", "any-supported", "none");
 
     @Deprecated
     public static final String FIPS_BUILD_PARAM_FOR_TESTS = "tests.fips.enabled";
@@ -23,10 +28,16 @@ public class FipsBuildParams {
         var fipsBuildParamForTests = Boolean.parseBoolean((String) fipsValue.apply(FIPS_BUILD_PARAM_FOR_TESTS));
         var fipsBuildParam = (String) fipsValue.apply(FIPS_BUILD_PARAM);
 
-        if (fipsBuildParamForTests || DEFAULT_FIPS_MODE.equals(fipsBuildParam)) {
+        if (fipsBuildParam != null && !VALID_MODES.contains(fipsBuildParam)) {
+            LOGGER.warning("Unrecognized crypto.standard value '" + fipsBuildParam + "'. Valid values: " + VALID_MODES);
+        }
+
+        if (fipsBuildParamForTests) {
             fipsMode = DEFAULT_FIPS_MODE;
-        } else {
+        } else if ("any-supported".equals(fipsBuildParam) || "none".equals(fipsBuildParam)) {
             fipsMode = "any-supported";
+        } else {
+            fipsMode = DEFAULT_FIPS_MODE;
         }
     }
 

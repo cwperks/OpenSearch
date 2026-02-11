@@ -193,12 +193,6 @@ if (project != rootProject) {
   disableTasks('forbiddenApisMain', 'forbiddenApisTest', 'forbiddenApisIntegTest', 'forbiddenApisTestFixtures')
   jarHell.enabled = false
   thirdPartyAudit.enabled = false
-  if (org.opensearch.gradle.info.BuildParams.isInFipsJvm()) {
-    // We don't support running gradle with a JVM that is in FIPS 140 mode, so we don't test it.
-    // WaitForHttpResourceTests tests would fail as they use JKS/PKCS12 keystores
-    test.enabled = false
-    testingConventions.enabled = false
-  }
 
   configurations.register("distribution")
   configurations.register("reaper")
