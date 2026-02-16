@@ -33,10 +33,19 @@ for %%I in ("%OPENSEARCH_PATH_CONF%..") do set OPENSEARCH_PATH_CONF=%%~dpfI
 REM FIPS mode is runtime-configured via env var (default: false)
 if "%OPENSEARCH_FIPS_MODE%"=="" set "OPENSEARCH_FIPS_MODE=false"
 
-REM Enable only if value equals "true" (case-insensitive)
+rem Check if any bc-fips jar exists on classpath
+rem run in FIPS JVM if jar is found
+set "FOUND_BC_FIPS="
+if exist "%OPENSEARCH_HOME%\lib\bc-fips*.jar" (
+    set "FOUND_BC_FIPS=true"
+)
+
+REM Enable only if value equals "true" (case-insensitive) AND BC-FIPS JAR is present
 if /I "%OPENSEARCH_FIPS_MODE%"=="true" (
-    echo FIPS mode enabled (OPENSEARCH_FIPS_MODE=%OPENSEARCH_FIPS_MODE%), setting JVM options.
-    set "OPENSEARCH_JAVA_OPTS=-Dorg.bouncycastle.fips.approved_only=true -Djava.security.properties=""%OPENSEARCH_PATH_CONF%\fips_java.security"" %OPENSEARCH_JAVA_OPTS%"
+    if "%FOUND_BC_FIPS%"=="true" (
+        echo FIPS mode enabled, setting JVM options.
+        set "OPENSEARCH_JAVA_OPTS=-Dorg.bouncycastle.fips.approved_only=true -Djava.security.properties=""%OPENSEARCH_PATH_CONF%\fips_java.security"" %OPENSEARCH_JAVA_OPTS%"
+    )
 )
 
 set OPENSEARCH_DISTRIBUTION_TYPE=${opensearch.distribution.type}
