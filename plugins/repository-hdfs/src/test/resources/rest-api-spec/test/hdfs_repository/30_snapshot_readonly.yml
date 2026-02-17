@@ -1,19 +1,43 @@
 # Integration tests for HDFS Repository plugin
 #
-# Tests retrieving information about snapshot
+# Tests retrieving information about snapshot from a readonly repository
 #
 ---
 "Get a snapshot - readonly":
-  # Create repository
+  # First create a writable repository and snapshot
+  - do:
+      snapshot.create_repository:
+        repository: test_snapshot_repository_setup
+        body:
+          type: hdfs
+          settings:
+            uri: "hdfs://${hdfs_host}:${hdfs_port}"
+            path: "/user/opensearch/existing/readonly-repository"
+            "conf.dfs.client.use.datanode.hostname": "true"
+
+  # Create a snapshot
+  - do:
+      snapshot.create:
+        repository: test_snapshot_repository_setup
+        snapshot: test_snapshot
+        wait_for_completion: true
+
+  # Delete the writable repository (but keep the data)
+  - do:
+      snapshot.delete_repository:
+        repository: test_snapshot_repository_setup
+
+  # Now create readonly repository pointing to same path
   - do:
       snapshot.create_repository:
         repository: test_snapshot_repository_ro
         body:
           type: hdfs
           settings:
-            uri: "hdfs://localhost:9999"
+            uri: "hdfs://${hdfs_host}:${hdfs_port}"
             path: "/user/opensearch/existing/readonly-repository"
             readonly: true
+            "conf.dfs.client.use.datanode.hostname": "true"
 
   # List snapshot info
   - do:

@@ -31,6 +31,7 @@
 import org.apache.tools.ant.taskdefs.condition.Os
 import org.opensearch.gradle.info.BuildParams
 import org.opensearch.gradle.test.RestIntegTestTask
+import org.opensearch.gradle.MavenFilteringHack
 
 import java.nio.file.Files
 import java.nio.file.Path
@@ -38,7 +39,6 @@ import java.nio.file.Paths
 
 import static org.opensearch.gradle.PropertyNormalization.IGNORE_VALUE
 
-apply plugin: 'opensearch.test.fixtures'
 apply plugin: 'opensearch.rest-resources'
 apply plugin: 'opensearch.rest-test'
 
@@ -46,8 +46,6 @@ opensearchplugin {
   description = 'The HDFS repository plugin adds support for Hadoop Distributed File-System (HDFS) repositories.'
   classname = 'org.opensearch.repositories.hdfs.HdfsPlugin'
 }
-
-testFixtures.useFixture ":test:fixtures:krb5kdc-fixture", "hdfs"
 
 configurations {
   hdfsFixture
@@ -83,17 +81,26 @@ dependencies {
   implementation 'org.codehaus.woodstox:stax2-api:4.2.2'
 
   hdfsFixture project(':test:fixtures:hdfs-fixture')
-  // Set the keytab files in the classpath so that we can access them from test code without the security manager
-  // freaking out.
-  if (isEclipse == false) {
-    testRuntimeOnly files(project(':test:fixtures:krb5kdc-fixture').ext.krb5Keytabs("hdfs", "hdfs_hdfs.build.opensearch.org.keytab").parent)
-  }
 }
 
 restResources {
   restApi {
     includeCore '_common', 'cluster', 'nodes', 'indices', 'index', 'snapshot'
   }
+}
+
+// Testcontainers-based fixture is always supported (requires Docker)
+boolean fixtureSupported = true
+boolean legalPath = rootProject.rootDir.toString().contains(" ") == false
+if (legalPath == false) {
+  fixtureSupported = false
+  logger.warn("hdfsFixture unsupported since there are spaces in the path: '" + rootProject.rootDir.toString() + "'")
+}
+
+processTestResources {
+  Map<String, Object> expansions = ['hdfs_port': '9999', 'hdfs_host': 'localhost']
+  inputs.properties(expansions)
+  MavenFilteringHack.filter(it, expansions)
 }
 
 normalization {
@@ -117,215 +124,40 @@ testClusters.integTest {
   plugin(project.tasks.bundlePlugin.archiveFile)
 }
 
-String realm = "BUILD.OPENSEARCH.ORG"
-String krb5conf = project(':test:fixtures:krb5kdc-fixture').ext.krb5Conf("hdfs")
 
-
-project(':test:fixtures:krb5kdc-fixture').tasks.preProcessFixture {
-  dependsOn tasks.named("jarHell")
-  dependsOn tasks.named("testingConventions")
-}
-
-
-// Create HDFS File System Testing Fixtures for HA/Secure combinations
-for (String fixtureName : ['hdfsFixture', 'haHdfsFixture', 'secureHdfsFixture', 'secureHaHdfsFixture']) {
-  def tsk = tasks.register(fixtureName, org.opensearch.gradle.test.AntFixture) {
-    dependsOn configurations.hdfsFixture, project(':test:fixtures:krb5kdc-fixture').tasks.postProcessFixture, project(':libs:agent-sm:agent').prepareAgent
-    executable = "${BuildParams.runtimeJavaHome}/bin/java"
-    env 'CLASSPATH', "${-> configurations.hdfsFixture.asPath}"
-    maxWaitInSeconds = 60
-    onlyIf { BuildParams.isInFipsJvm() == false }
-    waitCondition = { fixture, ant ->
-      // the hdfs.MiniHDFS fixture writes the ports file when
-      // it's ready, so we can just wait for the file to exist
-      return fixture.portsFile.exists()
-    }
-    final List<String> miniHDFSArgs = []
-
-    // See please https://issues.apache.org/jira/browse/HADOOP-19486
-    miniHDFSArgs.add("-javaagent:" + project(':libs:agent-sm:agent').jar.archiveFile.get())
-
-    // If it's a secure fixture, then depend on Kerberos Fixture and principals + add the krb5conf to the JVM options
-    if (fixtureName.equals('secureHdfsFixture') || fixtureName.equals('secureHaHdfsFixture')) {
-      miniHDFSArgs.add("-Djava.security.krb5.conf=${project(':test:fixtures:krb5kdc-fixture').ext.krb5Conf("hdfs")}");
-    }
-    // If it's an HA fixture, set a nameservice to use in the JVM options
-    if (fixtureName.equals('haHdfsFixture') || fixtureName.equals('secureHaHdfsFixture')) {
-      miniHDFSArgs.add("-Dha-nameservice=ha-hdfs")
-    }
-
-    // Common options
-    miniHDFSArgs.add('hdfs.MiniHDFS')
-    miniHDFSArgs.add(baseDir)
-
-    // If it's a secure fixture, then set the principal name and keytab locations to use for auth.
-    if (fixtureName.equals('secureHdfsFixture') || fixtureName.equals('secureHaHdfsFixture')) {
-      miniHDFSArgs.add("hdfs/hdfs.build.opensearch.org@${realm}")
-      miniHDFSArgs.add(
-        project(':test:fixtures:krb5kdc-fixture').ext.krb5Keytabs("hdfs", "hdfs_hdfs.build.opensearch.org.keytab")
-      )
-    }
-
-    args miniHDFSArgs.toArray()
+// Create simplified HDFS fixture using Testcontainers
+tasks.register('hdfsFixture', org.opensearch.gradle.test.AntFixture) {
+  dependsOn configurations.hdfsFixture
+  executable = "${BuildParams.runtimeJavaHome}/bin/java"
+  env 'CLASSPATH', "${-> configurations.hdfsFixture.asPath}"
+  maxWaitInSeconds = 60
+  onlyIf { BuildParams.isInFipsJvm() == false }
+  waitCondition = { fixture, ant ->
+    return fixture.portsFile.exists()
   }
-
-  // TODO: The task configuration block has side effects that require it currently to be always executed.
-  // Otherwise tests start failing. Therefore we enforce the task creation for now.
-  tsk.get()
+  args 'hdfs.MiniHDFS', baseDir
 }
 
-Set disabledIntegTestTaskNames = []
-
-for (String integTestTaskName : ['integTestHa', 'integTestSecure', 'integTestSecureHa']) {
-  task "${integTestTaskName}"(type: RestIntegTestTask) {
-    description = "Runs rest tests against an opensearch cluster with HDFS."
-    dependsOn(bundlePlugin)
-
-    if (disabledIntegTestTaskNames.contains(integTestTaskName)) {
-      enabled = false;
-    }
-
-    if (integTestTaskName.contains("Secure")) {
-      if (integTestTaskName.contains("Ha")) {
-        dependsOn secureHaHdfsFixture
-      } else {
-        dependsOn secureHdfsFixture
-      }
-    }
-
-      onlyIf { BuildParams.isInFipsJvm() == false }
-      if (integTestTaskName.contains("Ha")) {
-        Path portsFile
-        File portsFileDir = file("${workingDir}/hdfsFixture")
-        if (integTestTaskName.contains("Secure")) {
-          portsFile = buildDir.toPath()
-            .resolve("fixtures")
-            .resolve("secureHaHdfsFixture")
-            .resolve("ports")
-        } else {
-          portsFile = buildDir.toPath()
-            .resolve("fixtures")
-            .resolve("haHdfsFixture")
-            .resolve("ports")
-        }
-        nonInputProperties.systemProperty "test.hdfs-fixture.ports", file("$portsFileDir/ports")
-        // See please https://docs.gradle.org/8.1/userguide/upgrading_version_8.html#test_task_default_classpath
-        classpath = testing.suites.test.sources.runtimeClasspath + files(portsFileDir)
-        // Copy ports file to separate location which is placed on the test classpath
-        doFirst {
-          mkdir(portsFileDir)
-          copy {
-            from portsFile
-            into portsFileDir
-          }
-        }
-      }
-
-      if (integTestTaskName.contains("Secure")) {
-        if (disabledIntegTestTaskNames.contains(integTestTaskName) == false) {
-          nonInputProperties.systemProperty "test.krb5.principal.es", "opensearch@${realm}"
-          nonInputProperties.systemProperty "test.krb5.principal.hdfs", "hdfs/hdfs.build.opensearch.org@${realm}"
-          jvmArgs "-Djava.security.krb5.conf=${krb5conf}"
-          nonInputProperties.systemProperty(
-            "test.krb5.keytab.hdfs",
-            project(':test:fixtures:krb5kdc-fixture').ext.krb5Keytabs("hdfs", "hdfs_hdfs.build.opensearch.org.keytab")
-          )
-        }
-      }
-
-      jvmArgs += ["--add-opens", "java.security.jgss/sun.security.krb5=ALL-UNNAMED"]
-  }
-
-  testClusters."${integTestTaskName}" {
-    plugin(bundlePlugin.archiveFile)
-    if (integTestTaskName.contains("Secure")) {
-      systemProperty "java.security.krb5.conf", krb5conf
-      extraConfigFile(
-        "repository-hdfs/krb5.keytab",
-        file("${project(':test:fixtures:krb5kdc-fixture').ext.krb5Keytabs("hdfs", "opensearch.keytab")}"), IGNORE_VALUE
-      )
-    }
-  }
-}
-
-// Determine HDFS Fixture compatibility for the current build environment.
-boolean fixtureSupported = false
-if (Os.isFamily(Os.FAMILY_WINDOWS)) {
-  // hdfs fixture will not start without hadoop native libraries on windows
-  String nativePath = System.getenv("HADOOP_HOME")
-  if (nativePath != null) {
-    Path path = Paths.get(nativePath);
-    if (Files.isDirectory(path) &&
-      Files.exists(path.resolve("bin").resolve("winutils.exe")) &&
-      Files.exists(path.resolve("bin").resolve("hadoop.dll")) &&
-      Files.exists(path.resolve("bin").resolve("hdfs.dll"))) {
-      fixtureSupported = true
-    } else {
-      throw new IllegalStateException("HADOOP_HOME: ${path} is invalid, does not contain hadoop native libraries in \$HADOOP_HOME/bin");
-    }
-  }
-} else {
-  fixtureSupported = true
-}
-
-boolean legalPath = rootProject.rootDir.toString().contains(" ") == false
-if (legalPath == false) {
-  fixtureSupported = false
-}
-
-// Always ignore HA integration tests in the normal integration test runner, they are included below as
-// part of their own HA-specific integration test tasks.
+// Simplified integration test setup
 integTest {
   onlyIf { BuildParams.isInFipsJvm() == false }
-  exclude('**/Ha*TestSuiteIT.class')
+  dependsOn hdfsFixture
+  systemProperty 'tests.rest.suite', 'hdfs_repository'
 }
 
 if (fixtureSupported) {
-  // Check depends on the HA test. Already depends on the standard test.
-  project.check.dependsOn(integTestHa)
-
-  // Both standard and HA tests depend on their respective HDFS fixtures
-  integTest.dependsOn hdfsFixture
-  integTestHa.dependsOn haHdfsFixture
-
-  // The normal test runner only runs the standard hdfs rest tests
+  // Standard HDFS integration test
   integTest {
     systemProperty 'tests.rest.suite', 'hdfs_repository'
   }
-
-  // Only include the HA integration tests for the HA test task
-  integTestHa {
-    setIncludes(['**/Ha*TestSuiteIT.class'])
-  }
 } else {
-  if (legalPath) {
-    logger.warn("hdfsFixture unsupported, please set HADOOP_HOME and put HADOOP_HOME\\bin in PATH")
-  } else {
-    logger.warn("hdfsFixture unsupported since there are spaces in the path: '" + rootProject.rootDir.toString() + "'")
-  }
-
-  // The normal integration test runner will just test that the plugin loads
+  // Basic plugin load test when fixture is not supported
   integTest {
     systemProperty 'tests.rest.suite', 'hdfs_repository/10_basic'
   }
-  // HA fixture is unsupported. Don't run them.
-  integTestHa.setEnabled(false)
 }
 
-check.dependsOn(integTestSecure, integTestSecureHa)
 
-// Run just the secure hdfs rest test suite.
-integTestSecure {
-  systemProperty 'tests.rest.suite', 'secure_hdfs_repository'
-}
-// Ignore HA integration Tests. They are included below as part of integTestSecureHa test runner.
-integTestSecure {
-  exclude('**/Ha*TestSuiteIT.class')
-}
-// Only include the HA integration tests for the HA test task
-integTestSecureHa {
-  setIncludes(['**/Ha*TestSuiteIT.class'])
-}
 
 thirdPartyAudit {
   ignoreMissingClasses()

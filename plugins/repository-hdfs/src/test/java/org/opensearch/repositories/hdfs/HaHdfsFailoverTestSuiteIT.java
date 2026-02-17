@@ -57,6 +57,8 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.junit.Assume.assumeTrue;
+
 /**
  * Integration test that runs against an HA-Enabled HDFS instance
  */
@@ -69,6 +71,7 @@ public class HaHdfsFailoverTestSuiteIT extends OpenSearchRestTestCase {
         String hdfsKerberosPrincipal = System.getProperty("test.krb5.principal.hdfs");
         String kerberosKeytabLocation = System.getProperty("test.krb5.keytab.hdfs");
         String ports = System.getProperty("test.hdfs-fixture.ports");
+        assumeTrue("HA HDFS fixture ports file is required for this test", ports != null && ports.length() > 0);
         String nn1Port = "10001";
         String nn2Port = "10002";
         if (ports.length() > 0) {

@@ -12,8 +12,9 @@
         body:
           type: hdfs
           settings:
-            uri: "hdfs://localhost:9999"
+            uri: "hdfs://${hdfs_host}:${hdfs_port}"
             path: "test/restore"
+            "conf.dfs.client.use.datanode.hostname": "true"
 
   # Create index
   - do:

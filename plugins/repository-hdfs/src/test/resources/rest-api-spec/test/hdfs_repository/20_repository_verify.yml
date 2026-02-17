@@ -9,8 +9,9 @@
           body:
             type: hdfs
             settings:
-              uri: "hdfs://localhost:9999"
+              uri: "hdfs://${hdfs_host}:${hdfs_port}"
               path: "test/repository_verify"
+              "conf.dfs.client.use.datanode.hostname": "true"
 
     # Verify repository
     - do:
