@@ -82,6 +82,7 @@ hamcrest          = "2.1"
 mockito           = "5.20.0"
 objenesis         = "3.3"
 bytebuddy         = "1.17.7"
+testcontainers    = "2.0.3"
 
 # benchmark dependencies
 jmh               = "1.35"

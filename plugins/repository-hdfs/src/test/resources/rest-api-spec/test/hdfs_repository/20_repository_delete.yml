@@ -10,8 +10,9 @@
           body:
             type: hdfs
             settings:
-              uri: "hdfs://localhost:9999"
+              uri: "hdfs://${hdfs_host}:${hdfs_port}"
               path: "foo/bar"
+              "conf.dfs.client.use.datanode.hostname": "true"
 
     # Get repository
     - do:
@@ -39,8 +40,9 @@
           body:
             type: hdfs
             settings:
-              uri: "hdfs://localhost:9999"
+              uri: "hdfs://${hdfs_host}:${hdfs_port}"
               path: "foo/bar"
+              "conf.dfs.client.use.datanode.hostname": "true"
 
     # Get repository again
     - do:
