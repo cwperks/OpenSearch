@@ -812,10 +812,11 @@ public class ThreadContextTests extends OpenSearchTestCase {
             }
         });
 
-        ThreadContext.StoredContext storedContext = threadContext.stashContext();
-
         // Simulate the tracing infrastructure writing CURRENT_SPAN into the stashed context.
         threadContext.putTransient(PROPAGATED_KEY, PROPAGATED_VALUE);
+
+        ThreadContext.StoredContext storedContext = threadContext.stashContext();
+
         assertSame(PROPAGATED_VALUE, threadContext.getTransient(PROPAGATED_KEY));
 
         // Simulate the security plugin calling restore() after populating security headers.
