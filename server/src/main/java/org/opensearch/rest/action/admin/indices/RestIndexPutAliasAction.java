@@ -42,6 +42,7 @@ import org.opensearch.rest.action.RestToXContentListener;
 import org.opensearch.transport.client.node.NodeClient;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -91,6 +92,8 @@ public class RestIndexPutAliasAction extends BaseRestHandler {
         String routing = null;
         String indexRouting = null;
         String searchRouting = null;
+        String[] filterIncludes = Strings.EMPTY_ARRAY;
+        String[] filterExcludes = Strings.EMPTY_ARRAY;
         Boolean writeIndex = null;
         Boolean isHidden = null;
 
@@ -123,12 +126,24 @@ public class RestIndexPutAliasAction extends BaseRestHandler {
                                     writeIndex = parser.booleanValue();
                                 } else if ("is_hidden".equals(currentFieldName)) {
                                     isHidden = parser.booleanValue();
+                                } else if ("includes".equals(currentFieldName) || "include".equals(currentFieldName)) {
+                                    filterIncludes = new String[] { parser.text() };
+                                } else if ("excludes".equals(currentFieldName) || "exclude".equals(currentFieldName)) {
+                                    filterExcludes = new String[] { parser.text() };
                                 } else {
                                     throw new IllegalArgumentException("unknown field [" + currentFieldName + "]");
                                 }
                     } else if (token == XContentParser.Token.START_OBJECT) {
                         if ("filter".equals(currentFieldName)) {
                             filter = parser.mapOrdered();
+                        } else {
+                            throw new IllegalArgumentException("unknown field [" + currentFieldName + "]");
+                        }
+                    } else if (token == XContentParser.Token.START_ARRAY) {
+                        if ("includes".equals(currentFieldName) || "include".equals(currentFieldName)) {
+                            filterIncludes = readStringArray(parser);
+                        } else if ("excludes".equals(currentFieldName) || "exclude".equals(currentFieldName)) {
+                            filterExcludes = readStringArray(parser);
                         } else {
                             throw new IllegalArgumentException("unknown field [" + currentFieldName + "]");
                         }
@@ -157,6 +172,8 @@ public class RestIndexPutAliasAction extends BaseRestHandler {
         if (filter != null) {
             aliasAction.filter(filter);
         }
+        aliasAction.filterIncludes(filterIncludes);
+        aliasAction.filterExcludes(filterExcludes);
         if (writeIndex != null) {
             aliasAction.writeIndex(writeIndex);
         }
@@ -165,5 +182,13 @@ public class RestIndexPutAliasAction extends BaseRestHandler {
         }
         indicesAliasesRequest.addAliasAction(aliasAction);
         return channel -> client.admin().indices().aliases(indicesAliasesRequest, new RestToXContentListener<>(channel));
+    }
+
+    private static String[] readStringArray(XContentParser parser) throws IOException {
+        List<String> values = new ArrayList<>();
+        while (parser.nextToken() != XContentParser.Token.END_ARRAY) {
+            values.add(parser.text());
+        }
+        return values.toArray(new String[0]);
     }
 }

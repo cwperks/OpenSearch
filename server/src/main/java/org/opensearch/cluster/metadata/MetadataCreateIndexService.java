@@ -1461,6 +1461,8 @@ public class MetadataCreateIndexService {
                 .filter(alias.filter())
                 .indexRouting(alias.indexRouting())
                 .searchRouting(alias.searchRouting())
+                .filterIncludes(alias.filterIncludes())
+                .filterExcludes(alias.filterExcludes())
                 .writeIndex(alias.writeIndex())
                 .isHidden(alias.isHidden())
                 .build();

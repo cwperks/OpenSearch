@@ -33,6 +33,7 @@
 package org.opensearch.cluster.metadata;
 
 import org.opensearch.OpenSearchGenerationException;
+import org.opensearch.Version;
 import org.opensearch.cluster.AbstractDiffable;
 import org.opensearch.cluster.Diff;
 import org.opensearch.common.Nullable;
@@ -52,7 +53,9 @@ import org.opensearch.core.xcontent.XContentBuilder;
 import org.opensearch.core.xcontent.XContentParser;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -77,6 +80,10 @@ public class AliasMetadata extends AbstractDiffable<AliasMetadata> implements To
 
     private final Set<String> searchRoutingValues;
 
+    private final String[] filterIncludes;
+
+    private final String[] filterExcludes;
+
     @Nullable
     private final Boolean writeIndex;
 
@@ -88,6 +95,8 @@ public class AliasMetadata extends AbstractDiffable<AliasMetadata> implements To
         CompressedXContent filter,
         String indexRouting,
         String searchRouting,
+        String[] filterIncludes,
+        String[] filterExcludes,
         Boolean writeIndex,
         @Nullable Boolean isHidden
     ) {
@@ -95,6 +104,8 @@ public class AliasMetadata extends AbstractDiffable<AliasMetadata> implements To
         this.filter = filter;
         this.indexRouting = indexRouting;
         this.searchRouting = searchRouting;
+        this.filterIncludes = filterIncludes == null ? Strings.EMPTY_ARRAY : filterIncludes;
+        this.filterExcludes = filterExcludes == null ? Strings.EMPTY_ARRAY : filterExcludes;
         if (searchRouting != null) {
             searchRoutingValues = Collections.unmodifiableSet(Sets.newHashSet(Strings.splitStringByCommaToArray(searchRouting)));
         } else {
@@ -110,6 +121,8 @@ public class AliasMetadata extends AbstractDiffable<AliasMetadata> implements To
             aliasMetadata.filter(),
             aliasMetadata.indexRouting(),
             aliasMetadata.searchRouting(),
+            aliasMetadata.filterIncludes(),
+            aliasMetadata.filterExcludes(),
             aliasMetadata.writeIndex(),
             aliasMetadata.isHidden
         );
@@ -135,6 +148,10 @@ public class AliasMetadata extends AbstractDiffable<AliasMetadata> implements To
         return filter != null;
     }
 
+    public boolean sourceFilteringRequired() {
+        return filterIncludes.length > 0 || filterExcludes.length > 0;
+    }
+
     public String getSearchRouting() {
         return searchRouting();
     }
@@ -153,6 +170,14 @@ public class AliasMetadata extends AbstractDiffable<AliasMetadata> implements To
 
     public Set<String> searchRoutingValues() {
         return searchRoutingValues;
+    }
+
+    public String[] filterIncludes() {
+        return filterIncludes;
+    }
+
+    public String[] filterExcludes() {
+        return filterExcludes;
     }
 
     public Boolean writeIndex() {
@@ -190,6 +215,8 @@ public class AliasMetadata extends AbstractDiffable<AliasMetadata> implements To
         if (Objects.equals(filter, that.filter) == false) return false;
         if (Objects.equals(indexRouting, that.indexRouting) == false) return false;
         if (Objects.equals(searchRouting, that.searchRouting) == false) return false;
+        if (Arrays.equals(filterIncludes, that.filterIncludes) == false) return false;
+        if (Arrays.equals(filterExcludes, that.filterExcludes) == false) return false;
         if (Objects.equals(writeIndex, that.writeIndex) == false) return false;
         if (Objects.equals(isHidden, that.isHidden) == false) return false;
 
@@ -202,6 +229,8 @@ public class AliasMetadata extends AbstractDiffable<AliasMetadata> implements To
         result = 31 * result + (filter != null ? filter.hashCode() : 0);
         result = 31 * result + (indexRouting != null ? indexRouting.hashCode() : 0);
         result = 31 * result + (searchRouting != null ? searchRouting.hashCode() : 0);
+        result = 31 * result + Arrays.hashCode(filterIncludes);
+        result = 31 * result + Arrays.hashCode(filterExcludes);
         result = 31 * result + (writeIndex != null ? writeIndex.hashCode() : 0);
         return result;
     }
@@ -230,6 +259,10 @@ public class AliasMetadata extends AbstractDiffable<AliasMetadata> implements To
 
         out.writeOptionalBoolean(writeIndex());
         out.writeOptionalBoolean(isHidden());
+        if (out.getVersion().onOrAfter(Version.V_3_6_0)) {
+            out.writeStringArray(filterIncludes);
+            out.writeStringArray(filterExcludes);
+        }
     }
 
     public AliasMetadata(StreamInput in) throws IOException {
@@ -253,6 +286,13 @@ public class AliasMetadata extends AbstractDiffable<AliasMetadata> implements To
         }
         writeIndex = in.readOptionalBoolean();
         isHidden = in.readOptionalBoolean();
+        if (in.getVersion().onOrAfter(Version.V_3_6_0)) {
+            filterIncludes = in.readStringArray();
+            filterExcludes = in.readStringArray();
+        } else {
+            filterIncludes = Strings.EMPTY_ARRAY;
+            filterExcludes = Strings.EMPTY_ARRAY;
+        }
     }
 
     public static Diff<AliasMetadata> readDiffFrom(StreamInput in) throws IOException {
@@ -285,6 +325,10 @@ public class AliasMetadata extends AbstractDiffable<AliasMetadata> implements To
         private String indexRouting;
 
         private String searchRouting;
+
+        private String[] filterIncludes = Strings.EMPTY_ARRAY;
+
+        private String[] filterExcludes = Strings.EMPTY_ARRAY;
 
         @Nullable
         private Boolean writeIndex;
@@ -343,6 +387,16 @@ public class AliasMetadata extends AbstractDiffable<AliasMetadata> implements To
             return this;
         }
 
+        public Builder filterIncludes(String... filterIncludes) {
+            this.filterIncludes = filterIncludes == null ? Strings.EMPTY_ARRAY : filterIncludes;
+            return this;
+        }
+
+        public Builder filterExcludes(String... filterExcludes) {
+            this.filterExcludes = filterExcludes == null ? Strings.EMPTY_ARRAY : filterExcludes;
+            return this;
+        }
+
         public Builder writeIndex(@Nullable Boolean writeIndex) {
             this.writeIndex = writeIndex;
             return this;
@@ -354,7 +408,7 @@ public class AliasMetadata extends AbstractDiffable<AliasMetadata> implements To
         }
 
         public AliasMetadata build() {
-            return new AliasMetadata(alias, filter, indexRouting, searchRouting, writeIndex, isHidden);
+            return new AliasMetadata(alias, filter, indexRouting, searchRouting, filterIncludes, filterExcludes, writeIndex, isHidden);
         }
 
         public static void toXContent(AliasMetadata aliasMetadata, XContentBuilder builder, ToXContent.Params params) throws IOException {
@@ -374,6 +428,12 @@ public class AliasMetadata extends AbstractDiffable<AliasMetadata> implements To
             }
             if (aliasMetadata.searchRouting() != null) {
                 builder.field("search_routing", aliasMetadata.searchRouting());
+            }
+            if (aliasMetadata.filterIncludes().length > 0) {
+                builder.array("includes", aliasMetadata.filterIncludes());
+            }
+            if (aliasMetadata.filterExcludes().length > 0) {
+                builder.array("excludes", aliasMetadata.filterExcludes());
             }
 
             if (aliasMetadata.writeIndex() != null) {
@@ -417,11 +477,21 @@ public class AliasMetadata extends AbstractDiffable<AliasMetadata> implements To
                         builder.indexRouting(parser.text());
                     } else if ("search_routing".equals(currentFieldName) || "searchRouting".equals(currentFieldName)) {
                         builder.searchRouting(parser.text());
+                    } else if ("includes".equals(currentFieldName)) {
+                        builder.filterIncludes(parser.text());
+                    } else if ("excludes".equals(currentFieldName)) {
+                        builder.filterExcludes(parser.text());
                     } else if ("filter".equals(currentFieldName)) {
                         builder.filter(new CompressedXContent(parser.binaryValue()));
                     }
                 } else if (token == XContentParser.Token.START_ARRAY) {
-                    parser.skipChildren();
+                    if ("includes".equals(currentFieldName)) {
+                        builder.filterIncludes(readStringArray(parser));
+                    } else if ("excludes".equals(currentFieldName)) {
+                        builder.filterExcludes(readStringArray(parser));
+                    } else {
+                        parser.skipChildren();
+                    }
                 } else if (token == XContentParser.Token.VALUE_BOOLEAN) {
                     if ("is_write_index".equals(currentFieldName)) {
                         builder.writeIndex(parser.booleanValue());
@@ -431,6 +501,14 @@ public class AliasMetadata extends AbstractDiffable<AliasMetadata> implements To
                 }
             }
             return builder.build();
+        }
+
+        private static String[] readStringArray(XContentParser parser) throws IOException {
+            List<String> values = new java.util.ArrayList<>();
+            while (parser.nextToken() != XContentParser.Token.END_ARRAY) {
+                values.add(parser.text());
+            }
+            return values.toArray(new String[0]);
         }
     }
 }

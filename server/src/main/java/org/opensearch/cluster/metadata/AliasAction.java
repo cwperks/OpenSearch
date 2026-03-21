@@ -102,6 +102,10 @@ public abstract class AliasAction {
         @Nullable
         private final String searchRouting;
 
+        private final String[] filterIncludes;
+
+        private final String[] filterExcludes;
+
         @Nullable
         private final Boolean writeIndex;
 
@@ -120,6 +124,20 @@ public abstract class AliasAction {
             @Nullable Boolean writeIndex,
             @Nullable Boolean isHidden
         ) {
+            this(index, alias, filter, indexRouting, searchRouting, Strings.EMPTY_ARRAY, Strings.EMPTY_ARRAY, writeIndex, isHidden);
+        }
+
+        public Add(
+            String index,
+            String alias,
+            @Nullable String filter,
+            @Nullable String indexRouting,
+            @Nullable String searchRouting,
+            String[] filterIncludes,
+            String[] filterExcludes,
+            @Nullable Boolean writeIndex,
+            @Nullable Boolean isHidden
+        ) {
             super(index);
             if (false == Strings.hasText(alias)) {
                 throw new IllegalArgumentException("[alias] is required");
@@ -128,6 +146,8 @@ public abstract class AliasAction {
             this.filter = filter;
             this.indexRouting = indexRouting;
             this.searchRouting = searchRouting;
+            this.filterIncludes = filterIncludes;
+            this.filterExcludes = filterExcludes;
             this.writeIndex = writeIndex;
             this.isHidden = isHidden;
         }
@@ -173,6 +193,8 @@ public abstract class AliasAction {
                 .filter(filter)
                 .indexRouting(indexRouting)
                 .searchRouting(searchRouting)
+                .filterIncludes(filterIncludes)
+                .filterExcludes(filterExcludes)
                 .writeIndex(writeIndex)
                 .isHidden(isHidden)
                 .build();

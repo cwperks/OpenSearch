@@ -33,6 +33,7 @@
 package org.opensearch.action.admin.indices.alias;
 
 import org.opensearch.OpenSearchGenerationException;
+import org.opensearch.Version;
 import org.opensearch.common.Nullable;
 import org.opensearch.common.annotation.PublicApi;
 import org.opensearch.core.ParseField;
@@ -50,6 +51,7 @@ import org.opensearch.index.query.QueryBuilder;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.Map;
 
 /**
@@ -64,6 +66,8 @@ public class Alias implements Writeable, ToXContentFragment {
     private static final ParseField ROUTING = new ParseField("routing");
     private static final ParseField INDEX_ROUTING = new ParseField("index_routing", "indexRouting", "index-routing");
     private static final ParseField SEARCH_ROUTING = new ParseField("search_routing", "searchRouting", "search-routing");
+    private static final ParseField INCLUDES = new ParseField("includes", "include");
+    private static final ParseField EXCLUDES = new ParseField("excludes", "exclude");
     private static final ParseField IS_WRITE_INDEX = new ParseField("is_write_index");
     private static final ParseField IS_HIDDEN = new ParseField("is_hidden");
 
@@ -78,6 +82,10 @@ public class Alias implements Writeable, ToXContentFragment {
     @Nullable
     private String searchRouting;
 
+    private String[] filterIncludes = Strings.EMPTY_ARRAY;
+
+    private String[] filterExcludes = Strings.EMPTY_ARRAY;
+
     @Nullable
     private Boolean writeIndex;
 
@@ -91,6 +99,10 @@ public class Alias implements Writeable, ToXContentFragment {
         searchRouting = in.readOptionalString();
         writeIndex = in.readOptionalBoolean();
         isHidden = in.readOptionalBoolean();
+        if (in.getVersion().onOrAfter(Version.V_3_6_0)) {
+            filterIncludes = in.readStringArray();
+            filterExcludes = in.readStringArray();
+        }
     }
 
     public Alias(String name) {
@@ -195,6 +207,24 @@ public class Alias implements Writeable, ToXContentFragment {
         return this;
     }
 
+    public Alias filterIncludes(String... filterIncludes) {
+        this.filterIncludes = filterIncludes == null ? Strings.EMPTY_ARRAY : filterIncludes;
+        return this;
+    }
+
+    public String[] filterIncludes() {
+        return filterIncludes;
+    }
+
+    public Alias filterExcludes(String... filterExcludes) {
+        this.filterExcludes = filterExcludes == null ? Strings.EMPTY_ARRAY : filterExcludes;
+        return this;
+    }
+
+    public String[] filterExcludes() {
+        return filterExcludes;
+    }
+
     /**
      * @return the write index flag for the alias
      */
@@ -233,6 +263,10 @@ public class Alias implements Writeable, ToXContentFragment {
         out.writeOptionalString(searchRouting);
         out.writeOptionalBoolean(writeIndex);
         out.writeOptionalBoolean(isHidden);
+        if (out.getVersion().onOrAfter(Version.V_3_6_0)) {
+            out.writeStringArray(filterIncludes);
+            out.writeStringArray(filterExcludes);
+        }
     }
 
     /**
@@ -254,6 +288,12 @@ public class Alias implements Writeable, ToXContentFragment {
                     Map<String, Object> filter = parser.mapOrdered();
                     alias.filter(filter);
                 }
+            } else if (token == XContentParser.Token.START_ARRAY) {
+                if (INCLUDES.match(currentFieldName, parser.getDeprecationHandler())) {
+                    alias.filterIncludes(readStringArray(parser));
+                } else if (EXCLUDES.match(currentFieldName, parser.getDeprecationHandler())) {
+                    alias.filterExcludes(readStringArray(parser));
+                }
             } else if (token == XContentParser.Token.VALUE_STRING) {
                 if (ROUTING.match(currentFieldName, parser.getDeprecationHandler())) {
                     alias.routing(parser.text());
@@ -261,6 +301,10 @@ public class Alias implements Writeable, ToXContentFragment {
                     alias.indexRouting(parser.text());
                 } else if (SEARCH_ROUTING.match(currentFieldName, parser.getDeprecationHandler())) {
                     alias.searchRouting(parser.text());
+                } else if (INCLUDES.match(currentFieldName, parser.getDeprecationHandler())) {
+                    alias.filterIncludes(parser.text());
+                } else if (EXCLUDES.match(currentFieldName, parser.getDeprecationHandler())) {
+                    alias.filterExcludes(parser.text());
                 }
             } else if (token == XContentParser.Token.VALUE_BOOLEAN) {
                 if (IS_WRITE_INDEX.match(currentFieldName, parser.getDeprecationHandler())) {
@@ -293,6 +337,12 @@ public class Alias implements Writeable, ToXContentFragment {
                 builder.field(SEARCH_ROUTING.getPreferredName(), searchRouting);
             }
         }
+        if (filterIncludes.length > 0) {
+            builder.array(INCLUDES.getPreferredName(), filterIncludes);
+        }
+        if (filterExcludes.length > 0) {
+            builder.array(EXCLUDES.getPreferredName(), filterExcludes);
+        }
 
         builder.field(IS_WRITE_INDEX.getPreferredName(), writeIndex);
 
@@ -324,5 +374,13 @@ public class Alias implements Writeable, ToXContentFragment {
     @Override
     public int hashCode() {
         return name != null ? name.hashCode() : 0;
+    }
+
+    private static String[] readStringArray(XContentParser parser) throws IOException {
+        ArrayList<String> values = new ArrayList<>();
+        while (parser.nextToken() != XContentParser.Token.END_ARRAY) {
+            values.add(parser.text());
+        }
+        return values.toArray(new String[0]);
     }
 }

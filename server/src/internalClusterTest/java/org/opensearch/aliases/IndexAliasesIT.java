@@ -33,10 +33,15 @@
 package org.opensearch.aliases;
 
 import org.opensearch.action.admin.indices.alias.Alias;
+import org.opensearch.action.admin.indices.alias.IndicesAliasesRequest;
 import org.opensearch.action.admin.indices.alias.IndicesAliasesRequest.AliasActions;
 import org.opensearch.action.admin.indices.alias.get.GetAliasesResponse;
 import org.opensearch.action.admin.indices.create.CreateIndexRequestBuilder;
 import org.opensearch.action.delete.DeleteResponse;
+import org.opensearch.action.get.GetResponse;
+import org.opensearch.action.get.MultiGetItemResponse;
+import org.opensearch.action.get.MultiGetRequest;
+import org.opensearch.action.get.MultiGetResponse;
 import org.opensearch.action.index.IndexResponse;
 import org.opensearch.action.search.SearchResponse;
 import org.opensearch.action.support.IndicesOptions;
@@ -241,6 +246,63 @@ public class IndexAliasesIT extends OpenSearchIntegTestCase {
             equalTo("{\"term\":{\"user\":{\"value\":\"foobar\",\"boost\":1.0}}}")
         );
 
+    }
+
+    @SuppressWarnings("unchecked")
+    public void testAliasSourceFilteringOnSearchGetAndMultiGet() throws Exception {
+        assertAcked(
+            prepareCreate("test").setMapping(
+                "public",
+                "type=keyword",
+                "secret",
+                "type=keyword",
+                "nested.allowed",
+                "type=keyword",
+                "nested.hidden",
+                "type=keyword"
+            )
+        );
+        ensureGreen();
+
+        client().index(
+            indexRequest("test").id("1")
+                .source(
+                    Map.of("public", "visible", "secret", "private", "nested", Map.of("allowed", "yes", "hidden", "no")),
+                    MediaTypeRegistry.JSON
+                )
+                .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
+        ).actionGet();
+
+        IndicesAliasesRequest request = new IndicesAliasesRequest().addAliasAction(
+            AliasActions.add()
+                .index("test")
+                .alias("filtered")
+                .filterIncludes("public", "nested.allowed")
+                .filterExcludes("secret", "nested.hidden")
+        );
+        assertAcked(client().admin().indices().aliases(request).actionGet());
+
+        SearchResponse searchResponse = client().prepareSearch("filtered").setQuery(QueryBuilders.matchAllQuery()).get();
+        assertHitCount(searchResponse, 1L);
+        Map<String, Object> searchSource = searchResponse.getHits().getAt(0).getSourceAsMap();
+        assertThat(searchSource.get("public"), equalTo("visible"));
+        assertThat(searchSource.containsKey("secret"), equalTo(false));
+        assertThat(((Map<String, Object>) searchSource.get("nested")).keySet(), containsInAnyOrder("allowed"));
+
+        GetResponse getResponse = client().prepareGet("filtered", "1").get();
+        Map<String, Object> getSource = getResponse.getSourceAsMap();
+        assertThat(getSource.get("public"), equalTo("visible"));
+        assertThat(getSource.containsKey("secret"), equalTo(false));
+        assertThat(((Map<String, Object>) getSource.get("nested")).keySet(), containsInAnyOrder("allowed"));
+
+        MultiGetRequest multiGetRequest = new MultiGetRequest().add(new MultiGetRequest.Item("filtered", "1"));
+        MultiGetResponse multiGetResponse = client().multiGet(multiGetRequest).actionGet();
+        MultiGetItemResponse item = multiGetResponse.getResponses()[0];
+        assertThat(item.isFailed(), equalTo(false));
+        Map<String, Object> multiGetSource = item.getResponse().getSourceAsMap();
+        assertThat(multiGetSource.get("public"), equalTo("visible"));
+        assertThat(multiGetSource.containsKey("secret"), equalTo(false));
+        assertThat(((Map<String, Object>) multiGetSource.get("nested")).keySet(), containsInAnyOrder("allowed"));
     }
 
     public void testEmptyFilter() throws Exception {

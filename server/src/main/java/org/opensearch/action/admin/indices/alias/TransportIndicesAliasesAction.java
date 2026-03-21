@@ -248,6 +248,8 @@ public class TransportIndicesAliasesAction extends TransportClusterManagerNodeAc
                                     action.filter(),
                                     action.indexRouting(),
                                     action.searchRouting(),
+                                    action.filterIncludes(),
+                                    action.filterExcludes(),
                                     action.writeIndex(),
                                     action.isHidden()
                                 )
