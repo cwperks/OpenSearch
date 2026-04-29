@@ -55,6 +55,10 @@ import org.opensearch.dashboards.action.TransportGetSavedObjectAction;
 import org.opensearch.dashboards.action.TransportSearchSavedObjectAction;
 import org.opensearch.dashboards.action.TransportWriteAdvancedSettingsAction;
 import org.opensearch.dashboards.action.TransportWriteSavedObjectAction;
+import org.opensearch.dashboards.action.TransportCreateSavedObjectAction;
+import org.opensearch.dashboards.action.TransportUpdateSavedObjectAction;
+import org.opensearch.dashboards.action.CreateSavedObjectAction;
+import org.opensearch.dashboards.action.UpdateSavedObjectAction;
 import org.opensearch.dashboards.action.WriteAdvancedSettingsAction;
 import org.opensearch.dashboards.action.WriteSavedObjectAction;
 import org.opensearch.dashboards.rest.RestDeleteSavedObjectAction;
@@ -223,6 +227,8 @@ public class OpenSearchDashboardsModulePlugin extends Plugin implements SystemIn
             // Saved object CRUD actions
             new ActionHandler<>(GetSavedObjectAction.INSTANCE, TransportGetSavedObjectAction.class),
             new ActionHandler<>(WriteSavedObjectAction.INSTANCE, TransportWriteSavedObjectAction.class),
+            new ActionHandler<>(CreateSavedObjectAction.INSTANCE, TransportCreateSavedObjectAction.class),
+            new ActionHandler<>(UpdateSavedObjectAction.INSTANCE, TransportUpdateSavedObjectAction.class),
             new ActionHandler<>(DeleteSavedObjectAction.INSTANCE, TransportDeleteSavedObjectAction.class),
             new ActionHandler<>(SearchSavedObjectAction.INSTANCE, TransportSearchSavedObjectAction.class)
         );

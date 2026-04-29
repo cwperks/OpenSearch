@@ -9,6 +9,9 @@
 package org.opensearch.dashboards.rest;
 
 import org.opensearch.core.xcontent.XContentParser;
+import org.opensearch.dashboards.action.CreateSavedObjectAction;
+import org.opensearch.dashboards.action.UpdateSavedObjectAction;
+import org.opensearch.dashboards.action.UpdateSavedObjectRequest;
 import org.opensearch.dashboards.action.WriteSavedObjectAction;
 import org.opensearch.dashboards.action.WriteSavedObjectRequest;
 import org.opensearch.rest.BaseRestHandler;
@@ -29,6 +32,8 @@ import static org.opensearch.rest.RestRequest.Method.PUT;
  * REST handler for PUT/POST /_opensearch_dashboards/saved_objects/{index}/{id}
  *
  * Query parameter "operation" controls create vs update (default: update).
+ * Create routes to CreateSavedObjectAction (cluster permission).
+ * Update routes to UpdateSavedObjectAction (resource-level permission via DocRequest).
  */
 public class RestWriteSavedObjectAction extends BaseRestHandler {
 
@@ -49,7 +54,7 @@ public class RestWriteSavedObjectAction extends BaseRestHandler {
     protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
         String index = request.param("index");
         String documentId = request.param("id");
-        String operation = request.param("operation", WriteSavedObjectRequest.OperationType.UPDATE.name());
+        String operation = request.param("operation", "update");
 
         final Map<String, Object> document = new HashMap<>();
         if (request.hasContent()) {
@@ -58,11 +63,20 @@ public class RestWriteSavedObjectAction extends BaseRestHandler {
             }
         }
 
-        WriteSavedObjectRequest.OperationType operationType = WriteSavedObjectRequest.OperationType.valueOf(
-            operation.toUpperCase(Locale.ROOT)
-        );
-        WriteSavedObjectRequest writeRequest = new WriteSavedObjectRequest(index, documentId, document, operationType);
+        boolean isCreate = "create".equalsIgnoreCase(operation);
 
-        return channel -> client.execute(WriteSavedObjectAction.INSTANCE, writeRequest, new RestToXContentListener<>(channel));
+        if (isCreate) {
+            WriteSavedObjectRequest writeRequest = new WriteSavedObjectRequest(
+                index, documentId, document, WriteSavedObjectRequest.OperationType.CREATE
+            );
+            return channel -> client.execute(
+                CreateSavedObjectAction.INSTANCE, writeRequest, new RestToXContentListener<>(channel)
+            );
+        } else {
+            UpdateSavedObjectRequest updateRequest = new UpdateSavedObjectRequest(index, documentId, document);
+            return channel -> client.execute(
+                UpdateSavedObjectAction.INSTANCE, updateRequest, new RestToXContentListener<>(channel)
+            );
+        }
     }
 }
