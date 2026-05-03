@@ -763,6 +763,8 @@ public class ScopedSettingsTests extends OpenSearchTestCase {
         assertTrue(settings.isDynamicSetting("transport.tracer.include." + randomIntBetween(1, 100)));
         assertFalse(settings.isDynamicSetting("transport.tracer.include.BOOM"));
         assertTrue(settings.isDynamicSetting("cluster.routing.allocation.require.value"));
+        assertTrue(settings.isDynamicSetting(ClusterSettings.CLUSTER_STANDBY_MODE_SETTING.getKey()));
+        assertTrue(settings.isSensitiveSetting(ClusterSettings.CLUSTER_STANDBY_MODE_SETTING.getKey()));
     }
 
     public void testIsFinal() {
