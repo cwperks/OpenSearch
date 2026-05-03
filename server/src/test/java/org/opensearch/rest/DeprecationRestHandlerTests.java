@@ -152,6 +152,16 @@ public class DeprecationRestHandlerTests extends OpenSearchTestCase {
         assertFalse(new DeprecationRestHandler(handler, deprecationMessage, deprecationLogger).supportsContentStream());
     }
 
+    public void testRequiresSecurityAdminAccessTrue() {
+        when(handler.requiresSecurityAdminAccess()).thenReturn(true);
+        assertTrue(new DeprecationRestHandler(handler, deprecationMessage, deprecationLogger).requiresSecurityAdminAccess());
+    }
+
+    public void testRequiresSecurityAdminAccessFalse() {
+        when(handler.requiresSecurityAdminAccess()).thenReturn(false);
+        assertFalse(new DeprecationRestHandler(handler, deprecationMessage, deprecationLogger).requiresSecurityAdminAccess());
+    }
+
     /**
      * {@code ASCIIHeaderGenerator} only uses characters expected to be valid in headers (simplified US-ASCII).
      */
