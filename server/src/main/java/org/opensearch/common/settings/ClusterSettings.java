@@ -212,6 +212,14 @@ import static org.opensearch.gateway.remote.RemoteManifestManager.METADATA_MANIF
 @PublicApi(since = "1.0.0")
 public final class ClusterSettings extends AbstractScopedSettings {
 
+    public static final Setting<Boolean> CLUSTER_STANDBY_MODE_SETTING = Setting.boolSetting(
+        "cluster.standby_mode",
+        false,
+        Property.NodeScope,
+        Property.Dynamic,
+        Property.Sensitive
+    );
+
     public ClusterSettings(final Settings nodeSettings, final Set<Setting<?>> settingsSet) {
         this(nodeSettings, settingsSet, Collections.emptySet());
     }
@@ -661,6 +669,7 @@ public final class ClusterSettings extends AbstractScopedSettings {
                 OperationRouting.STRICT_WEIGHTED_SHARD_ROUTING_ENABLED,
                 OperationRouting.IGNORE_WEIGHTED_SHARD_ROUTING,
                 OperationRouting.STRICT_SEARCH_REPLICA_ROUTING_ENABLED,
+                CLUSTER_STANDBY_MODE_SETTING,
                 IndexGraveyard.SETTING_MAX_TOMBSTONES,
                 PersistentTasksClusterService.CLUSTER_TASKS_ALLOCATION_RECHECK_INTERVAL_SETTING,
                 EnableAssignmentDecider.CLUSTER_TASKS_ALLOCATION_ENABLE_SETTING,
