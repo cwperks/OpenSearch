@@ -89,7 +89,8 @@ public class HierarchyCircuitBreakerService extends CircuitBreakerService {
     public static final Setting<Boolean> USE_REAL_MEMORY_USAGE_SETTING = Setting.boolSetting(
         "indices.breaker.total.use_real_memory",
         true,
-        Property.NodeScope
+        Property.NodeScope,
+        Property.Intrinsic
     );
 
     public static final Setting<ByteSizeValue> TOTAL_CIRCUIT_BREAKER_LIMIT_SETTING = Setting.memorySizeSetting(

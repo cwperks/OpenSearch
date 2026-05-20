@@ -58,13 +58,15 @@ public class DiskThresholdSettings {
         "cluster.routing.allocation.disk.threshold_enabled",
         true,
         Setting.Property.Dynamic,
-        Setting.Property.NodeScope
+        Setting.Property.NodeScope,
+        Setting.Property.Intrinsic
     );
     public static final Setting<Boolean> CLUSTER_ROUTING_ALLOCATION_WARM_DISK_THRESHOLD_ENABLED_SETTING = Setting.boolSetting(
         "cluster.routing.allocation.disk.warm_threshold_enabled",
         true,
         Setting.Property.Dynamic,
-        Setting.Property.NodeScope
+        Setting.Property.NodeScope,
+        Setting.Property.Intrinsic
     );
     public static final Setting<Boolean> ENABLE_FOR_SINGLE_DATA_NODE = Setting.boolSetting(
         "cluster.routing.allocation.disk.watermark.enable_for_single_data_node",
@@ -77,7 +79,8 @@ public class DiskThresholdSettings {
         (s) -> validWatermarkSetting(s, "cluster.routing.allocation.disk.watermark.low"),
         new LowDiskWatermarkValidator(),
         Setting.Property.Dynamic,
-        Setting.Property.NodeScope
+        Setting.Property.NodeScope,
+        Setting.Property.Intrinsic
     );
     public static final Setting<String> CLUSTER_ROUTING_ALLOCATION_HIGH_DISK_WATERMARK_SETTING = new Setting<>(
         "cluster.routing.allocation.disk.watermark.high",
@@ -85,7 +88,8 @@ public class DiskThresholdSettings {
         (s) -> validWatermarkSetting(s, "cluster.routing.allocation.disk.watermark.high"),
         new HighDiskWatermarkValidator(),
         Setting.Property.Dynamic,
-        Setting.Property.NodeScope
+        Setting.Property.NodeScope,
+        Setting.Property.Intrinsic
     );
     public static final Setting<String> CLUSTER_ROUTING_ALLOCATION_DISK_FLOOD_STAGE_WATERMARK_SETTING = new Setting<>(
         "cluster.routing.allocation.disk.watermark.flood_stage",
@@ -93,7 +97,8 @@ public class DiskThresholdSettings {
         (s) -> validWatermarkSetting(s, "cluster.routing.allocation.disk.watermark.flood_stage"),
         new FloodStageValidator(),
         Setting.Property.Dynamic,
-        Setting.Property.NodeScope
+        Setting.Property.NodeScope,
+        Setting.Property.Intrinsic
     );
     public static final Setting<Boolean> CLUSTER_ROUTING_ALLOCATION_INCLUDE_RELOCATIONS_SETTING = Setting.boolSetting(
         "cluster.routing.allocation.disk.include_relocations",

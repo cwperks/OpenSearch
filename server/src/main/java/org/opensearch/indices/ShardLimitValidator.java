@@ -76,7 +76,8 @@ public class ShardLimitValidator {
         1,
         new MaxShardPerNodeLimitValidator(),
         Setting.Property.Dynamic,
-        Setting.Property.NodeScope
+        Setting.Property.NodeScope,
+        Setting.Property.Intrinsic
     );
 
     public static final Setting<Integer> SETTING_CLUSTER_MAX_SHARDS_PER_CLUSTER = Setting.intSetting(
@@ -85,7 +86,8 @@ public class ShardLimitValidator {
         -1,
         new MaxShardPerClusterLimitValidator(),
         Setting.Property.Dynamic,
-        Setting.Property.NodeScope
+        Setting.Property.NodeScope,
+        Setting.Property.Intrinsic
     );
 
     public static final Setting<Integer> SETTING_CLUSTER_MAX_REMOTE_CAPABLE_SHARDS_PER_NODE = Setting.intSetting(
@@ -94,7 +96,8 @@ public class ShardLimitValidator {
         1,
         new MaxRemoteCapableShardPerNodeLimitValidator(),
         Setting.Property.Dynamic,
-        Setting.Property.NodeScope
+        Setting.Property.NodeScope,
+        Setting.Property.Intrinsic
     );
 
     public static final Setting<Integer> SETTING_CLUSTER_MAX_REMOTE_CAPABLE_SHARDS_PER_CLUSTER = Setting.intSetting(
@@ -103,7 +106,8 @@ public class ShardLimitValidator {
         -1,
         new MaxRemoteCapableShardPerClusterLimitValidator(),
         Setting.Property.Dynamic,
-        Setting.Property.NodeScope
+        Setting.Property.NodeScope,
+        Setting.Property.Intrinsic
     );
 
     public static final Setting<Boolean> SETTING_CLUSTER_IGNORE_DOT_INDEXES = Setting.boolSetting(
