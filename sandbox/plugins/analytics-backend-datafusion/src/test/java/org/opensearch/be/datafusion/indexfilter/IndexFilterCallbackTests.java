@@ -8,6 +8,7 @@
 
 package org.opensearch.be.datafusion.indexfilter;
 
+import org.opensearch.analytics.spi.DelegationThreadTracker;
 import org.opensearch.analytics.spi.FilterDelegationHandle;
 import org.opensearch.test.OpenSearchTestCase;
 
@@ -26,11 +27,13 @@ public class IndexFilterCallbackTests extends OpenSearchTestCase {
     public void setUp() throws Exception {
         super.setUp();
         FilterTreeCallbacks.setHandle(null);
+        FilterTreeCallbacks.setThreadTracker(null);
     }
 
     @Override
     public void tearDown() throws Exception {
         FilterTreeCallbacks.setHandle(null);
+        FilterTreeCallbacks.setThreadTracker(null);
         super.tearDown();
     }
 
@@ -120,6 +123,48 @@ public class IndexFilterCallbackTests extends OpenSearchTestCase {
             MemorySegment buf = arena.allocate(Long.BYTES);
             assertEquals(-1L, FilterTreeCallbacks.collectDocs(1, 0, 64, buf, 1));
         }
+    }
+
+    public void testTrackStartFailureDoesNotEscapeCallback() {
+        MockHandle handle = new MockHandle(new long[] { 0x5L });
+        FilterTreeCallbacks.setHandle(handle);
+        FilterTreeCallbacks.setThreadTracker(new DelegationThreadTracker() {
+            @Override
+            public long trackStart() {
+                throw new AssertionError("tracking start failed");
+            }
+
+            @Override
+            public void trackEnd(long threadId) {
+                throw new AssertionError("trackEnd should not be called");
+            }
+        });
+
+        int providerKey = FilterTreeCallbacks.createProvider(42);
+
+        assertTrue("providerKey >= 0", providerKey >= 0);
+        assertEquals("handle received annotationId", 42, handle.lastAnnotationId);
+    }
+
+    public void testTrackEndFailureDoesNotEscapeCallback() {
+        MockHandle handle = new MockHandle(new long[] { 0x5L });
+        FilterTreeCallbacks.setHandle(handle);
+        FilterTreeCallbacks.setThreadTracker(new DelegationThreadTracker() {
+            @Override
+            public long trackStart() {
+                return Thread.currentThread().threadId();
+            }
+
+            @Override
+            public void trackEnd(long threadId) {
+                throw new AssertionError("tracking end failed");
+            }
+        });
+
+        int providerKey = FilterTreeCallbacks.createProvider(42);
+
+        assertTrue("providerKey >= 0", providerKey >= 0);
+        assertEquals("handle received annotationId", 42, handle.lastAnnotationId);
     }
 
     /** Mock handle that records arguments and returns canned bitset words. */

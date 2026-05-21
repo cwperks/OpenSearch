@@ -57,14 +57,23 @@ public final class FilterTreeCallbacks {
     }
 
     private static long trackStart() {
-        DelegationThreadTracker t = TRACKER.get();
-        return (t != null) ? t.trackStart() : -1;
+        try {
+            DelegationThreadTracker t = TRACKER.get();
+            return (t != null) ? t.trackStart() : -1;
+        } catch (Throwable throwable) {
+            LOGGER.error("delegation trackStart failed", throwable);
+            return -1;
+        }
     }
 
     private static void trackEnd(long threadId) {
         if (threadId < 0) return;
-        DelegationThreadTracker t = TRACKER.get();
-        if (t != null) t.trackEnd(threadId);
+        try {
+            DelegationThreadTracker t = TRACKER.get();
+            if (t != null) t.trackEnd(threadId);
+        } catch (Throwable throwable) {
+            LOGGER.error(new ParameterizedMessage("delegation trackEnd({}) failed", threadId), throwable);
+        }
     }
 
     // ── Provider lifecycle (cold path, once per query) ────────────────
