@@ -38,6 +38,9 @@ import org.opensearch.action.support.HandledTransportAction;
 import org.opensearch.action.support.TransportIndicesResolvingAction;
 import org.opensearch.cluster.ClusterState;
 import org.opensearch.cluster.block.ClusterBlockLevel;
+import org.opensearch.cluster.metadata.AliasFieldFilter;
+import org.opensearch.cluster.metadata.AliasMetadata;
+import org.opensearch.cluster.metadata.IndexMetadata;
 import org.opensearch.cluster.metadata.IndexNameExpressionResolver;
 import org.opensearch.cluster.metadata.Metadata;
 import org.opensearch.cluster.metadata.ResolvedIndices;
@@ -100,6 +103,11 @@ public class TransportMultiGetAction extends HandledTransportAction<MultiGetRequ
             String concreteSingleIndex;
             try {
                 concreteSingleIndex = indexNameExpressionResolver.concreteSingleIndex(clusterState, item).getName();
+                if (item.index().equals(concreteSingleIndex) == false) {
+                    IndexMetadata indexMetadata = clusterState.metadata().index(concreteSingleIndex);
+                    AliasMetadata aliasMetadata = AliasFieldFilter.resolveSourceFilteringAlias(indexMetadata, item.index());
+                    item.fetchSourceContext(AliasFieldFilter.merge(item.fetchSourceContext(), aliasMetadata));
+                }
 
                 item.routing(clusterState.metadata().resolveIndexRouting(item.routing(), item.index()));
                 if ((item.routing() == null) && (clusterState.getMetadata().routingRequired(concreteSingleIndex))) {

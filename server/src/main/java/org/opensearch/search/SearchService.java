@@ -54,6 +54,9 @@ import org.opensearch.action.search.UpdatePitContextResponse;
 import org.opensearch.action.support.StreamSearchChannelListener;
 import org.opensearch.action.support.TransportActions;
 import org.opensearch.cluster.ClusterState;
+import org.opensearch.cluster.metadata.AliasFieldFilter;
+import org.opensearch.cluster.metadata.AliasMetadata;
+import org.opensearch.cluster.metadata.IndexMetadata;
 import org.opensearch.cluster.service.ClusterService;
 import org.opensearch.common.CheckedSupplier;
 import org.opensearch.common.UUIDs;
@@ -1309,6 +1312,12 @@ public class SearchService extends AbstractLifecycleComponent implements IndexEv
                 context.scrollContext().scroll = request.scroll();
             }
             parseSource(context, request.source(), includeAggregations);
+            IndexMetadata indexMetadata = clusterService.state().metadata().index(request.shardId().getIndexName());
+            AliasMetadata aliasMetadata = AliasFieldFilter.resolveSourceFilteringAlias(
+                indexMetadata,
+                request.getAliasFilter().getAliases()
+            );
+            context.fetchSourceContext(AliasFieldFilter.merge(context.fetchSourceContext(), aliasMetadata));
 
             // if the from and size are still not set, default them
             if (context.from() == -1) {

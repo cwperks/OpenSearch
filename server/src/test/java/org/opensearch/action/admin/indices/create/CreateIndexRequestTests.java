@@ -186,6 +186,26 @@ public class CreateIndexRequestTests extends OpenSearchTestCase {
         }
     }
 
+    public void testAliasSourceFiltersParsing() throws IOException {
+        try (XContentBuilder builder = MediaTypeRegistry.contentBuilder(randomFrom(XContentType.values()))) {
+            builder.startObject()
+                .startObject("aliases")
+                .startObject("filtered")
+                .array("includes", "public", "nested.allowed")
+                .array("excludes", "secret")
+                .endObject()
+                .endObject()
+                .endObject();
+
+            CreateIndexRequest request = new CreateIndexRequest("test");
+            request.source(builder);
+
+            Alias alias = request.aliases().iterator().next();
+            assertArrayEquals(new String[] { "public", "nested.allowed" }, alias.filterIncludes());
+            assertArrayEquals(new String[] { "secret" }, alias.filterExcludes());
+        }
+    }
+
     public static void assertMappingsEqual(Map<String, String> expected, Map<String, String> actual) throws IOException {
         assertEquals(expected.keySet(), actual.keySet());
 
@@ -219,6 +239,8 @@ public class CreateIndexRequestTests extends OpenSearchTestCase {
                     assertEquals(expectedAlias.filter(), actualAlias.filter());
                     assertEquals(expectedAlias.indexRouting(), actualAlias.indexRouting());
                     assertEquals(expectedAlias.searchRouting(), actualAlias.searchRouting());
+                    assertArrayEquals(expectedAlias.filterIncludes(), actualAlias.filterIncludes());
+                    assertArrayEquals(expectedAlias.filterExcludes(), actualAlias.filterExcludes());
                 }
             }
         }

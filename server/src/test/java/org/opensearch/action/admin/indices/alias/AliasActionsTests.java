@@ -35,6 +35,7 @@ package org.opensearch.action.admin.indices.alias;
 import org.opensearch.action.admin.indices.alias.IndicesAliasesRequest.AliasActions;
 import org.opensearch.common.io.stream.BytesStreamOutput;
 import org.opensearch.common.xcontent.XContentType;
+import org.opensearch.core.common.Strings;
 import org.opensearch.core.common.bytes.BytesReference;
 import org.opensearch.core.common.io.stream.StreamInput;
 import org.opensearch.core.xcontent.MediaTypeRegistry;
@@ -149,6 +150,8 @@ public class AliasActionsTests extends OpenSearchTestCase {
         Map<String, Object> filter = randomBoolean() ? randomMap(5) : null;
         Object searchRouting = randomBoolean() ? randomRouting() : null;
         Object indexRouting = randomBoolean() ? randomBoolean() ? searchRouting : randomRouting() : null;
+        String[] includes = randomBoolean() ? generateRandomStringArray(4, 8, false, false) : Strings.EMPTY_ARRAY;
+        String[] excludes = randomBoolean() ? generateRandomStringArray(4, 8, false, false) : Strings.EMPTY_ARRAY;
         boolean writeIndex = randomBoolean();
         boolean isHidden = randomBoolean();
         XContentBuilder b = XContentBuilder.builder(randomFrom(XContentType.values()).xContent());
@@ -179,6 +182,12 @@ public class AliasActionsTests extends OpenSearchTestCase {
                 if (indexRouting != null && false == indexRouting.equals(searchRouting)) {
                     b.field("index_routing", indexRouting);
                 }
+                if (includes.length > 0) {
+                    b.array("includes", includes);
+                }
+                if (excludes.length > 0) {
+                    b.array("excludes", excludes);
+                }
                 b.field("is_write_index", writeIndex);
                 b.field("is_hidden", isHidden);
             }
@@ -198,6 +207,8 @@ public class AliasActionsTests extends OpenSearchTestCase {
             }
             assertEquals(Objects.toString(searchRouting, null), action.searchRouting());
             assertEquals(Objects.toString(indexRouting, null), action.indexRouting());
+            assertArrayEquals(includes, action.filterIncludes());
+            assertArrayEquals(excludes, action.filterExcludes());
             assertEquals(writeIndex, action.writeIndex());
             assertEquals(isHidden, action.isHidden());
         }
