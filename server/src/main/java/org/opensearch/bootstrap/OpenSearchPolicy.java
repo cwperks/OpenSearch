@@ -68,6 +68,7 @@ final class OpenSearchPolicy extends Policy {
     final PermissionCollection dynamic;
     final PermissionCollection dataPathPermission;
     final Map<String, Policy> plugins;
+    final boolean filterBadDefaults;
 
     OpenSearchPolicy(
         Map<String, URL> codebases,
@@ -79,6 +80,7 @@ final class OpenSearchPolicy extends Policy {
         this.template = Security.readPolicy(getClass().getResource(POLICY_RESOURCE), codebases);
         this.dataPathPermission = dataPathPermission;
         this.untrusted = Security.readPolicy(getClass().getResource(UNTRUSTED_RESOURCE), Collections.emptyMap());
+        this.filterBadDefaults = filterBadDefaults;
         if (filterBadDefaults) {
             this.system = new SystemPolicy(Policy.getPolicy());
         } else {
@@ -91,7 +93,9 @@ final class OpenSearchPolicy extends Policy {
     @Override
     @SuppressForbidden(reason = "fast equals check is desired")
     public boolean implies(ProtectionDomain domain, Permission permission) {
-        CodeSource codeSource = domain.getCodeSource();
+        ProtectionDomain policyDomain = filterBadDefaults && isBadDefaultPermission(permission) ? withoutStaticPermissions(domain) : domain;
+
+        CodeSource codeSource = policyDomain.getCodeSource();
         // codesource can be null when reducing privileges via doPrivileged()
         if (codeSource == null) {
             return false;
@@ -103,12 +107,12 @@ final class OpenSearchPolicy extends Policy {
         if (location != null) {
             // run scripts with limited permissions
             if (BootstrapInfo.UNTRUSTED_CODEBASE.equals(location.getFile())) {
-                return untrusted.implies(domain, permission);
+                return untrusted.implies(policyDomain, permission);
             }
             // check for an additional plugin permission: plugin policy is
             // only consulted for its codesources.
             Policy plugin = plugins.get(location.getFile());
-            if (plugin != null && plugin.implies(domain, permission)) {
+            if (plugin != null && plugin.implies(policyDomain, permission)) {
                 return true;
             }
         }
@@ -132,7 +136,7 @@ final class OpenSearchPolicy extends Policy {
         }
 
         // otherwise defer to template + dynamic file permissions
-        return template.implies(domain, permission) || dynamic.implies(permission) || system.implies(domain, permission);
+        return template.implies(policyDomain, permission) || dynamic.implies(permission) || system.implies(policyDomain, permission);
     }
 
     /**
@@ -210,6 +214,14 @@ final class OpenSearchPolicy extends Policy {
 
     }
 
+    private static boolean isBadDefaultPermission(Permission permission) {
+        return BAD_DEFAULT_NUMBER_ONE.implies(permission) || BAD_DEFAULT_NUMBER_TWO.implies(permission);
+    }
+
+    private static ProtectionDomain withoutStaticPermissions(ProtectionDomain domain) {
+        return new ProtectionDomain(domain.getCodeSource(), null);
+    }
+
     // default policy file states:
     // "It is strongly recommended that you either remove this permission
     // from this policy file or further restrict it to code sources
@@ -239,7 +251,7 @@ final class OpenSearchPolicy extends Policy {
 
         @Override
         public boolean implies(ProtectionDomain domain, Permission permission) {
-            if (BAD_DEFAULT_NUMBER_ONE.implies(permission) || BAD_DEFAULT_NUMBER_TWO.implies(permission)) {
+            if (isBadDefaultPermission(permission)) {
                 return false;
             }
             return delegate.implies(domain, permission);

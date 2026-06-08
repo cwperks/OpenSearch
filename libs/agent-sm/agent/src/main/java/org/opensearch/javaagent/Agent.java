@@ -8,6 +8,7 @@
 
 package org.opensearch.javaagent;
 
+import org.opensearch.javaagent.bootstrap.ThreadStopInterceptor;
 import org.opensearch.javaagent.bootstrap.internal.SubjectInterceptor;
 
 import javax.security.auth.Subject;
@@ -112,6 +113,12 @@ public class Agent {
             .transform(
                 (b, typeDescription, classLoader, module, pd) -> b.visit(
                     Advice.to(RuntimeHaltInterceptor.class).on(ElementMatchers.named("halt"))
+                )
+            )
+            .type(ElementMatchers.is(java.lang.Thread.class))
+            .transform(
+                (b, typeDescription, classLoader, module, pd) -> b.visit(
+                    Advice.to(ThreadStopInterceptor.class).on(ElementMatchers.named("stop").and(ElementMatchers.takesArguments(0)))
                 )
             );
 
