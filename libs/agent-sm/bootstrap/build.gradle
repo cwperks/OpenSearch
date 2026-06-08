@@ -22,6 +22,7 @@ tasks.named('forbiddenApisMain').configure {
 
 dependencies {
   compileOnly project(":libs:agent-sm:agent-policy")
+  compileOnly "net.bytebuddy:byte-buddy:${versions.bytebuddy}"
 }
 
 test.enabled = false

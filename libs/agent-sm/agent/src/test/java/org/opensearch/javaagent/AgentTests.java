@@ -20,4 +20,10 @@ public class AgentTests extends AgentTestCase {
     public void testRuntimeHaltIsForbidden() {
         Runtime.getRuntime().halt(0);
     }
+
+    @SuppressWarnings("removal")
+    @Test(expected = SecurityException.class)
+    public void testThreadStopIsForbidden() {
+        new Thread(() -> {}).stop();
+    }
 }
