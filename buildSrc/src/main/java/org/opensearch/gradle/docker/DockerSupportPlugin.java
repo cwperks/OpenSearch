@@ -34,6 +34,7 @@ package org.opensearch.gradle.docker;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.Task;
+import org.gradle.api.internal.TaskInternal;
 import org.gradle.api.provider.Provider;
 
 import java.io.File;
@@ -62,11 +63,7 @@ public class DockerSupportPlugin implements Plugin<Project> {
 
         // Ensure that if we are trying to run any DockerBuildTask tasks, we assert an available Docker installation exists
         project.getGradle().getTaskGraph().whenReady(graph -> {
-            List<String> dockerTasks = graph.getAllTasks()
-                .stream()
-                .filter(task -> task instanceof DockerBuildTask)
-                .map(Task::getPath)
-                .collect(Collectors.toList());
+            List<String> dockerTasks = runnableDockerTasks(graph.getAllTasks());
 
             if (dockerTasks.isEmpty() == false) {
                 dockerSupportServiceProvider.get().failIfDockerUnavailable(dockerTasks);
@@ -74,4 +71,11 @@ public class DockerSupportPlugin implements Plugin<Project> {
         });
     }
 
+    static List<String> runnableDockerTasks(List<Task> tasks) {
+        return tasks.stream()
+            .filter(task -> task instanceof DockerBuildTask)
+            .filter(task -> ((TaskInternal) task).getOnlyIf().isSatisfiedBy((TaskInternal) task))
+            .map(Task::getPath)
+            .collect(Collectors.toList());
+    }
 }
