@@ -33,6 +33,7 @@
 package org.opensearch.action.admin.indices.alias;
 
 import org.opensearch.OpenSearchGenerationException;
+import org.opensearch.Version;
 import org.opensearch.action.ActionRequestValidationException;
 import org.opensearch.action.AliasesRequest;
 import org.opensearch.action.CompositeIndicesRequest;
@@ -111,6 +112,8 @@ public class IndicesAliasesRequest extends AcknowledgedRequest<IndicesAliasesReq
         private static final ParseField ROUTING = new ParseField("routing");
         private static final ParseField INDEX_ROUTING = new ParseField("index_routing", "indexRouting", "index-routing");
         private static final ParseField SEARCH_ROUTING = new ParseField("search_routing", "searchRouting", "search-routing");
+        private static final ParseField INCLUDES = new ParseField("includes", "include");
+        private static final ParseField EXCLUDES = new ParseField("excludes", "exclude");
         private static final ParseField IS_WRITE_INDEX = new ParseField("is_write_index");
         private static final ParseField IS_HIDDEN = new ParseField("is_hidden");
         private static final ParseField MUST_EXIST = new ParseField("must_exist");
@@ -219,6 +222,8 @@ public class IndicesAliasesRequest extends AcknowledgedRequest<IndicesAliasesReq
             ADD_PARSER.declareField(AliasActions::routing, XContentParser::text, ROUTING, ValueType.INT);
             ADD_PARSER.declareField(AliasActions::indexRouting, XContentParser::text, INDEX_ROUTING, ValueType.INT);
             ADD_PARSER.declareField(AliasActions::searchRouting, XContentParser::text, SEARCH_ROUTING, ValueType.INT);
+            ADD_PARSER.declareStringArray((action, includes) -> action.filterIncludes(includes.toArray(new String[0])), INCLUDES);
+            ADD_PARSER.declareStringArray((action, excludes) -> action.filterExcludes(excludes.toArray(new String[0])), EXCLUDES);
             ADD_PARSER.declareField(AliasActions::writeIndex, XContentParser::booleanValue, IS_WRITE_INDEX, ValueType.BOOLEAN);
             ADD_PARSER.declareField(AliasActions::isHidden, XContentParser::booleanValue, IS_HIDDEN, ValueType.BOOLEAN);
         }
@@ -262,6 +267,8 @@ public class IndicesAliasesRequest extends AcknowledgedRequest<IndicesAliasesReq
         private String routing;
         private String indexRouting;
         private String searchRouting;
+        private String[] filterIncludes = Strings.EMPTY_ARRAY;
+        private String[] filterExcludes = Strings.EMPTY_ARRAY;
         private Boolean writeIndex;
         private Boolean isHidden;
         private Boolean mustExist;
@@ -285,6 +292,10 @@ public class IndicesAliasesRequest extends AcknowledgedRequest<IndicesAliasesReq
             isHidden = in.readOptionalBoolean();
             originalAliases = in.readStringArray();
             mustExist = in.readOptionalBoolean();
+            if (in.getVersion().onOrAfter(Version.V_3_6_0)) {
+                filterIncludes = in.readStringArray();
+                filterExcludes = in.readStringArray();
+            }
         }
 
         @Override
@@ -300,6 +311,10 @@ public class IndicesAliasesRequest extends AcknowledgedRequest<IndicesAliasesReq
             out.writeOptionalBoolean(isHidden);
             out.writeStringArray(originalAliases);
             out.writeOptionalBoolean(mustExist);
+            if (out.getVersion().onOrAfter(Version.V_3_6_0)) {
+                out.writeStringArray(filterIncludes);
+                out.writeStringArray(filterExcludes);
+            }
         }
 
         /**
@@ -403,6 +418,30 @@ public class IndicesAliasesRequest extends AcknowledgedRequest<IndicesAliasesReq
             }
             this.searchRouting = searchRouting;
             return this;
+        }
+
+        public AliasActions filterIncludes(String... filterIncludes) {
+            if (type != AliasActions.Type.ADD) {
+                throw new IllegalArgumentException("[" + INCLUDES.getPreferredName() + "] is unsupported for [" + type + "]");
+            }
+            this.filterIncludes = filterIncludes == null ? Strings.EMPTY_ARRAY : filterIncludes;
+            return this;
+        }
+
+        public String[] filterIncludes() {
+            return filterIncludes;
+        }
+
+        public AliasActions filterExcludes(String... filterExcludes) {
+            if (type != AliasActions.Type.ADD) {
+                throw new IllegalArgumentException("[" + EXCLUDES.getPreferredName() + "] is unsupported for [" + type + "]");
+            }
+            this.filterExcludes = filterExcludes == null ? Strings.EMPTY_ARRAY : filterExcludes;
+            return this;
+        }
+
+        public String[] filterExcludes() {
+            return filterExcludes;
         }
 
         public String indexRouting() {
@@ -551,6 +590,12 @@ public class IndicesAliasesRequest extends AcknowledgedRequest<IndicesAliasesReq
             if (false == Strings.isEmpty(searchRouting)) {
                 builder.field(SEARCH_ROUTING.getPreferredName(), searchRouting);
             }
+            if (filterIncludes.length > 0) {
+                builder.array(INCLUDES.getPreferredName(), filterIncludes);
+            }
+            if (filterExcludes.length > 0) {
+                builder.array(EXCLUDES.getPreferredName(), filterExcludes);
+            }
             if (null != writeIndex) {
                 builder.field(IS_WRITE_INDEX.getPreferredName(), writeIndex);
             }
@@ -586,6 +631,10 @@ public class IndicesAliasesRequest extends AcknowledgedRequest<IndicesAliasesReq
                 + indexRouting
                 + ",searchRouting="
                 + searchRouting
+                + ",filterIncludes="
+                + Arrays.toString(filterIncludes)
+                + ",filterExcludes="
+                + Arrays.toString(filterExcludes)
                 + ",writeIndex="
                 + writeIndex
                 + ",mustExist="
@@ -607,6 +656,8 @@ public class IndicesAliasesRequest extends AcknowledgedRequest<IndicesAliasesReq
                 && Objects.equals(routing, other.routing)
                 && Objects.equals(indexRouting, other.indexRouting)
                 && Objects.equals(searchRouting, other.searchRouting)
+                && Arrays.equals(filterIncludes, other.filterIncludes)
+                && Arrays.equals(filterExcludes, other.filterExcludes)
                 && Objects.equals(writeIndex, other.writeIndex)
                 && Objects.equals(isHidden, other.isHidden)
                 && Objects.equals(mustExist, other.mustExist);
@@ -614,7 +665,12 @@ public class IndicesAliasesRequest extends AcknowledgedRequest<IndicesAliasesReq
 
         @Override
         public int hashCode() {
-            return Objects.hash(type, indices, aliases, filter, routing, indexRouting, searchRouting, writeIndex, isHidden, mustExist);
+            int result = Objects.hash(type, filter, routing, indexRouting, searchRouting, writeIndex, isHidden, mustExist);
+            result = 31 * result + Arrays.hashCode(indices);
+            result = 31 * result + Arrays.hashCode(aliases);
+            result = 31 * result + Arrays.hashCode(filterIncludes);
+            result = 31 * result + Arrays.hashCode(filterExcludes);
+            return result;
         }
     }
 

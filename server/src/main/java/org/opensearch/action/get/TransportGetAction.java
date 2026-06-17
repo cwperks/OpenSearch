@@ -36,6 +36,9 @@ import org.opensearch.action.RoutingMissingException;
 import org.opensearch.action.support.ActionFilters;
 import org.opensearch.action.support.single.shard.TransportSingleShardAction;
 import org.opensearch.cluster.ClusterState;
+import org.opensearch.cluster.metadata.AliasFieldFilter;
+import org.opensearch.cluster.metadata.AliasMetadata;
+import org.opensearch.cluster.metadata.IndexMetadata;
 import org.opensearch.cluster.metadata.IndexNameExpressionResolver;
 import org.opensearch.cluster.metadata.Metadata;
 import org.opensearch.cluster.routing.Preference;
@@ -118,6 +121,12 @@ public class TransportGetAction extends TransportSingleShardAction<GetRequest, G
 
     @Override
     protected void resolveRequest(ClusterState state, InternalRequest request) {
+        IndexMetadata indexMetadata = state.metadata().index(request.concreteIndex());
+        AliasMetadata aliasMetadata = null;
+        if (request.request().index().equals(request.concreteIndex()) == false) {
+            aliasMetadata = AliasFieldFilter.resolveSourceFilteringAlias(indexMetadata, request.request().index());
+        }
+        request.request().fetchSourceContext(AliasFieldFilter.merge(request.request().fetchSourceContext(), aliasMetadata));
         // update the routing (request#index here is possibly an alias)
         request.request().routing(state.metadata().resolveIndexRouting(request.request().routing(), request.request().index()));
         // Fail fast on the node that received the request.

@@ -53,6 +53,8 @@ import org.opensearch.action.admin.indices.stats.StatusCounterStats;
 import org.opensearch.action.search.SearchRequestStats;
 import org.opensearch.action.search.SearchType;
 import org.opensearch.cluster.ClusterState;
+import org.opensearch.cluster.metadata.AliasFieldFilter;
+import org.opensearch.cluster.metadata.AliasMetadata;
 import org.opensearch.cluster.metadata.IndexMetadata;
 import org.opensearch.cluster.metadata.IndexNameExpressionResolver;
 import org.opensearch.cluster.node.DiscoveryNode;
@@ -2257,6 +2259,15 @@ public class IndicesService extends AbstractLifecycleComponent
         };
         IndexMetadata indexMetadata = state.metadata().index(index);
         String[] aliases = indexNameExpressionResolver.filteringAliases(state, index, resolvedExpressions);
+        if ((aliases == null || aliases.length == 0) && resolvedExpressions.contains(index) == false) {
+            AliasMetadata aliasMetadata = AliasFieldFilter.resolveSourceFilteringAlias(
+                indexMetadata,
+                resolvedExpressions.stream().filter(indexMetadata.getAliases()::containsKey).toArray(String[]::new)
+            );
+            if (aliasMetadata != null) {
+                aliases = new String[] { aliasMetadata.alias() };
+            }
+        }
         return new AliasFilter(ShardSearchRequest.parseAliasFilter(filterParser, indexMetadata, aliases), aliases);
     }
 
