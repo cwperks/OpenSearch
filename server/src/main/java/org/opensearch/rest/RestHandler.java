@@ -126,6 +126,17 @@ public interface RestHandler {
     }
 
     /**
+     * Controls whether requests handled by this class require security-admin style authorization.
+     * Plugins can opt into this marker so a security implementation can apply privileged authorization
+     * before dispatching the request to the handler.
+     *
+     * @return {@code true} if requests handled by this class require security-admin style authorization.
+     */
+    default boolean requiresSecurityAdminAccess() {
+        return false;
+    }
+
+    /**
      * Denotes whether the RestHandler will output paginated responses or not.
      */
     default boolean isActionPaginated() {
@@ -191,6 +202,11 @@ public interface RestHandler {
         @Override
         public boolean allowSystemIndexAccessByDefault() {
             return delegate.allowSystemIndexAccessByDefault();
+        }
+
+        @Override
+        public boolean requiresSecurityAdminAccess() {
+            return delegate.requiresSecurityAdminAccess();
         }
 
         @Override
