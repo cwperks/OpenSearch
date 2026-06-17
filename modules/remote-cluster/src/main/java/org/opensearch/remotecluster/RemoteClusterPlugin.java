@@ -1,0 +1,70 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * The OpenSearch Contributors require contributions made to
+ * this file be licensed under the Apache-2.0 license or a
+ * compatible open source license.
+ */
+
+package org.opensearch.remotecluster;
+
+import org.opensearch.action.ActionRequest;
+import org.opensearch.cluster.metadata.IndexNameExpressionResolver;
+import org.opensearch.cluster.node.DiscoveryNodes;
+import org.opensearch.common.settings.ClusterSettings;
+import org.opensearch.common.settings.IndexScopedSettings;
+import org.opensearch.common.settings.Settings;
+import org.opensearch.common.settings.SettingsFilter;
+import org.opensearch.core.action.ActionResponse;
+import org.opensearch.remotecluster.action.MetadataDiffAction;
+import org.opensearch.remotecluster.action.TransportMetadataDiffAction;
+import org.opensearch.remotecluster.rest.RestMetadataDiffAction;
+import org.opensearch.remotecluster.spi.MetadataDiffExtension;
+import org.opensearch.remotecluster.spi.MetadataDiffProvider;
+import org.opensearch.plugins.ActionPlugin;
+import org.opensearch.plugins.ExtensiblePlugin;
+import org.opensearch.plugins.Plugin;
+import org.opensearch.rest.RestController;
+import org.opensearch.rest.RestHandler;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.function.Supplier;
+
+/**
+ * Cross-cluster replication module with metadata diff API.
+ */
+public class RemoteClusterPlugin extends Plugin implements ActionPlugin, ExtensiblePlugin {
+
+    private final List<MetadataDiffProvider> extensionProviders = new ArrayList<>();
+
+    @Override
+    public List<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> getActions() {
+        return Collections.singletonList(new ActionHandler<>(MetadataDiffAction.INSTANCE, TransportMetadataDiffAction.class));
+    }
+
+    @Override
+    public List<RestHandler> getRestHandlers(
+        Settings settings,
+        RestController restController,
+        ClusterSettings clusterSettings,
+        IndexScopedSettings indexScopedSettings,
+        SettingsFilter settingsFilter,
+        IndexNameExpressionResolver indexNameExpressionResolver,
+        Supplier<DiscoveryNodes> nodesInCluster
+    ) {
+        return Collections.singletonList(new RestMetadataDiffAction());
+    }
+
+    @Override
+    public void loadExtensions(ExtensionLoader loader) {
+        for (MetadataDiffExtension extension : loader.loadExtensions(MetadataDiffExtension.class)) {
+            extensionProviders.add(extension.getMetadataDiffProvider());
+        }
+    }
+
+    public List<MetadataDiffProvider> getExtensionProviders() {
+        return Collections.unmodifiableList(extensionProviders);
+    }
+}
