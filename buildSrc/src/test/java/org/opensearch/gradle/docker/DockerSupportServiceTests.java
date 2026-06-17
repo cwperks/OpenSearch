@@ -32,12 +32,18 @@
 package org.opensearch.gradle.docker;
 
 import org.opensearch.gradle.test.GradleIntegrationTestCase;
+import org.gradle.api.Task;
+import org.gradle.api.internal.TaskInternal;
+import org.gradle.api.specs.Spec;
 
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.mockito.Mockito;
+
+import static org.opensearch.gradle.docker.DockerSupportPlugin.runnableDockerTasks;
 import static org.opensearch.gradle.docker.DockerSupportService.deriveId;
 import static org.opensearch.gradle.docker.DockerSupportService.parseOsRelease;
 import static org.hamcrest.CoreMatchers.equalTo;
@@ -122,5 +128,23 @@ public class DockerSupportServiceTests extends GradleIntegrationTestCase {
         osRelease.put("VERSION_ID", "6.10");
 
         assertThat("ol-6.10", equalTo(deriveId(osRelease)));
+    }
+
+    public void testRunnableDockerTasksSkipsTasksRejectedByOnlyIf() {
+        DockerBuildTask runnableDockerTask = dockerBuildTask(":distribution:docker:buildDockerImage", task -> true);
+        DockerBuildTask skippedDockerTask = dockerBuildTask(":distribution:docker:buildArm64DockerImage", task -> false);
+        Task nonDockerTask = Mockito.mock(Task.class);
+
+        assertThat(
+            runnableDockerTasks(List.of(runnableDockerTask, skippedDockerTask, nonDockerTask)),
+            equalTo(List.of(runnableDockerTask.getPath()))
+        );
+    }
+
+    private static DockerBuildTask dockerBuildTask(String path, Spec<? super TaskInternal> onlyIf) {
+        DockerBuildTask task = Mockito.mock(DockerBuildTask.class, Mockito.withSettings().extraInterfaces(TaskInternal.class));
+        Mockito.when(task.getPath()).thenReturn(path);
+        Mockito.doReturn(onlyIf).when((TaskInternal) task).getOnlyIf();
+        return task;
     }
 }
