@@ -696,7 +696,8 @@ public class IndexMetadata implements Diffable<IndexMetadata>, ToXContentFragmen
         -1,
         -1,
         Property.IndexScope,
-        Property.Final
+        Property.Final,
+        Property.Intrinsic
     );
 
     /**
@@ -730,7 +731,8 @@ public class IndexMetadata implements Diffable<IndexMetadata>, ToXContentFragmen
         INDEX_UUID_NA_VALUE,
         Property.IndexScope,
         Property.PrivateIndex,
-        Property.UnmodifiableOnRestore
+        Property.UnmodifiableOnRestore,
+        Property.Intrinsic
     );
 
     public static final Setting<String> SETTING_INDEX_HISTORY_UUID = Setting.simpleString(
@@ -738,7 +740,8 @@ public class IndexMetadata implements Diffable<IndexMetadata>, ToXContentFragmen
         INDEX_UUID_NA_VALUE,
         Property.IndexScope,
         Property.PrivateIndex,
-        Property.UnmodifiableOnRestore
+        Property.UnmodifiableOnRestore,
+        Property.Intrinsic
     );
 
     public static final String INDEX_ROUTING_REQUIRE_GROUP_PREFIX = "index.routing.allocation.require";
