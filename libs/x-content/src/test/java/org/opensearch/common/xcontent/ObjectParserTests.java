@@ -986,6 +986,34 @@ public class ObjectParserTests extends OpenSearchTestCase {
         assertThat(obj.b, equalTo(456L));
     }
 
+    public void testRequiredFieldDeclarations() throws IOException {
+        class TestStruct {
+            private String name;
+            private Boolean enabled;
+
+            private void setName(String value) {
+                this.name = value;
+            }
+
+            private void setEnabled(boolean value) {
+                this.enabled = value;
+            }
+        }
+
+        ObjectParser<TestStruct, Void> objectParser = new ObjectParser<>("foo", true, TestStruct::new);
+        objectParser.declareRequiredString(TestStruct::setName, new ParseField("name"));
+        objectParser.declareRequiredBoolean(TestStruct::setEnabled, new ParseField("enabled"));
+
+        XContentParser parser = createParser(JsonXContent.jsonXContent, "{\"name\": \"test\", \"enabled\": true}");
+        TestStruct obj = objectParser.apply(parser, null);
+        assertThat(obj.name, equalTo("test"));
+        assertThat(obj.enabled, equalTo(true));
+
+        XContentParser missingRequiredParser = createParser(JsonXContent.jsonXContent, "{\"name\": \"test\"}");
+        IllegalArgumentException e = expectThrows(IllegalArgumentException.class, () -> objectParser.apply(missingRequiredParser, null));
+        assertThat(e.getMessage(), equalTo("Required one of fields [enabled], but none were specified. "));
+    }
+
     private static class TestStruct {
         private Long a;
         private Long b;
