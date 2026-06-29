@@ -747,3 +747,4 @@ allprojects { project ->
     }
   }
 }
+// Trigger dependency scan
