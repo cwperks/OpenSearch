@@ -8,6 +8,7 @@
 
 package org.opensearch.javaagent.bootstrap;
 
+import java.io.FilePermission;
 import java.lang.StackWalker.Option;
 import java.lang.StackWalker.StackFrame;
 import java.security.Permission;
@@ -30,6 +31,7 @@ public class AgentPolicy {
     private static volatile Set<String> trustedHosts;
     private static volatile Set<String> trustedFileSystems;
     private static volatile BiFunction<Class<?>, Collection<Class<?>>, Boolean> classesThatCanExit;
+    private static volatile boolean filePermissionEnforcementEnabled = true;
 
     /**
      * None of the classes is allowed to call {@link System#exit} or {@link Runtime#halt}
@@ -172,6 +174,23 @@ public class AgentPolicy {
      */
     public static Policy getPolicy() {
         return policy;
+    }
+
+    /**
+     * Set whether file permissions are enforced by the agent.
+     * @param enabled true if file permissions should be enforced
+     */
+    public static void setFilePermissionEnforcementEnabled(boolean enabled) {
+        filePermissionEnforcementEnabled = enabled;
+    }
+
+    /**
+     * Check if the agent should enforce the given permission.
+     * @param permission permission
+     * @return true if permission should be enforced
+     */
+    public static boolean shouldEnforce(Permission permission) {
+        return permission instanceof FilePermission == false || filePermissionEnforcementEnabled;
     }
 
     /**

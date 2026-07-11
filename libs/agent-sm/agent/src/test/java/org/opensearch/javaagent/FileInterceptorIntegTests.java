@@ -9,6 +9,7 @@
 package org.opensearch.javaagent;
 
 import org.opensearch.javaagent.bootstrap.AgentPolicy;
+import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -38,6 +39,8 @@ import static org.junit.Assert.assertTrue;
 @SuppressWarnings("removal")
 public class FileInterceptorIntegTests {
 
+    private static Path externalTestDir;
+
     private static Path getTestDir() {
         Path baseDir = Path.of(System.getProperty("user.dir"));
         Path integTestFiles = baseDir.resolve("integ-test-files").normalize();
@@ -55,6 +58,8 @@ public class FileInterceptorIntegTests {
 
     @BeforeClass
     public static void setUp() throws Exception {
+        Path baseDir = Path.of(System.getProperty("user.dir")).toAbsolutePath().normalize();
+        externalTestDir = Files.createTempDirectory(baseDir.getParent(), "agent-permission-toggle");
         Policy policy = new Policy() {
             @Override
             public PermissionCollection getPermissions(ProtectionDomain domain) {
@@ -77,6 +82,27 @@ public class FileInterceptorIntegTests {
         };
         AgentPolicy.setPolicy(policy);
         Files.createDirectories(getTestDir());
+    }
+
+    @AfterClass
+    public static void tearDown() throws Exception {
+        AgentPolicy.setFilePermissionEnforcementEnabled(false);
+        try {
+            if (externalTestDir != null) {
+                try (var files = Files.list(externalTestDir)) {
+                    files.forEach(path -> {
+                        try {
+                            Files.deleteIfExists(path);
+                        } catch (Exception e) {
+                            throw new RuntimeException(e);
+                        }
+                    });
+                }
+                Files.deleteIfExists(externalTestDir);
+            }
+        } finally {
+            AgentPolicy.setFilePermissionEnforcementEnabled(true);
+        }
     }
 
     @Test
@@ -351,5 +377,31 @@ public class FileInterceptorIntegTests {
         Path unauthorizedPath = getTestDir().getRoot().resolve("test-output-stream-" + randomAlphaOfLength(8) + ".txt");
 
         assertThrows(SecurityException.class, () -> { new FileOutputStream(unauthorizedPath.toFile()); });
+    }
+
+    @Test
+    public void testFilePermissionEnforcementCanBeDisabled() throws Exception {
+        Path unauthorizedPath = externalTestDir.resolve("test-output-stream-" + randomAlphaOfLength(8) + ".txt");
+
+        assertThrows(SecurityException.class, () -> { new FileOutputStream(unauthorizedPath.toFile()); });
+
+        AgentPolicy.setFilePermissionEnforcementEnabled(false);
+        try {
+            try (FileOutputStream fos = new FileOutputStream(unauthorizedPath.toFile())) {
+                fos.write("test content".getBytes(StandardCharsets.UTF_8));
+            }
+            assertEquals("test content", Files.readString(unauthorizedPath, StandardCharsets.UTF_8));
+        } finally {
+            AgentPolicy.setFilePermissionEnforcementEnabled(true);
+        }
+
+        assertThrows(SecurityException.class, () -> { new FileOutputStream(unauthorizedPath.toFile()); });
+
+        AgentPolicy.setFilePermissionEnforcementEnabled(false);
+        try {
+            Files.deleteIfExists(unauthorizedPath);
+        } finally {
+            AgentPolicy.setFilePermissionEnforcementEnabled(true);
+        }
     }
 }
