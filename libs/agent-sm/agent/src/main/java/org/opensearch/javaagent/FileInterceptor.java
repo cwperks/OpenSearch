@@ -144,33 +144,47 @@ public class FileInterceptor {
             for (final ProtectionDomain domain : callers) {
                 // Handle FileChannel.open() separately to check read/write permissions properly
                 if (method.getName().equals("open") || method.getName().equals("newByteChannel")) {
-                    if (isMutating == true && !policy.implies(domain, new FilePermission(filePath, "read,write"))) {
+                    final FilePermission permission = new FilePermission(filePath, isMutating ? "read,write" : "read");
+                    if (AgentPolicy.shouldEnforce(permission) == false) {
+                        return;
+                    }
+                    if (isMutating == true && !policy.implies(domain, permission)) {
                         throw new SecurityException("Denied OPEN (read/write) access to file: " + filePath + ", domain: " + domain);
-                    } else if (!policy.implies(domain, new FilePermission(filePath, "read"))) {
+                    } else if (!policy.implies(domain, permission)) {
                         throw new SecurityException("Denied OPEN (read) access to file: " + filePath + ", domain: " + domain);
                     }
                 }
 
                 // Handle Files.copy() separately to check read/write permissions properly
                 if (method.getName().equals("copy")) {
-                    if (!policy.implies(domain, new FilePermission(filePath, "read"))) {
+                    final FilePermission readPermission = new FilePermission(filePath, "read");
+                    if (AgentPolicy.shouldEnforce(readPermission) == false) {
+                        return;
+                    }
+                    if (!policy.implies(domain, readPermission)) {
                         throw new SecurityException("Denied COPY (read) access to file: " + filePath + ", domain: " + domain);
                     }
 
                     if (targetFilePath != null) {
-                        if (!policy.implies(domain, new FilePermission(targetFilePath, "write"))) {
+                        final FilePermission writePermission = new FilePermission(targetFilePath, "write");
+                        if (AgentPolicy.shouldEnforce(writePermission) == false) {
+                            return;
+                        }
+                        if (!policy.implies(domain, writePermission)) {
                             throw new SecurityException("Denied COPY (write) access to file: " + targetFilePath + ", domain: " + domain);
                         }
                     }
                 }
 
                 // File mutating operations
-                if (isMutating && !policy.implies(domain, new FilePermission(filePath, "write"))) {
+                final FilePermission writePermission = new FilePermission(filePath, "write");
+                if (isMutating && AgentPolicy.shouldEnforce(writePermission) && !policy.implies(domain, writePermission)) {
                     throw new SecurityException("Denied WRITE access to file: " + filePath + ", domain: " + domain);
                 }
 
                 // File deletion operations
-                if (isDelete && !policy.implies(domain, new FilePermission(filePath, "delete"))) {
+                final FilePermission deletePermission = new FilePermission(filePath, "delete");
+                if (isDelete && AgentPolicy.shouldEnforce(deletePermission) && !policy.implies(domain, deletePermission)) {
                     throw new SecurityException("Denied DELETE access to file: " + filePath + ", domain: " + domain);
                 }
             }

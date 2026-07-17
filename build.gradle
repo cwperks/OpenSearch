@@ -431,6 +431,7 @@ gradle.projectsEvaluated {
         if (!(project.path in [':build-tools', ":libs:agent-sm:bootstrap", ":libs:agent-sm:agent"])) {
           dependsOn(project(':libs:agent-sm:agent').tasks.named('prepareAgent'))
           jvmArgs += ["-javaagent:" + project(':libs:agent-sm:agent').tasks.named('jar').get().archiveFile.get()]
+          systemProperty 'jacoco.dir', project.layout.buildDirectory.dir('jacoco').get().asFile.absolutePath
         }
         if (BuildParams.isInFipsJvm()) {
           def fipsSecurityFile = project.rootProject.file('distribution/src/config/fips_java.security')
@@ -734,4 +735,3 @@ tasks.withType(TestTaskReports).configureEach {
 tasks.named(JavaBasePlugin.CHECK_TASK_NAME) {
   dependsOn tasks.named('testAggregateTestReport', TestReport)
 }
-

@@ -71,6 +71,10 @@ public class FileInputStreamInterceptor {
         final Collection<ProtectionDomain> callers = StackCallerProtectionDomainChainExtractor.INSTANCE.apply(frames.stream());
 
         final FilePermission permission = new FilePermission(filePath, "read");
+        if (AgentPolicy.shouldEnforce(permission) == false) {
+            return;
+        }
+
         for (ProtectionDomain domain : callers) {
             if (!policy.implies(domain, permission)) {
                 throw new SecurityException("Denied READ access to file: " + filePath + ", domain: " + domain);

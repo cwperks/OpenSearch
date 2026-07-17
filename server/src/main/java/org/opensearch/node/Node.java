@@ -201,6 +201,7 @@ import org.opensearch.indices.replication.checkpoint.RemoteStorePublishMergedSeg
 import org.opensearch.indices.store.IndicesStore;
 import org.opensearch.ingest.IngestService;
 import org.opensearch.ingest.SystemIngestPipelineCache;
+import org.opensearch.javaagent.bootstrap.AgentPolicy;
 import org.opensearch.monitor.MonitorService;
 import org.opensearch.monitor.NodeRuntimeMetrics;
 import org.opensearch.monitor.fs.FsHealthService;
@@ -698,6 +699,14 @@ public class Node implements Closeable {
             );
             threadPool.registerClusterSettingsListeners(settingsModule.getClusterSettings());
             scriptModule.registerClusterSettingsListeners(scriptService, settingsModule.getClusterSettings());
+            AgentPolicy.setFilePermissionEnforcementEnabled(
+                settingsModule.getClusterSettings().get(BootstrapSettings.AGENT_FILE_PERMISSION_ENFORCEMENT_ENABLED)
+            );
+            settingsModule.getClusterSettings()
+                .addSettingsUpdateConsumer(
+                    BootstrapSettings.AGENT_FILE_PERMISSION_ENFORCEMENT_ENABLED,
+                    AgentPolicy::setFilePermissionEnforcementEnabled
+                );
             final NetworkService networkService = new NetworkService(
                 getCustomNameResolvers(pluginsService.filterPlugins(DiscoveryPlugin.class))
             );
