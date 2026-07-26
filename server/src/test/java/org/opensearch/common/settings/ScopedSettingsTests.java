@@ -813,6 +813,24 @@ public class ScopedSettingsTests extends OpenSearchTestCase {
         assertTrue(settings.isUnmodifiableOnRestoreSetting("foo.group.key"));
     }
 
+    public void testIsIntrinsic() {
+        ClusterSettings settings = new ClusterSettings(
+            Settings.EMPTY,
+            Set.of(
+                Setting.intSetting("foo.int", 1, Property.Intrinsic, Property.NodeScope),
+                Setting.groupSetting("foo.group.", Property.Intrinsic, Property.NodeScope),
+                Setting.affixKeySetting("foo.affix.", "value", key -> Setting.simpleString(key, Property.Intrinsic, Property.NodeScope)),
+                Setting.simpleString("foo.replicable", Property.NodeScope)
+            )
+        );
+
+        assertTrue(settings.isIntrinsicSetting("foo.int"));
+        assertTrue(settings.isIntrinsicSetting("foo.group.key"));
+        assertTrue(settings.isIntrinsicSetting("foo.affix.namespace.value"));
+        assertFalse(settings.isIntrinsicSetting("foo.replicable"));
+        assertFalse(settings.isIntrinsicSetting("foo.unknown"));
+    }
+
     public void testDiff() throws IOException {
         Setting<Integer> fooBarBaz = Setting.intSetting("foo.bar.baz", 1, Property.NodeScope);
         Setting<Integer> fooBar = Setting.intSetting("foo.bar", 1, Property.Dynamic, Property.NodeScope);
