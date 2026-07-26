@@ -185,7 +185,13 @@ public class Setting<T> implements ToXContentObject {
          * different policies for these settings. In practice the security plugin will
          * require higher privileges for modifying sensitive settings.
          */
-        Sensitive
+        Sensitive,
+
+        /**
+         * Marks a setting as intrinsic to the cluster where it is configured. Intrinsic settings describe local cluster
+         * characteristics and should not be replicated to another cluster.
+         */
+        Intrinsic
     }
 
     private final Key key;
@@ -378,6 +384,14 @@ public class Setting<T> implements ToXContentObject {
      */
     public final boolean isSensitive() {
         return properties.contains(Property.Sensitive);
+    }
+
+    /**
+     * Returns <code>true</code> if this setting is intrinsic to the cluster where it is configured and should not be replicated to
+     * another cluster.
+     */
+    public final boolean isIntrinsic() {
+        return properties.contains(Property.Intrinsic);
     }
 
     public final boolean isInternalIndex() {
