@@ -47,6 +47,7 @@ import org.opensearch.action.pagination.IndexPaginationStrategy;
 import org.opensearch.action.pagination.PageToken;
 import org.opensearch.action.support.GroupedActionListener;
 import org.opensearch.action.support.IndicesOptions;
+import org.opensearch.action.support.LocalAllIndicesRequest;
 import org.opensearch.cluster.health.ClusterHealthStatus;
 import org.opensearch.cluster.health.ClusterIndexHealth;
 import org.opensearch.cluster.metadata.IndexMetadata;
@@ -222,6 +223,7 @@ public class RestIndicesAction extends AbstractListAction {
                                             indicesToBeQueried,
                                             subRequestIndicesOptions,
                                             includeUnloadedSegments,
+                                            indices,
                                             client,
                                             ActionListener.wrap(groupedListener::onResponse, groupedListener::onFailure)
                                         );
@@ -232,6 +234,7 @@ public class RestIndicesAction extends AbstractListAction {
                                         subRequestIndicesOptions,
                                         local,
                                         clusterManagerNodeTimeout,
+                                        indices,
                                         client,
                                         ActionListener.wrap(groupedListener::onResponse, groupedListener::onFailure)
                                     );
@@ -313,6 +316,7 @@ public class RestIndicesAction extends AbstractListAction {
         final IndicesOptions indicesOptions,
         final boolean local,
         final TimeValue clusterManagerNodeTimeout,
+        final String[] originalIndices,
         final NodeClient client,
         final ActionListener<ClusterHealthResponse> listener
     ) {
@@ -322,6 +326,7 @@ public class RestIndicesAction extends AbstractListAction {
         request.indicesOptions(indicesOptions);
         request.local(local);
         request.clusterManagerNodeTimeout(clusterManagerNodeTimeout);
+        LocalAllIndicesRequest.markIfAllIndices(request, originalIndices);
 
         client.admin().cluster().health(request, listener);
     }
@@ -330,6 +335,7 @@ public class RestIndicesAction extends AbstractListAction {
         final String[] indices,
         final IndicesOptions indicesOptions,
         final boolean includeUnloadedSegments,
+        final String[] originalIndices,
         final NodeClient client,
         final ActionListener<IndicesStatsResponse> listener
     ) {
@@ -339,6 +345,7 @@ public class RestIndicesAction extends AbstractListAction {
         request.indicesOptions(indicesOptions);
         request.all();
         request.includeUnloadedSegments(includeUnloadedSegments);
+        LocalAllIndicesRequest.markIfAllIndices(request, originalIndices);
 
         client.admin().indices().stats(request, listener);
     }

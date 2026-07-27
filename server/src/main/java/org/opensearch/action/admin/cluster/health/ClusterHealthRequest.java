@@ -37,6 +37,7 @@ import org.opensearch.action.ActionRequestValidationException;
 import org.opensearch.action.IndicesRequest;
 import org.opensearch.action.support.ActiveShardCount;
 import org.opensearch.action.support.IndicesOptions;
+import org.opensearch.action.support.LocalAllIndicesRequest;
 import org.opensearch.action.support.clustermanager.ClusterManagerNodeReadRequest;
 import org.opensearch.cluster.health.ClusterHealthStatus;
 import org.opensearch.common.Priority;
@@ -57,9 +58,13 @@ import static org.opensearch.action.ValidateActions.addValidationError;
  * @opensearch.api
  */
 @PublicApi(since = "1.0.0")
-public class ClusterHealthRequest extends ClusterManagerNodeReadRequest<ClusterHealthRequest> implements IndicesRequest.Replaceable {
+public class ClusterHealthRequest extends ClusterManagerNodeReadRequest<ClusterHealthRequest>
+    implements
+        IndicesRequest.Replaceable,
+        LocalAllIndicesRequest {
 
     private String[] indices;
+    private boolean derivedFromLocalAllIndices;
     private String awarenessAttribute;
     private IndicesOptions indicesOptions = IndicesOptions.lenientExpandHidden();
     private TimeValue timeout = new TimeValue(30, TimeUnit.SECONDS);
@@ -167,6 +172,16 @@ public class ClusterHealthRequest extends ClusterManagerNodeReadRequest<ClusterH
     public ClusterHealthRequest indices(String... indices) {
         this.indices = indices;
         return this;
+    }
+
+    @Override
+    public void markAsDerivedFromLocalAllIndices() {
+        derivedFromLocalAllIndices = true;
+    }
+
+    @Override
+    public boolean isDerivedFromLocalAllIndices() {
+        return derivedFromLocalAllIndices;
     }
 
     @Override

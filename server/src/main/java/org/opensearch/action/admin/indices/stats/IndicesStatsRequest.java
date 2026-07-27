@@ -32,6 +32,7 @@
 
 package org.opensearch.action.admin.indices.stats;
 
+import org.opensearch.action.support.LocalAllIndicesRequest;
 import org.opensearch.action.support.broadcast.BroadcastRequest;
 import org.opensearch.common.annotation.PublicApi;
 import org.opensearch.core.common.io.stream.StreamInput;
@@ -54,9 +55,10 @@ import java.util.Map;
  * @opensearch.api
  */
 @PublicApi(since = "1.0.0")
-public class IndicesStatsRequest extends BroadcastRequest<IndicesStatsRequest> {
+public class IndicesStatsRequest extends BroadcastRequest<IndicesStatsRequest> implements LocalAllIndicesRequest {
 
     private CommonStatsFlags flags = new CommonStatsFlags();
+    private boolean derivedFromLocalAllIndices;
 
     public IndicesStatsRequest() {
         super((String[]) null);
@@ -88,6 +90,16 @@ public class IndicesStatsRequest extends BroadcastRequest<IndicesStatsRequest> {
      */
     public CommonStatsFlags flags() {
         return flags;
+    }
+
+    @Override
+    public void markAsDerivedFromLocalAllIndices() {
+        derivedFromLocalAllIndices = true;
+    }
+
+    @Override
+    public boolean isDerivedFromLocalAllIndices() {
+        return derivedFromLocalAllIndices;
     }
 
     /**
