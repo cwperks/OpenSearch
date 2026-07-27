@@ -38,13 +38,25 @@ public class LocalAllIndicesRequestTests extends OpenSearchTestCase {
         }
     }
 
-    public void testMarkerIsNotSerialized() throws Exception {
+    public void testClusterHealthMarkerIsNotSerialized() throws Exception {
         ClusterHealthRequest request = new ClusterHealthRequest();
         request.markAsDerivedFromLocalAllIndices();
 
         try (BytesStreamOutput output = new BytesStreamOutput()) {
             request.writeTo(output);
             ClusterHealthRequest copy = new ClusterHealthRequest(output.bytes().streamInput());
+
+            assertFalse(copy.isDerivedFromLocalAllIndices());
+        }
+    }
+
+    public void testIndicesStatsMarkerIsNotSerialized() throws Exception {
+        IndicesStatsRequest request = new IndicesStatsRequest();
+        request.markAsDerivedFromLocalAllIndices();
+
+        try (BytesStreamOutput output = new BytesStreamOutput()) {
+            request.writeTo(output);
+            IndicesStatsRequest copy = new IndicesStatsRequest(output.bytes().streamInput());
 
             assertFalse(copy.isDerivedFromLocalAllIndices());
         }
