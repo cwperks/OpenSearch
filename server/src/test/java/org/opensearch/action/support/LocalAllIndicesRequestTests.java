@@ -11,7 +11,11 @@ package org.opensearch.action.support;
 import org.opensearch.action.admin.cluster.health.ClusterHealthRequest;
 import org.opensearch.action.admin.indices.stats.IndicesStatsRequest;
 import org.opensearch.common.io.stream.BytesStreamOutput;
+import org.opensearch.common.settings.Settings;
+import org.opensearch.common.util.concurrent.ThreadContext;
 import org.opensearch.test.OpenSearchTestCase;
+
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class LocalAllIndicesRequestTests extends OpenSearchTestCase {
 
@@ -38,7 +42,7 @@ public class LocalAllIndicesRequestTests extends OpenSearchTestCase {
         }
     }
 
-    public void testClusterHealthMarkerIsNotSerialized() throws Exception {
+    public void testClusterHealthMarkerIsSerialized() throws Exception {
         ClusterHealthRequest request = new ClusterHealthRequest();
         request.markAsDerivedFromLocalAllIndices();
 
@@ -46,11 +50,11 @@ public class LocalAllIndicesRequestTests extends OpenSearchTestCase {
             request.writeTo(output);
             ClusterHealthRequest copy = new ClusterHealthRequest(output.bytes().streamInput());
 
-            assertFalse(copy.isDerivedFromLocalAllIndices());
+            assertTrue(copy.isDerivedFromLocalAllIndices());
         }
     }
 
-    public void testIndicesStatsMarkerIsNotSerialized() throws Exception {
+    public void testIndicesStatsMarkerIsSerialized() throws Exception {
         IndicesStatsRequest request = new IndicesStatsRequest();
         request.markAsDerivedFromLocalAllIndices();
 
@@ -58,7 +62,25 @@ public class LocalAllIndicesRequestTests extends OpenSearchTestCase {
             request.writeTo(output);
             IndicesStatsRequest copy = new IndicesStatsRequest(output.bytes().streamInput());
 
-            assertFalse(copy.isDerivedFromLocalAllIndices());
+            assertTrue(copy.isDerivedFromLocalAllIndices());
         }
+    }
+
+    public void testLocalContextProofIsScopedToMarkedRequest() {
+        ThreadContext threadContext = new ThreadContext(Settings.EMPTY);
+        ClusterHealthRequest request = new ClusterHealthRequest();
+        AtomicBoolean actionCalled = new AtomicBoolean();
+
+        LocalAllIndicesRequestContext.runWithContext(threadContext, request, () -> {
+            actionCalled.set(true);
+            assertFalse(LocalAllIndicesRequestContext.isMarked(threadContext));
+        });
+        assertTrue(actionCalled.get());
+
+        request.markAsDerivedFromLocalAllIndices();
+        LocalAllIndicesRequestContext.runWithContext(threadContext, request, () -> {
+            assertTrue(LocalAllIndicesRequestContext.isMarked(threadContext));
+        });
+        assertFalse(LocalAllIndicesRequestContext.isMarked(threadContext));
     }
 }

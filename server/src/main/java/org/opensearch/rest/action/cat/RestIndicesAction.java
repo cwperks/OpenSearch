@@ -48,6 +48,7 @@ import org.opensearch.action.pagination.PageToken;
 import org.opensearch.action.support.GroupedActionListener;
 import org.opensearch.action.support.IndicesOptions;
 import org.opensearch.action.support.LocalAllIndicesRequest;
+import org.opensearch.action.support.LocalAllIndicesRequestContext;
 import org.opensearch.cluster.health.ClusterHealthStatus;
 import org.opensearch.cluster.health.ClusterIndexHealth;
 import org.opensearch.cluster.metadata.IndexMetadata;
@@ -328,7 +329,11 @@ public class RestIndicesAction extends AbstractListAction {
         request.clusterManagerNodeTimeout(clusterManagerNodeTimeout);
         LocalAllIndicesRequest.markIfAllIndices(request, originalIndices);
 
-        client.admin().cluster().health(request, listener);
+        LocalAllIndicesRequestContext.runWithContext(
+            client.threadPool().getThreadContext(),
+            request,
+            () -> client.admin().cluster().health(request, listener)
+        );
     }
 
     private void sendIndicesStatsRequest(
@@ -347,7 +352,11 @@ public class RestIndicesAction extends AbstractListAction {
         request.includeUnloadedSegments(includeUnloadedSegments);
         LocalAllIndicesRequest.markIfAllIndices(request, originalIndices);
 
-        client.admin().indices().stats(request, listener);
+        LocalAllIndicesRequestContext.runWithContext(
+            client.threadPool().getThreadContext(),
+            request,
+            () -> client.admin().indices().stats(request, listener)
+        );
     }
 
     private GroupedActionListener<ActionResponse> createGroupedListener(

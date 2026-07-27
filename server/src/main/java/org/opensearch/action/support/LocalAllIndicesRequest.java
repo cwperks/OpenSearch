@@ -18,8 +18,9 @@ import java.util.Arrays;
  *
  * Coordinating actions can resolve an all-indices expression into concrete index names before
  * issuing child requests. This marker lets authorization plugins distinguish those derived
- * requests from requests that explicitly named the same concrete indices. Implementations must
- * not serialize the marker.
+ * requests from requests that explicitly named the same concrete indices. Implementations
+ * propagate the marker between cluster nodes; authorization code must trust it only when Core
+ * marked the local request or it arrived over a trusted node connection.
  *
  * @opensearch.internal
  */

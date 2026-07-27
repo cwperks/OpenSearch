@@ -32,6 +32,7 @@
 
 package org.opensearch.action.admin.indices.stats;
 
+import org.opensearch.Version;
 import org.opensearch.action.support.LocalAllIndicesRequest;
 import org.opensearch.action.support.broadcast.BroadcastRequest;
 import org.opensearch.common.annotation.PublicApi;
@@ -67,6 +68,9 @@ public class IndicesStatsRequest extends BroadcastRequest<IndicesStatsRequest> i
     public IndicesStatsRequest(StreamInput in) throws IOException {
         super(in);
         flags = new CommonStatsFlags(in);
+        if (in.getVersion().onOrAfter(Version.V_3_8_0)) {
+            derivedFromLocalAllIndices = in.readBoolean();
+        }
     }
 
     /**
@@ -313,6 +317,9 @@ public class IndicesStatsRequest extends BroadcastRequest<IndicesStatsRequest> i
     public void writeTo(StreamOutput out) throws IOException {
         super.writeTo(out);
         flags.writeTo(out);
+        if (out.getVersion().onOrAfter(Version.V_3_8_0)) {
+            out.writeBoolean(derivedFromLocalAllIndices);
+        }
     }
 
     @Override

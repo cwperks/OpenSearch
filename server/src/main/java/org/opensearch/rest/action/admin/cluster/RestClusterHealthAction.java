@@ -36,6 +36,7 @@ import org.opensearch.action.admin.cluster.health.ClusterHealthRequest;
 import org.opensearch.action.support.ActiveShardCount;
 import org.opensearch.action.support.IndicesOptions;
 import org.opensearch.action.support.LocalAllIndicesRequest;
+import org.opensearch.action.support.LocalAllIndicesRequestContext;
 import org.opensearch.cluster.health.ClusterHealthStatus;
 import org.opensearch.common.Priority;
 import org.opensearch.common.logging.DeprecationLogger;
@@ -84,7 +85,11 @@ public class RestClusterHealthAction extends BaseRestHandler {
     public RestChannelConsumer prepareRequest(final RestRequest request, final NodeClient client) throws IOException {
         final ClusterHealthRequest clusterHealthRequest = fromRequest(request);
         LocalAllIndicesRequest.markIfAllIndices(clusterHealthRequest, clusterHealthRequest.indices());
-        return channel -> client.admin().cluster().health(clusterHealthRequest, new RestStatusToXContentListener<>(channel));
+        return channel -> LocalAllIndicesRequestContext.runWithContext(
+            client.threadPool().getThreadContext(),
+            clusterHealthRequest,
+            () -> client.admin().cluster().health(clusterHealthRequest, new RestStatusToXContentListener<>(channel))
+        );
     }
 
     public static ClusterHealthRequest fromRequest(final RestRequest request) {

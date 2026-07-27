@@ -123,6 +123,9 @@ public class ClusterHealthRequest extends ClusterManagerNodeReadRequest<ClusterH
         if (in.getVersion().onOrAfter(Version.V_2_17_0)) {
             applyLevelAtTransportLayer = in.readBoolean();
         }
+        if (in.getVersion().onOrAfter(Version.V_3_8_0)) {
+            derivedFromLocalAllIndices = in.readBoolean();
+        }
     }
 
     @Override
@@ -160,6 +163,9 @@ public class ClusterHealthRequest extends ClusterManagerNodeReadRequest<ClusterH
         }
         if (out.getVersion().onOrAfter(Version.V_2_17_0)) {
             out.writeBoolean(applyLevelAtTransportLayer);
+        }
+        if (out.getVersion().onOrAfter(Version.V_3_8_0)) {
+            out.writeBoolean(derivedFromLocalAllIndices);
         }
     }
 
