@@ -53,6 +53,8 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 
+import static org.opensearch.core.xcontent.XContentBuilderUtils.objectArray;
+
 /**
  * Models a response to a {@link ListDanglingIndicesRequest}. A list request queries every node in the
  * cluster and aggregates their responses. When the aggregated response is converted to {@link XContent},
@@ -103,21 +105,12 @@ public class ListDanglingIndicesResponse extends BaseNodesResponse<NodeListDangl
 
     @Override
     public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
-        builder.startArray("dangling_indices");
-
-        for (AggregatedDanglingIndexInfo info : resultsByIndexUUID(this.getNodes())) {
-            builder.startObject();
-
-            builder.field("index_name", info.indexName);
-            builder.field("index_uuid", info.indexUUID);
-            builder.timeField("creation_date_millis", "creation_date", info.creationDateMillis);
-
-            builder.array("node_ids", info.nodeIds.toArray(new String[0]));
-
-            builder.endObject();
-        }
-
-        return builder.endArray();
+        return objectArray(builder, "dangling_indices", resultsByIndexUUID(this.getNodes()), (itemBuilder, info) -> {
+            itemBuilder.field("index_name", info.indexName);
+            itemBuilder.field("index_uuid", info.indexUUID);
+            itemBuilder.timeField("creation_date_millis", "creation_date", info.creationDateMillis);
+            itemBuilder.array("node_ids", info.nodeIds.toArray(new String[0]));
+        });
     }
 
     @Override
