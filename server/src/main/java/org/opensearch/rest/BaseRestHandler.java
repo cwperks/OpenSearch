@@ -334,6 +334,11 @@ public abstract class BaseRestHandler implements RestHandler {
         }
 
         @Override
+        public boolean requiresSecurityAdminAccess() {
+            return delegate.requiresSecurityAdminAccess();
+        }
+
+        @Override
         public boolean supportsStreaming() {
             return delegate.supportsStreaming();
         }
