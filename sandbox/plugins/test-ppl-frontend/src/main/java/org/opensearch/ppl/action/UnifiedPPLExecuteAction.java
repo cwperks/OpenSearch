@@ -15,7 +15,7 @@ import org.opensearch.action.ActionType;
  * Registered as a transport action in TestPPLPlugin.
  */
 public class UnifiedPPLExecuteAction extends ActionType<PPLResponse> {
-    public static final String NAME = "cluster:internal/qe/unified_ppl_execute";
+    public static final String NAME = "cluster:admin/opensearch/analytics/ppl/execute";
     public static final UnifiedPPLExecuteAction INSTANCE = new UnifiedPPLExecuteAction();
 
     private UnifiedPPLExecuteAction() {
