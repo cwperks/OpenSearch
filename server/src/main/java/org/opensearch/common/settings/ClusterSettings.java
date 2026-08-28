@@ -643,6 +643,7 @@ public final class ClusterSettings extends AbstractScopedSettings {
                 PageCacheRecycler.TYPE_SETTING,
                 PluginsService.MANDATORY_SETTING,
                 BootstrapSettings.SECURITY_FILTER_BAD_DEFAULTS_SETTING,
+                BootstrapSettings.AGENT_FILE_PERMISSION_ENFORCEMENT_ENABLED,
                 BootstrapSettings.MEMORY_LOCK_SETTING,
                 BootstrapSettings.SYSTEM_CALL_FILTER_SETTING,
                 BootstrapSettings.CTRLHANDLER_SETTING,

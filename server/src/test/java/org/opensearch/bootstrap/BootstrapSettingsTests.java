@@ -32,16 +32,38 @@
 
 package org.opensearch.bootstrap;
 
+import org.opensearch.common.settings.ClusterSettings;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.test.OpenSearchTestCase;
+
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class BootstrapSettingsTests extends OpenSearchTestCase {
 
     public void testDefaultSettings() {
         assertTrue(BootstrapSettings.SECURITY_FILTER_BAD_DEFAULTS_SETTING.get(Settings.EMPTY));
+        assertTrue(BootstrapSettings.AGENT_FILE_PERMISSION_ENFORCEMENT_ENABLED.get(Settings.EMPTY));
         assertFalse(BootstrapSettings.MEMORY_LOCK_SETTING.get(Settings.EMPTY));
         assertTrue(BootstrapSettings.SYSTEM_CALL_FILTER_SETTING.get(Settings.EMPTY));
         assertTrue(BootstrapSettings.CTRLHANDLER_SETTING.get(Settings.EMPTY));
+    }
+
+    public void testAgentFilePermissionEnforcementSettingIsDynamicSensitiveClusterSetting() {
+        assertTrue(BootstrapSettings.AGENT_FILE_PERMISSION_ENFORCEMENT_ENABLED.isDynamic());
+        assertTrue(BootstrapSettings.AGENT_FILE_PERMISSION_ENFORCEMENT_ENABLED.isSensitive());
+        assertTrue(ClusterSettings.BUILT_IN_CLUSTER_SETTINGS.contains(BootstrapSettings.AGENT_FILE_PERMISSION_ENFORCEMENT_ENABLED));
+    }
+
+    public void testAgentFilePermissionEnforcementSettingUpdateConsumer() {
+        ClusterSettings clusterSettings = new ClusterSettings(Settings.EMPTY, ClusterSettings.BUILT_IN_CLUSTER_SETTINGS);
+        AtomicBoolean settingValue = new AtomicBoolean(BootstrapSettings.AGENT_FILE_PERMISSION_ENFORCEMENT_ENABLED.get(Settings.EMPTY));
+        clusterSettings.addSettingsUpdateConsumer(BootstrapSettings.AGENT_FILE_PERMISSION_ENFORCEMENT_ENABLED, settingValue::set);
+
+        clusterSettings.applySettings(
+            Settings.builder().put(BootstrapSettings.AGENT_FILE_PERMISSION_ENFORCEMENT_ENABLED.getKey(), false).build()
+        );
+
+        assertFalse(settingValue.get());
     }
 
 }
