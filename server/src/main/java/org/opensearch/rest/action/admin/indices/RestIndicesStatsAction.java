@@ -36,6 +36,8 @@ import org.opensearch.action.admin.indices.stats.CommonStatsFlags;
 import org.opensearch.action.admin.indices.stats.CommonStatsFlags.Flag;
 import org.opensearch.action.admin.indices.stats.IndicesStatsRequest;
 import org.opensearch.action.support.IndicesOptions;
+import org.opensearch.action.support.LocalAllIndicesRequest;
+import org.opensearch.action.support.LocalAllIndicesRequestContext;
 import org.opensearch.core.common.Strings;
 import org.opensearch.rest.BaseRestHandler;
 import org.opensearch.rest.RestRequest;
@@ -160,7 +162,12 @@ public class RestIndicesStatsAction extends BaseRestHandler {
             indicesStatsRequest.includeUnloadedSegments(request.paramAsBoolean("include_unloaded_segments", false));
         }
 
-        return channel -> client.admin().indices().stats(indicesStatsRequest, new RestToXContentListener<>(channel));
+        LocalAllIndicesRequest.markIfAllIndices(indicesStatsRequest, indicesStatsRequest.indices());
+        return channel -> LocalAllIndicesRequestContext.runWithContext(
+            client.threadPool().getThreadContext(),
+            indicesStatsRequest,
+            () -> client.admin().indices().stats(indicesStatsRequest, new RestToXContentListener<>(channel))
+        );
     }
 
     @Override

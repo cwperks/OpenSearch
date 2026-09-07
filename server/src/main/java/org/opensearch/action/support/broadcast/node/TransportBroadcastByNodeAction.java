@@ -39,6 +39,8 @@ import org.opensearch.action.NoShardAvailableActionException;
 import org.opensearch.action.support.ActionFilters;
 import org.opensearch.action.support.HandledTransportAction;
 import org.opensearch.action.support.IndicesOptions;
+import org.opensearch.action.support.LocalAllIndicesRequest;
+import org.opensearch.action.support.LocalAllIndicesRequestContext;
 import org.opensearch.action.support.TransportActions;
 import org.opensearch.action.support.TransportIndicesResolvingAction;
 import org.opensearch.action.support.broadcast.BroadcastRequest;
@@ -427,36 +429,39 @@ public abstract class TransportBroadcastByNodeAction<
                 if (task != null) {
                     nodeRequest.setParentTask(clusterService.localNode().getId(), task.getId());
                 }
-                TransportRequestOptions transportRequestOptions = TransportRequestOptions.EMPTY;
-                if (request != null && request.timeout() != null) {
-                    transportRequestOptions = TransportRequestOptions.builder().withTimeout(request.timeout()).build();
-                }
-                transportService.sendRequest(
-                    node,
-                    transportNodeBroadcastAction,
+                final TransportRequestOptions transportRequestOptions = request != null && request.timeout() != null
+                    ? TransportRequestOptions.builder().withTimeout(request.timeout()).build()
+                    : TransportRequestOptions.EMPTY;
+                LocalAllIndicesRequestContext.runWithContext(
+                    threadPool.getThreadContext(),
                     nodeRequest,
-                    transportRequestOptions,
-                    new TransportResponseHandler<NodeResponse>() {
-                        @Override
-                        public NodeResponse read(StreamInput in) throws IOException {
-                            return new NodeResponse(in);
-                        }
+                    () -> transportService.sendRequest(
+                        node,
+                        transportNodeBroadcastAction,
+                        nodeRequest,
+                        transportRequestOptions,
+                        new TransportResponseHandler<NodeResponse>() {
+                            @Override
+                            public NodeResponse read(StreamInput in) throws IOException {
+                                return new NodeResponse(in);
+                            }
 
-                        @Override
-                        public void handleResponse(NodeResponse response) {
-                            onNodeResponse(node, nodeIndex, response);
-                        }
+                            @Override
+                            public void handleResponse(NodeResponse response) {
+                                onNodeResponse(node, nodeIndex, response);
+                            }
 
-                        @Override
-                        public void handleException(TransportException exp) {
-                            onNodeFailure(node, nodeIndex, exp);
-                        }
+                            @Override
+                            public void handleException(TransportException exp) {
+                                onNodeFailure(node, nodeIndex, exp);
+                            }
 
-                        @Override
-                        public String executor() {
-                            return ThreadPool.Names.SAME;
+                            @Override
+                            public String executor() {
+                                return ThreadPool.Names.SAME;
+                            }
                         }
-                    }
+                    )
                 );
             } catch (Exception e) {
                 onNodeFailure(node, nodeIndex, e);
@@ -707,7 +712,7 @@ public abstract class TransportBroadcastByNodeAction<
      *
      * @opensearch.internal
      */
-    public class NodeRequest extends TransportRequest implements IndicesRequest {
+    public class NodeRequest extends TransportRequest implements IndicesRequest, LocalAllIndicesRequest {
         private String nodeId;
 
         private List<ShardRouting> shards;
@@ -743,6 +748,19 @@ public abstract class TransportBroadcastByNodeAction<
         @Override
         public IndicesOptions indicesOptions() {
             return indicesLevelRequest.indicesOptions();
+        }
+
+        @Override
+        public void markAsDerivedFromLocalAllIndices() {
+            if (indicesLevelRequest instanceof LocalAllIndicesRequest) {
+                ((LocalAllIndicesRequest) indicesLevelRequest).markAsDerivedFromLocalAllIndices();
+            }
+        }
+
+        @Override
+        public boolean isDerivedFromLocalAllIndices() {
+            return indicesLevelRequest instanceof LocalAllIndicesRequest
+                && ((LocalAllIndicesRequest) indicesLevelRequest).isDerivedFromLocalAllIndices();
         }
 
         @Override
