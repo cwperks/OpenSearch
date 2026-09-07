@@ -34,6 +34,7 @@ package org.opensearch.common.settings;
 import org.apache.logging.log4j.LogManager;
 import org.opensearch.action.admin.cluster.configuration.TransportAddVotingConfigExclusionsAction;
 import org.opensearch.action.admin.indices.close.TransportCloseIndexAction;
+import org.opensearch.action.bulk.TransportBulkAction;
 import org.opensearch.action.search.CreatePitController;
 import org.opensearch.action.search.SearchRequestSlowLog;
 import org.opensearch.action.search.SearchRequestStats;
@@ -380,6 +381,7 @@ public final class ClusterSettings extends AbstractScopedSettings {
                 InternalClusterInfoService.INTERNAL_CLUSTER_INFO_TIMEOUT_SETTING,
                 InternalSnapshotsInfoService.INTERNAL_SNAPSHOT_INFO_MAX_CONCURRENT_FETCHES_SETTING,
                 DestructiveOperations.REQUIRES_NAME_SETTING,
+                TransportBulkAction.FILTERED_ALIAS_WRITES_ENABLED_SETTING,
                 NoClusterManagerBlockService.NO_MASTER_BLOCK_SETTING,  // deprecated
                 NoClusterManagerBlockService.NO_CLUSTER_MANAGER_BLOCK_SETTING,
                 GatewayService.EXPECTED_DATA_NODES_SETTING,
