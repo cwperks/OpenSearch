@@ -39,6 +39,9 @@ import org.opensearch.core.action.ActionListener;
 import org.opensearch.core.action.ActionResponse;
 import org.opensearch.threadpool.ThreadPool;
 
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
+
 /**
  * Interface for an OpenSearch client implementation
  *
@@ -74,6 +77,24 @@ public interface OpenSearchClient {
         Request request,
         ActionListener<Response> listener
     );
+
+    /**
+     * Executes a generic action and returns a {@link CompletionStage} that is completed when the action finishes.
+     *
+     * @param action           The action type to execute.
+     * @param request          The action request.
+     * @param <Request>        The request type.
+     * @param <Response>       The response type.
+     * @return A stage that is completed with the response or exceptionally when the action fails.
+     */
+    default <Request extends ActionRequest, Response extends ActionResponse> CompletionStage<Response> executeAsync(
+        ActionType<Response> action,
+        Request request
+    ) {
+        CompletableFuture<Response> future = new CompletableFuture<>();
+        execute(action, request, ActionListener.wrap(future::complete, future::completeExceptionally));
+        return future;
+    }
 
     /**
      * Returns the threadpool used to execute requests on this client
