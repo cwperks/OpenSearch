@@ -113,6 +113,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
@@ -363,6 +364,8 @@ public abstract class AbstractBuilderTestCase extends OpenSearchTestCase {
                         return delegate.executeMultiTermVectors((MultiTermVectorsRequest) args[0]);
                     }
                 };
+            } else if (method.equals(Client.class.getMethod("multiTermVectorsAsync", MultiTermVectorsRequest.class))) {
+                return CompletableFuture.completedFuture(delegate.executeMultiTermVectors((MultiTermVectorsRequest) args[0]));
             } else if (method.equals(Object.class.getMethod("toString"))) {
                 return "MockClient";
             }
