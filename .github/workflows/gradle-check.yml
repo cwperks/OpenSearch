@@ -20,6 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       RUN_GRADLE_CHECK: ${{ steps.changed-files-specific.outputs.any_modified }}
+      GRADLE_CHECK_COMMAND: ${{ steps.compute-scope.outputs.command }}
     steps:
     - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
     - name: Get changed files
@@ -30,6 +31,52 @@ jobs:
           release-notes/*.md
           .github/**
           *.md
+    - name: Compute gradle check scope
+      id: compute-scope
+      env:
+        ALL_CHANGED_FILES: ${{ steps.changed-files-specific.outputs.all_changed_files }}
+      run: |
+        set -euo pipefail
+        # Default to an empty command. An empty gradle_check_command causes the
+        # Jenkins gradle-check job to fall back to the full "check" task, which
+        # preserves today's behavior for anything we cannot safely narrow.
+        command=""
+
+        # Determine which top-level plugin directories were touched and whether
+        # any path outside plugins/<name>/ was changed. We only narrow the check
+        # to a single plugin when the entire diff is contained within that one
+        # plugin directory, since plugins are leaf projects in the build graph
+        # (nothing else depends on :plugins:*). Any other shape of change -
+        # multiple plugins, or anything touching server/libs/modules/distribution/
+        # buildSrc/gradle version catalog/etc - falls back to the full check.
+        plugins=""
+        non_plugin_touched="false"
+        for f in $ALL_CHANGED_FILES; do
+          case "$f" in
+            plugins/*/*)
+              name=$(printf '%s\n' "$f" | cut -d/ -f2)
+              case " $plugins " in
+                *" $name "*) : ;;
+                *) plugins="$plugins $name" ;;
+              esac
+              ;;
+            *)
+              non_plugin_touched="true"
+              ;;
+          esac
+        done
+
+        plugins=$(printf '%s' "$plugins" | xargs || true)
+        plugin_count=$(printf '%s\n' $plugins | grep -c . || true)
+
+        if [ "$non_plugin_touched" = "false" ] && [ "$plugin_count" = "1" ]; then
+          command=":plugins:${plugins}:check -Dtests.coverage=true"
+          echo "Scoped gradle check to single plugin: $plugins"
+        else
+          echo "Falling back to full gradle check (non_plugin_touched=$non_plugin_touched, plugin_count=$plugin_count)"
+        fi
+
+        echo "command=$command" >> "$GITHUB_OUTPUT"
 
   Code-Diff-Analyzer:
     uses: opensearch-project/opensearch-build/.github/workflows/code-diff-analyzer.yml@main
@@ -121,7 +168,7 @@ jobs:
         run: |
           set -e
           set -o pipefail
-          bash .ci/jenkins/scripts/gradle-check.sh -t ${{ secrets.JENKINS_GRADLE_CHECK_GENERIC_WEBHOOK_TOKEN }} -u ${{ secrets.JENKINS_GITHUB_USER }} -p ${{ secrets.JENKINS_GITHUB_USER_TOKEN }} | tee -a gradle-check.log
+          bash .ci/jenkins/scripts/gradle-check.sh -t ${{ secrets.JENKINS_GRADLE_CHECK_GENERIC_WEBHOOK_TOKEN }} -u ${{ secrets.JENKINS_GITHUB_USER }} -p ${{ secrets.JENKINS_GITHUB_USER_TOKEN }} -c "${{ needs.check-files.outputs.GRADLE_CHECK_COMMAND }}" | tee -a gradle-check.log
 
       - name: Setup Result Status
         if: always()
