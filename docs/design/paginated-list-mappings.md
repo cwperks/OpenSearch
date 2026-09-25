@@ -75,17 +75,13 @@ Response:
 
 ## Pagination semantics
 
-The traversal order is lexicographic by concrete index name. The cursor contains the last returned index name and binds the token to:
-
-- API kind (`list_mappings`)
-- sort direction
-- normalized index selector and relevant index options
+The traversal order is lexicographic by concrete index name. The cursor contains the last returned index name and binds the token to the API kind and sort direction. The first implementation uses a URL-safe Base64 token with strict format and sort validation. It does not provide cryptographic integrity; every request is independently authorized. Binding the cursor to the normalized selector and adding authenticated tokens are follow-up hardening work.
 
 The next page selects names greater than the cursor key for ascending order, or less than the cursor key for descending order.
 
 This is a stateless traversal, not a point-in-time snapshot. Indices deleted after a page are absent from later pages. Indices created before the cursor position may not appear in the current traversal. Existing entries are neither duplicated nor returned out of order by a valid cursor.
 
-Tokens must be validated before use. The implementation should use authenticated opaque tokens rather than treating Base64 encoding as a security mechanism.
+A future iteration should use authenticated opaque tokens and bind cursors to the normalized selector and index options.
 
 ## Authorization invariant
 
@@ -138,7 +134,6 @@ Return `400 Bad Request` for:
 - malformed or tampered `next_token`
 - a token issued for another list endpoint
 - a token whose sort direction does not match the request
-- a token whose normalized selector or index options do not match the request
 - invalid `size` or `sort`
 
 The endpoint should retain normal mapping index-expression and `IndicesOptions` error behavior.
@@ -152,7 +147,7 @@ The endpoint should retain normal mapping index-expression and `IndicesOptions` 
 - first, middle, and final page token behavior
 - empty result
 - maximum page size validation
-- malformed token and token-binding validation
+- malformed token and sort-binding validation
 - additions and deletions between pages
 
 ### REST and transport tests
