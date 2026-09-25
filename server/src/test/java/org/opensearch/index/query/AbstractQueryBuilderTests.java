@@ -113,4 +113,9 @@ public class AbstractQueryBuilderTests extends OpenSearchTestCase {
         assertFalse(query.supportsIntraSegmentSearch());
     }
 
+    public void testDefaultDoesNotSupportTopLevelFilter() {
+        QueryBuilder query = new MatchAllQueryBuilder();
+        assertFalse(query.supportsTopLevelFilter());
+    }
+
 }
