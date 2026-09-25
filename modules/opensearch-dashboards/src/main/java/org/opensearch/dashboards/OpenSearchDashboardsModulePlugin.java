@@ -32,18 +32,55 @@
 
 package org.opensearch.dashboards;
 
+import org.opensearch.action.ActionRequest;
 import org.opensearch.cluster.metadata.IndexNameExpressionResolver;
 import org.opensearch.cluster.node.DiscoveryNodes;
+import org.opensearch.cluster.service.ClusterService;
 import org.opensearch.common.settings.ClusterSettings;
 import org.opensearch.common.settings.IndexScopedSettings;
 import org.opensearch.common.settings.Setting;
 import org.opensearch.common.settings.Setting.Property;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.common.settings.SettingsFilter;
+import org.opensearch.core.action.ActionResponse;
+import org.opensearch.core.common.io.stream.NamedWriteableRegistry;
+import org.opensearch.core.xcontent.NamedXContentRegistry;
+import org.opensearch.dashboards.action.DeleteSavedObjectAction;
+import org.opensearch.dashboards.action.GetAdvancedSettingsAction;
+import org.opensearch.dashboards.action.GetSavedObjectAction;
+import org.opensearch.dashboards.action.SearchSavedObjectAction;
+import org.opensearch.dashboards.action.TransportDeleteSavedObjectAction;
+import org.opensearch.dashboards.action.TransportGetAdvancedSettingsAction;
+import org.opensearch.dashboards.action.TransportGetSavedObjectAction;
+import org.opensearch.dashboards.action.TransportSearchSavedObjectAction;
+import org.opensearch.dashboards.action.TransportWriteAdvancedSettingsAction;
+import org.opensearch.dashboards.action.TransportWriteSavedObjectAction;
+import org.opensearch.dashboards.action.TransportCreateSavedObjectAction;
+import org.opensearch.dashboards.action.TransportUpdateSavedObjectAction;
+import org.opensearch.dashboards.action.CreateSavedObjectAction;
+import org.opensearch.dashboards.action.UpdateSavedObjectAction;
+import org.opensearch.dashboards.action.WriteAdvancedSettingsAction;
+import org.opensearch.dashboards.action.WriteSavedObjectAction;
+import org.opensearch.dashboards.rest.RestDeleteSavedObjectAction;
+import org.opensearch.dashboards.rest.RestGetAdvancedSettingsAction;
+import org.opensearch.dashboards.rest.RestGetDocWithAuthAction;
+import org.opensearch.dashboards.rest.RestGetSavedObjectAction;
+import org.opensearch.dashboards.rest.RestSearchSavedObjectAction;
+import org.opensearch.dashboards.rest.RestWriteAdvancedSettingsAction;
+import org.opensearch.dashboards.rest.RestWriteSavedObjectAction;
+import org.opensearch.env.Environment;
+import org.opensearch.env.NodeEnvironment;
+import org.opensearch.identity.PluginSubject;
 import org.opensearch.index.reindex.RestDeleteByQueryAction;
 import org.opensearch.indices.SystemIndexDescriptor;
+import org.opensearch.plugins.IdentityAwarePlugin;
 import org.opensearch.plugins.Plugin;
 import org.opensearch.plugins.SystemIndexPlugin;
+import org.opensearch.repositories.RepositoriesService;
+import org.opensearch.script.ScriptService;
+import org.opensearch.threadpool.ThreadPool;
+import org.opensearch.transport.client.Client;
+import org.opensearch.watcher.ResourceWatcherService;
 import org.opensearch.rest.BaseRestHandler;
 import org.opensearch.rest.RestController;
 import org.opensearch.rest.RestHandler;
@@ -76,7 +113,9 @@ import java.util.stream.Collectors;
 
 import static java.util.Collections.unmodifiableList;
 
-public class OpenSearchDashboardsModulePlugin extends Plugin implements SystemIndexPlugin {
+public class OpenSearchDashboardsModulePlugin extends Plugin implements SystemIndexPlugin, IdentityAwarePlugin {
+
+    private DashboardsPluginClient pluginClient;
 
     public static final Setting<List<String>> OPENSEARCH_DASHBOARDS_INDEX_NAMES_SETTING = Setting.listSetting(
         "opensearch_dashboards.system_indices",
@@ -92,6 +131,31 @@ public class OpenSearchDashboardsModulePlugin extends Plugin implements SystemIn
         Function.identity(),
         Property.NodeScope
     );
+
+    @Override
+    public Collection<Object> createComponents(
+        Client client,
+        ClusterService clusterService,
+        ThreadPool threadPool,
+        ResourceWatcherService resourceWatcherService,
+        ScriptService scriptService,
+        NamedXContentRegistry xContentRegistry,
+        Environment environment,
+        NodeEnvironment nodeEnvironment,
+        NamedWriteableRegistry namedWriteableRegistry,
+        IndexNameExpressionResolver indexNameExpressionResolver,
+        Supplier<RepositoriesService> repositoriesServiceSupplier
+    ) {
+        this.pluginClient = new DashboardsPluginClient(client);
+        return List.of(pluginClient);
+    }
+
+    @Override
+    public void assignSubject(PluginSubject pluginSubject) {
+        if (pluginClient != null) {
+            pluginClient.setSubject(pluginSubject);
+        }
+    }
 
     @Override
     public Collection<SystemIndexDescriptor> getSystemIndexDescriptors(Settings settings) {
@@ -124,7 +188,7 @@ public class OpenSearchDashboardsModulePlugin extends Plugin implements SystemIn
                 new OpenSearchDashboardsWrappedRestHandler(new RestRefreshAction()),
 
                 // apis needed to access saved objects
-                new OpenSearchDashboardsWrappedRestHandler(new RestGetAction()),
+                new RestGetDocWithAuthAction(),
                 new OpenSearchDashboardsWrappedRestHandler(new RestMultiGetAction(settings)),
                 new OpenSearchDashboardsWrappedRestHandler(new RestSearchAction(clusterSettings)),
                 new OpenSearchDashboardsWrappedRestHandler(new RestBulkAction(settings)),
@@ -142,10 +206,32 @@ public class OpenSearchDashboardsModulePlugin extends Plugin implements SystemIn
                 new OpenSearchDashboardsWrappedRestHandler(new AutoIdHandler(nodesInCluster)),
                 new OpenSearchDashboardsWrappedRestHandler(new RestUpdateAction()),
                 new OpenSearchDashboardsWrappedRestHandler(new RestSearchScrollAction()),
-                new OpenSearchDashboardsWrappedRestHandler(new RestClearScrollAction())
+                new OpenSearchDashboardsWrappedRestHandler(new RestClearScrollAction()),
+                new RestGetAdvancedSettingsAction(),
+                new RestWriteAdvancedSettingsAction(),
+                // Saved object CRUD APIs
+                new RestGetSavedObjectAction(),
+                new RestWriteSavedObjectAction(),
+                new RestDeleteSavedObjectAction(),
+                new RestSearchSavedObjectAction()
             )
         );
 
+    }
+
+    @Override
+    public List<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> getActions() {
+        return Arrays.asList(
+            new ActionHandler<>(GetAdvancedSettingsAction.INSTANCE, TransportGetAdvancedSettingsAction.class),
+            new ActionHandler<>(WriteAdvancedSettingsAction.INSTANCE, TransportWriteAdvancedSettingsAction.class),
+            // Saved object CRUD actions
+            new ActionHandler<>(GetSavedObjectAction.INSTANCE, TransportGetSavedObjectAction.class),
+            new ActionHandler<>(WriteSavedObjectAction.INSTANCE, TransportWriteSavedObjectAction.class),
+            new ActionHandler<>(CreateSavedObjectAction.INSTANCE, TransportCreateSavedObjectAction.class),
+            new ActionHandler<>(UpdateSavedObjectAction.INSTANCE, TransportUpdateSavedObjectAction.class),
+            new ActionHandler<>(DeleteSavedObjectAction.INSTANCE, TransportDeleteSavedObjectAction.class),
+            new ActionHandler<>(SearchSavedObjectAction.INSTANCE, TransportSearchSavedObjectAction.class)
+        );
     }
 
     @Override
