@@ -37,7 +37,6 @@ import org.opensearch.common.annotation.PublicApi;
 import org.opensearch.core.ParseField;
 import org.opensearch.core.common.io.stream.StreamInput;
 import org.opensearch.core.common.io.stream.StreamOutput;
-import org.opensearch.core.xcontent.ConstructingObjectParser;
 import org.opensearch.core.xcontent.ObjectParser;
 import org.opensearch.core.xcontent.ToXContentObject;
 import org.opensearch.core.xcontent.XContentBuilder;
@@ -47,8 +46,6 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
-
-import static org.opensearch.core.xcontent.ConstructingObjectParser.constructorArg;
 
 /**
  * Response object for {@link RolloverRequest} API
@@ -66,29 +63,23 @@ public final class RolloverResponse extends ShardsAcknowledgedResponse implement
     private static final ParseField DRY_RUN = new ParseField("dry_run");
     private static final ParseField ROLLED_OVER = new ParseField("rolled_over");
     private static final ParseField CONDITIONS = new ParseField("conditions");
+    private static final ParseField ACKNOWLEDGED = new ParseField("acknowledged");
 
-    @SuppressWarnings("unchecked")
-    private static final ConstructingObjectParser<RolloverResponse, Void> PARSER = new ConstructingObjectParser<>(
-        "rollover",
-        true,
-        args -> new RolloverResponse(
-            (String) args[0],
-            (String) args[1],
-            (Map<String, Boolean>) args[2],
-            (Boolean) args[3],
-            (Boolean) args[4],
-            (Boolean) args[5],
-            (Boolean) args[6]
-        )
-    );
+    private static final ObjectParser<Builder, Void> PARSER = new ObjectParser<>("rollover", true, Builder::new);
 
     static {
-        PARSER.declareField(constructorArg(), (parser, context) -> parser.text(), OLD_INDEX, ObjectParser.ValueType.STRING);
-        PARSER.declareField(constructorArg(), (parser, context) -> parser.text(), NEW_INDEX, ObjectParser.ValueType.STRING);
-        PARSER.declareObject(constructorArg(), (parser, context) -> parser.map(), CONDITIONS);
-        PARSER.declareField(constructorArg(), (parser, context) -> parser.booleanValue(), DRY_RUN, ObjectParser.ValueType.BOOLEAN);
-        PARSER.declareField(constructorArg(), (parser, context) -> parser.booleanValue(), ROLLED_OVER, ObjectParser.ValueType.BOOLEAN);
-        declareAcknowledgedAndShardsAcknowledgedFields(PARSER);
+        PARSER.declareRequiredString(Builder::oldIndex, OLD_INDEX);
+        PARSER.declareRequiredString(Builder::newIndex, NEW_INDEX);
+        PARSER.declareRequiredField(
+            Builder::conditionStatus,
+            (parser, context) -> parser.map(HashMap::new, XContentParser::booleanValue),
+            CONDITIONS,
+            ObjectParser.ValueType.OBJECT
+        );
+        PARSER.declareRequiredBoolean(Builder::dryRun, DRY_RUN);
+        PARSER.declareRequiredBoolean(Builder::rolledOver, ROLLED_OVER);
+        PARSER.declareRequiredBoolean(Builder::acknowledged, ACKNOWLEDGED);
+        PARSER.declareRequiredBoolean(Builder::shardsAcknowledged, SHARDS_ACKNOWLEDGED);
     }
 
     private final String oldIndex;
@@ -202,7 +193,49 @@ public final class RolloverResponse extends ShardsAcknowledgedResponse implement
     }
 
     public static RolloverResponse fromXContent(XContentParser parser) {
-        return PARSER.apply(parser, null);
+        return PARSER.apply(parser, null).build();
+    }
+
+    private static final class Builder {
+        private String oldIndex;
+        private String newIndex;
+        private Map<String, Boolean> conditionStatus;
+        private boolean dryRun;
+        private boolean rolledOver;
+        private boolean acknowledged;
+        private boolean shardsAcknowledged;
+
+        private void oldIndex(String oldIndex) {
+            this.oldIndex = oldIndex;
+        }
+
+        private void newIndex(String newIndex) {
+            this.newIndex = newIndex;
+        }
+
+        private void conditionStatus(Map<String, Boolean> conditionStatus) {
+            this.conditionStatus = conditionStatus;
+        }
+
+        private void dryRun(boolean dryRun) {
+            this.dryRun = dryRun;
+        }
+
+        private void rolledOver(boolean rolledOver) {
+            this.rolledOver = rolledOver;
+        }
+
+        private void acknowledged(boolean acknowledged) {
+            this.acknowledged = acknowledged;
+        }
+
+        private void shardsAcknowledged(boolean shardsAcknowledged) {
+            this.shardsAcknowledged = shardsAcknowledged;
+        }
+
+        private RolloverResponse build() {
+            return new RolloverResponse(oldIndex, newIndex, conditionStatus, dryRun, rolledOver, acknowledged, shardsAcknowledged);
+        }
     }
 
     @Override
