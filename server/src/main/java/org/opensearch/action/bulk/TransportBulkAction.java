@@ -79,6 +79,7 @@ import org.opensearch.common.ValidationException;
 import org.opensearch.common.collect.Tuple;
 import org.opensearch.common.inject.Inject;
 import org.opensearch.common.lease.Releasable;
+import org.opensearch.common.settings.Setting;
 import org.opensearch.common.unit.TimeValue;
 import org.opensearch.common.util.concurrent.AtomicArray;
 import org.opensearch.common.util.concurrent.ConcurrentCollections;
@@ -142,6 +143,14 @@ public class TransportBulkAction extends HandledTransportAction<BulkRequest, Bul
 
     private static final Logger logger = LogManager.getLogger(TransportBulkAction.class);
     private static final ShardShuffler SHUFFLER = new RotationShardShuffler(Randomness.get().nextInt());
+
+    /** Controls whether document write requests may target aliases that define a filter. */
+    public static final Setting<Boolean> FILTERED_ALIAS_WRITES_ENABLED_SETTING = Setting.boolSetting(
+        "action.filtered_alias.write.enabled",
+        true,
+        Setting.Property.Dynamic,
+        Setting.Property.NodeScope
+    );
 
     private final ThreadPool threadPool;
     private final AutoCreateIndex autoCreateIndex;
@@ -613,6 +622,7 @@ public class TransportBulkAction extends HandledTransportAction<BulkRequest, Bul
             }
             final ConcreteIndices concreteIndices = new ConcreteIndices(clusterState, indexNameExpressionResolver);
             Metadata metadata = clusterState.metadata();
+            final boolean filteredAliasWritesEnabled = clusterService.getClusterSettings().get(FILTERED_ALIAS_WRITES_ENABLED_SETTING);
             // go over all the requests and create a ShardId -> Operations mapping
             Map<ShardId, List<BulkItemRequest>> requestsByShard = new HashMap<>();
             // for bulk shard routing
@@ -637,6 +647,9 @@ public class TransportBulkAction extends HandledTransportAction<BulkRequest, Bul
 
                 Index concreteIndex = concreteIndices.resolveIfAbsent(docWriteRequest);
                 try {
+                    if (filteredAliasWritesEnabled == false) {
+                        ensureFilteredAliasWriteAllowed(metadata, docWriteRequest.index());
+                    }
                     // The ConcreteIndices#resolveIfAbsent(...) method validates via IndexNameExpressionResolver whether
                     // an operation is allowed in index into a data stream, but this isn't done when resolve call is cached, so
                     // the validation needs to be performed here too.
@@ -846,6 +859,25 @@ public class TransportBulkAction extends HandledTransportAction<BulkRequest, Bul
                 }
             }
             bulkRequest = null; // allow memory for bulk request items to be reclaimed before all items have been completed
+        }
+
+        private void ensureFilteredAliasWriteAllowed(Metadata metadata, String indexOrAlias) {
+            String resolvedName = indexNameExpressionResolver.resolveDateMathExpression(indexOrAlias);
+            IndexAbstraction indexAbstraction = metadata.getIndicesLookup().get(resolvedName);
+            if (indexAbstraction == null || indexAbstraction.getType() != IndexAbstraction.Type.ALIAS) {
+                return;
+            }
+
+            IndexMetadata writeIndex = indexAbstraction.getWriteIndex();
+            if (writeIndex != null && writeIndex.getAliases().get(resolvedName).filteringRequired()) {
+                throw new IllegalArgumentException(
+                    "writes to filtered alias ["
+                        + resolvedName
+                        + "] are disabled by cluster setting ["
+                        + FILTERED_ALIAS_WRITES_ENABLED_SETTING.getKey()
+                        + "]"
+                );
+            }
         }
 
         private boolean handleBlockExceptions(ClusterState state) {
