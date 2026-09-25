@@ -25,12 +25,14 @@ import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.automaton.Automaton;
 import org.apache.lucene.util.automaton.Operations;
 import org.opensearch.OpenSearchException;
+import org.opensearch.Version;
 import org.opensearch.common.Nullable;
 import org.opensearch.common.lucene.Lucene;
 import org.opensearch.common.unit.Fuzziness;
 import org.opensearch.common.xcontent.support.XContentMapValues;
 import org.opensearch.core.common.ParsingException;
 import org.opensearch.core.common.Strings;
+import org.opensearch.core.common.io.stream.StreamInput;
 import org.opensearch.core.common.io.stream.StreamOutput;
 import org.opensearch.core.xcontent.XContentParser;
 import org.opensearch.index.analysis.NamedAnalyzer;
@@ -56,6 +58,7 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.BiFunction;
 import java.util.function.Supplier;
 
@@ -521,12 +524,21 @@ public final class FlatObjectFieldMapper extends DynamicKeyFieldMapper {
         /**
          * A doc_value formatter for flat_object field.
          */
-        public class FlatObjectDocValueFormat implements DocValueFormat {
-            private static final String NAME = "flat_object";
+        public static class FlatObjectDocValueFormat implements DocValueFormat {
+            public static final String NAME = "flat_object";
             private final String prefix;
 
             public FlatObjectDocValueFormat(String prefix) {
                 this.prefix = prefix;
+            }
+
+            public FlatObjectDocValueFormat(StreamInput input) throws IOException {
+                prefix = input.readString();
+            }
+
+            public static FlatObjectDocValueFormat readFrom(StreamInput input) throws IOException {
+                // Legacy versions wrote only the named-writeable name and omitted the prefix payload.
+                return input.getVersion().before(Version.V_3_9_0) ? new FlatObjectDocValueFormat("") : new FlatObjectDocValueFormat(input);
             }
 
             @Override
@@ -535,7 +547,11 @@ public final class FlatObjectFieldMapper extends DynamicKeyFieldMapper {
             }
 
             @Override
-            public void writeTo(StreamOutput out) {}
+            public void writeTo(StreamOutput out) throws IOException {
+                if (out.getVersion().onOrAfter(Version.V_3_9_0)) {
+                    out.writeString(prefix);
+                }
+            }
 
             @Override
             public Object format(BytesRef value) {
@@ -548,7 +564,20 @@ public final class FlatObjectFieldMapper extends DynamicKeyFieldMapper {
 
             @Override
             public BytesRef parseBytesRef(String value) {
-                return new BytesRef((String) valueFieldType.rewriteForDocValue(rewriteSearchValue(value)));
+                return new BytesRef(prefix + value);
+            }
+
+            @Override
+            public boolean equals(Object object) {
+                if (this == object) return true;
+                if (object == null || getClass() != object.getClass()) return false;
+                FlatObjectDocValueFormat that = (FlatObjectDocValueFormat) object;
+                return prefix.equals(that.prefix);
+            }
+
+            @Override
+            public int hashCode() {
+                return Objects.hash(prefix);
             }
         }
     }
