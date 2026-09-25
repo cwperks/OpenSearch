@@ -82,6 +82,11 @@ public class DeprecationRestHandler implements RestHandler {
         return handler.supportsContentStream();
     }
 
+    @Override
+    public boolean requiresSecurityAdminAccess() {
+        return handler.requiresSecurityAdminAccess();
+    }
+
     /**
      * This does a very basic pass at validating that a header's value contains only expected characters according to RFC-5987, and those
      * that it references.
