@@ -6,5 +6,5 @@
  * compatible open source license.
  */
 
-/** Get Mapping transport handlers. */
+/** Mapping transport handlers. */
 package org.opensearch.action.admin.indices.mapping.get;

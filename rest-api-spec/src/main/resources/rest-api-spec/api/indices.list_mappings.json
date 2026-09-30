@@ -1,0 +1,67 @@
+{
+  "indices.list_mappings": {
+    "stability": "experimental",
+    "documentation": {
+      "url": "https://docs.opensearch.org/latest/api-reference/index-apis/get-mapping/",
+      "description": "Returns index mappings in cursor-paginated pages."
+    },
+    "url": {
+      "paths": [
+        {
+          "path": "/_list/mappings",
+          "methods": ["GET"]
+        },
+        {
+          "path": "/_list/mappings/{index}",
+          "methods": ["GET"],
+          "parts": {
+            "index": {
+              "type": "list",
+              "description": "A comma-separated list of index names"
+            }
+          }
+        }
+      ]
+    },
+    "params": {
+      "size": {
+        "type": "int",
+        "required": false,
+        "description": "Maximum number of index mappings in a page"
+      },
+      "sort": {
+        "type": "enum",
+        "options": ["asc", "desc"],
+        "default": "asc",
+        "description": "Sort order for concrete index names"
+      },
+      "next_token": {
+        "type": "string",
+        "required": false,
+        "description": "Cursor returned by a previous list mappings request"
+      },
+      "ignore_unavailable": {
+        "type": "boolean",
+        "description": "Whether specified concrete indices should be ignored when unavailable (missing or closed)"
+      },
+      "allow_no_indices": {
+        "type": "boolean",
+        "description": "Whether to ignore if a wildcard indices expression resolves into no concrete indices"
+      },
+      "expand_wildcards": {
+        "type": "enum",
+        "options": ["open", "closed", "hidden", "none", "all"],
+        "default": "open",
+        "description": "Whether to expand wildcard expression to concrete indices that are open, closed, or both"
+      },
+      "cluster_manager_timeout": {
+        "type": "time",
+        "description": "Specify timeout for connection to cluster-manager node"
+      },
+      "local": {
+        "type": "boolean",
+        "description": "Return local information, do not retrieve the state from cluster-manager node"
+      }
+    }
+  }
+}
