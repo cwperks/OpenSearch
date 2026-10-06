@@ -67,6 +67,25 @@ import static org.hamcrest.object.HasToString.hasToString;
 
 public class IndexSettingsTests extends OpenSearchTestCase {
 
+    public void testHighlightFragmentLimitUpdates() {
+        String key = IndexSettings.MAX_HIGHLIGHT_FRAGMENTS_SETTING.getKey();
+        IndexMetadata metadata = newIndexMeta("index", Settings.EMPTY);
+        IndexSettings settings = new IndexSettings(metadata, Settings.EMPTY);
+        assertEquals(1000, settings.getHighlightMaxNumberOfFragments());
+        settings.updateIndexMetadata(newIndexMeta("index", Settings.builder().put(key, 10000).build()));
+        assertEquals(10000, settings.getHighlightMaxNumberOfFragments());
+        settings.updateIndexMetadata(newIndexMeta("index", Settings.builder().put(key, 1).build()));
+        assertEquals(1, settings.getHighlightMaxNumberOfFragments());
+        settings.updateIndexMetadata(metadata);
+        assertEquals(1000, settings.getHighlightMaxNumberOfFragments());
+        for (int invalid : new int[] { -1, 0, Integer.MAX_VALUE }) {
+            expectThrows(
+                IllegalArgumentException.class,
+                () -> IndexSettings.MAX_HIGHLIGHT_FRAGMENTS_SETTING.get(Settings.builder().put(key, invalid).build())
+            );
+        }
+    }
+
     public void testRunListener() {
         Version version = VersionUtils.getPreviousVersion();
         Settings theSettings = Settings.builder()
