@@ -86,8 +86,57 @@ import static java.util.Collections.emptyList;
 import static org.opensearch.test.EqualsHashCodeTestUtils.checkEqualsAndHashCode;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 public class HighlightBuilderTests extends OpenSearchTestCase {
+
+    public void testNegativeNumberOfFragments() throws IOException {
+        for (int value : new int[] { -1, Integer.MIN_VALUE }) {
+            expectThrows(IllegalArgumentException.class, () -> new HighlightBuilder().numOfFragments(value));
+            expectThrows(IllegalArgumentException.class, () -> new Field("text").numOfFragments(value));
+        }
+        for (String json : List.of(
+            "{\"number_of_fragments\":-1,\"fields\":{\"text\":{}}}",
+            "{\"fields\":{\"text\":{\"number_of_fragments\":-1}}}"
+        )) {
+            try (XContentParser parser = createParser(JsonXContent.jsonXContent, json)) {
+                expectThrows(XContentParseException.class, () -> HighlightBuilder.fromXContent(parser));
+            }
+        }
+    }
+
+    public void testEffectiveNumberOfFragmentsLimit() throws IOException {
+        IndexSettings settings = IndexSettingsModule.newIndexSettings("test", Settings.EMPTY);
+        QueryShardContext context = mock(QueryShardContext.class);
+        when(context.getIndexSettings()).thenReturn(settings);
+        for (Integer value : Arrays.asList(null, 0, 1, 100, 1000)) {
+            HighlightBuilder builder = new HighlightBuilder().numOfFragments(value).field("text");
+            assertEquals(
+                value == null ? 5 : value.intValue(),
+                builder.build(context).fields().iterator().next().fieldOptions().numberOfFragments()
+            );
+            new HighlightBuilder().field(new Field("text").numOfFragments(value)).build(context);
+            assertEquals(builder, serializedCopy(builder));
+        }
+        for (int value : new int[] { 1001, 10000, Integer.MAX_VALUE }) {
+            HighlightBuilder global = new HighlightBuilder().numOfFragments(value).field("text");
+            HighlightBuilder field = new HighlightBuilder().field(new Field("text").numOfFragments(value));
+            for (HighlightBuilder builder : List.of(global, field)) {
+                IllegalArgumentException error = expectThrows(IllegalArgumentException.class, () -> builder.build(context));
+                assertThat(error.getMessage(), containsString("index.highlight.max_number_of_fragments"));
+                assertThat(error.getMessage(), containsString("field [text]"));
+            }
+        }
+        // Validate the effective value, not a global option that every field overrides.
+        new HighlightBuilder().numOfFragments(10000).field(new Field("text").numOfFragments(0)).build(context);
+        IndexSettings raised = IndexSettingsModule.newIndexSettings(
+            "test",
+            Settings.builder().put(IndexSettings.MAX_HIGHLIGHT_FRAGMENTS_SETTING.getKey(), 10000).build()
+        );
+        when(context.getIndexSettings()).thenReturn(raised);
+        new HighlightBuilder().numOfFragments(10000).field("text").build(context);
+    }
 
     private static final int NUMBER_OF_TESTBUILDERS = 20;
     private static NamedWriteableRegistry namedWriteableRegistry;

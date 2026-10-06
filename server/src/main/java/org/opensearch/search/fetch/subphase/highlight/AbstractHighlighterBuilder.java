@@ -292,10 +292,16 @@ public abstract class AbstractHighlighterBuilder<HB extends AbstractHighlighterB
     }
 
     /**
-     * Set the number of fragments, defaults to {@link HighlightBuilder#DEFAULT_NUMBER_OF_FRAGMENTS}
+     * Set the number of fragments, defaults to {@link HighlightBuilder#DEFAULT_NUMBER_OF_FRAGMENTS}.
+     * Zero selects whole-field highlighting; null inherits the global option or default.
+     * The effective value is limited by {@code index.highlight.max_number_of_fragments} when building the search context.
+     * @throws IllegalArgumentException if the number is negative
      */
     @SuppressWarnings("unchecked")
     public HB numOfFragments(Integer numOfFragments) {
+        if (numOfFragments != null && numOfFragments < 0) {
+            throw new IllegalArgumentException("[number_of_fragments] must be greater than or equal to 0");
+        }
         this.numOfFragments = numOfFragments;
         return (HB) this;
     }

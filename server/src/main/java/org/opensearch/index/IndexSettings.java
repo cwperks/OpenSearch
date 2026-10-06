@@ -348,6 +348,20 @@ public final class IndexSettings {
     );
 
     /**
+     * Maximum requested highlight fragments per field and hit. Zero still selects whole-field highlighting.
+     * This bounds fragment selection, not the total highlighted response size.
+     * Profile highlighting workloads before raising the default. The upper bound leaves room for highlighter queue arithmetic.
+     */
+    public static final Setting<Integer> MAX_HIGHLIGHT_FRAGMENTS_SETTING = Setting.intSetting(
+        "index.highlight.max_number_of_fragments",
+        1000,
+        1,
+        Integer.MAX_VALUE - 1,
+        Property.Dynamic,
+        Property.IndexScope
+    );
+
+    /**
      * Index setting describing the maximum number of terms that can be used in Terms Query.
      * The default maximum of 65536 terms is defensive, as extra processing and memory is involved
      * for each additional term, and a large number of terms degrade the cluster performance.
@@ -1103,6 +1117,7 @@ public final class IndexSettings {
     private volatile int maxShingleDiff;
     private volatile TimeValue searchIdleAfter;
     private volatile int maxAnalyzedOffset;
+    private volatile int maxHighlightFragments;
     private volatile int maxTermsCount;
 
     private volatile int maxNestedQueryDepth;
@@ -1310,6 +1325,7 @@ public final class IndexSettings {
         maxSlicesPerScroll = scopedSettings.get(MAX_SLICES_PER_SCROLL);
         maxSlicesPerPit = scopedSettings.get(MAX_SLICES_PER_PIT);
         maxAnalyzedOffset = scopedSettings.get(MAX_ANALYZED_OFFSET_SETTING);
+        maxHighlightFragments = scopedSettings.get(MAX_HIGHLIGHT_FRAGMENTS_SETTING);
         maxTermsCount = scopedSettings.get(MAX_TERMS_COUNT_SETTING);
         maxNestedQueryDepth = scopedSettings.get(MAX_NESTED_QUERY_DEPTH_SETTING);
         maxRegexLength = scopedSettings.get(MAX_REGEX_LENGTH_SETTING);
@@ -1449,6 +1465,7 @@ public final class IndexSettings {
         scopedSettings.addSettingsUpdateConsumer(INDEX_PERIODIC_FLUSH_INTERVAL_SETTING, this::setPeriodicFlushInterval);
         scopedSettings.addSettingsUpdateConsumer(MAX_REFRESH_LISTENERS_PER_SHARD, this::setMaxRefreshListeners);
         scopedSettings.addSettingsUpdateConsumer(MAX_ANALYZED_OFFSET_SETTING, this::setHighlightMaxAnalyzedOffset);
+        scopedSettings.addSettingsUpdateConsumer(MAX_HIGHLIGHT_FRAGMENTS_SETTING, value -> maxHighlightFragments = value);
         scopedSettings.addSettingsUpdateConsumer(MAX_TERMS_COUNT_SETTING, this::setMaxTermsCount);
         scopedSettings.addSettingsUpdateConsumer(MAX_NESTED_QUERY_DEPTH_SETTING, this::setMaxNestedQueryDepth);
         scopedSettings.addSettingsUpdateConsumer(MAX_SLICES_PER_SCROLL, this::setMaxSlicesPerScroll);
@@ -2136,6 +2153,11 @@ public final class IndexSettings {
      */
     public int getHighlightMaxAnalyzedOffset() {
         return this.maxAnalyzedOffset;
+    }
+
+    /** Returns the maximum requested highlight fragments per field and hit. */
+    public int getHighlightMaxNumberOfFragments() {
+        return maxHighlightFragments;
     }
 
     private void setHighlightMaxAnalyzedOffset(int maxAnalyzedOffset) {

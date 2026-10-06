@@ -328,9 +328,20 @@ public class HighlightBuilder extends AbstractHighlighterBuilder<HighlightBuilde
                 fieldOptionsBuilder.matchedFields(matchedFields);
             }
             transferOptions(field, fieldOptionsBuilder, context);
-            fieldOptions.add(
-                new SearchHighlightContext.Field(field.name(), fieldOptionsBuilder.merge(globalOptionsBuilder.build()).build())
-            );
+            FieldOptions options = fieldOptionsBuilder.merge(globalOptionsBuilder.build()).build();
+            int maxFragments = context.getIndexSettings().getHighlightMaxNumberOfFragments();
+            if (options.numberOfFragments() > maxFragments) {
+                throw new IllegalArgumentException(
+                    "[number_of_fragments] for field ["
+                        + field.name()
+                        + "] must be less than or equal to ["
+                        + maxFragments
+                        + "] but was ["
+                        + options.numberOfFragments()
+                        + "]. This limit can be set by changing the [index.highlight.max_number_of_fragments] index setting."
+                );
+            }
+            fieldOptions.add(new SearchHighlightContext.Field(field.name(), options));
         }
         return new SearchHighlightContext(fieldOptions);
     }
