@@ -115,6 +115,8 @@ import org.opensearch.action.admin.cluster.snapshots.delete.DeleteSnapshotAction
 import org.opensearch.action.admin.cluster.snapshots.delete.TransportDeleteSnapshotAction;
 import org.opensearch.action.admin.cluster.snapshots.get.GetSnapshotsAction;
 import org.opensearch.action.admin.cluster.snapshots.get.TransportGetSnapshotsAction;
+import org.opensearch.action.admin.cluster.snapshots.metadata.GetSnapshotMetadataAction;
+import org.opensearch.action.admin.cluster.snapshots.metadata.TransportGetSnapshotMetadataAction;
 import org.opensearch.action.admin.cluster.snapshots.restore.RestoreSnapshotAction;
 import org.opensearch.action.admin.cluster.snapshots.restore.TransportRestoreSnapshotAction;
 import org.opensearch.action.admin.cluster.snapshots.status.SnapshotsStatusAction;
@@ -379,6 +381,7 @@ import org.opensearch.rest.action.admin.cluster.RestGetDeploymentAction;
 import org.opensearch.rest.action.admin.cluster.RestGetRepositoriesAction;
 import org.opensearch.rest.action.admin.cluster.RestGetScriptContextAction;
 import org.opensearch.rest.action.admin.cluster.RestGetScriptLanguageAction;
+import org.opensearch.rest.action.admin.cluster.RestGetSnapshotMetadataAction;
 import org.opensearch.rest.action.admin.cluster.RestGetSnapshotsAction;
 import org.opensearch.rest.action.admin.cluster.RestGetStoredScriptAction;
 import org.opensearch.rest.action.admin.cluster.RestGetTaskAction;
@@ -708,6 +711,7 @@ public class ActionModule extends AbstractModule {
         actions.register(VerifyRepositoryAction.INSTANCE, TransportVerifyRepositoryAction.class);
         actions.register(CleanupRepositoryAction.INSTANCE, TransportCleanupRepositoryAction.class);
         actions.register(GetSnapshotsAction.INSTANCE, TransportGetSnapshotsAction.class);
+        actions.register(GetSnapshotMetadataAction.INSTANCE, TransportGetSnapshotMetadataAction.class);
         actions.register(DeleteSnapshotAction.INSTANCE, TransportDeleteSnapshotAction.class);
         actions.register(CreateSnapshotAction.INSTANCE, TransportCreateSnapshotAction.class);
         actions.register(CloneSnapshotAction.INSTANCE, TransportCloneSnapshotAction.class);
@@ -928,6 +932,7 @@ public class ActionModule extends AbstractModule {
         registerHandler.accept(new RestVerifyRepositoryAction());
         registerHandler.accept(new RestCleanupRepositoryAction());
         registerHandler.accept(new RestGetSnapshotsAction());
+        registerHandler.accept(new RestGetSnapshotMetadataAction());
         registerHandler.accept(new RestCreateSnapshotAction());
         registerHandler.accept(new RestCloneSnapshotAction());
         registerHandler.accept(new RestRestoreSnapshotAction());
