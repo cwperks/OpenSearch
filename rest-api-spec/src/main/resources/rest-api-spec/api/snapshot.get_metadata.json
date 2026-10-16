@@ -1,0 +1,22 @@
+{
+  "snapshot.get_metadata": {
+    "documentation": {
+      "url": "https://github.com/opensearch-project/OpenSearch/issues/23352",
+      "description": "Returns an inventory of cluster metadata in one completed snapshot without restoring it."
+    },
+    "stability": "experimental",
+    "url": {
+      "paths": [{
+        "path": "/_snapshot/{repository}/{snapshot}/_metadata",
+        "methods": ["GET"],
+        "parts": {
+          "repository": {"type": "string", "description": "Exact repository name"},
+          "snapshot": {"type": "string", "description": "Exact completed snapshot name"}
+        }
+      }]
+    },
+    "params": {
+      "cluster_manager_timeout": {"type": "time", "description": "Timeout for connection to the cluster-manager node"}
+    }
+  }
+}
