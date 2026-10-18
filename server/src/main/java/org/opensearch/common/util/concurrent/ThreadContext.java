@@ -175,7 +175,34 @@ public final class ThreadContext implements Writeable {
             // If the node and thus the threadLocal get closed while this task
             // is still executing, we don't want this runnable to fail with an
             // uncaught exception
-            threadLocal.set(context);
+            //
+            // Re-apply propagator-declared transients from the stashed context back into the
+            // snapshot being restored. This ensures that transients written during the stash
+            // window (e.g. CURRENT_SPAN set by the tracing infrastructure) are not silently
+            // dropped when the security plugin (or any other caller) calls storedContext.restore().
+            // Without this, restore() would blindly overwrite the threadLocal with the original
+            // snapshot, losing any propagated transients that were set after the stash point.
+            final ThreadContextStruct current = threadLocal.get();
+            final Map<String, Object> propagated = propagateTransients(current.transientHeaders, current.isSystemContext);
+            if (propagated.isEmpty()) {
+                threadLocal.set(context);
+            } else {
+                // Merge: start from the snapshot, then overlay propagated transients.
+                // We use putIfAbsent semantics so that values already in the snapshot
+                // (set before the stash) are not overwritten.
+                final Map<String, Object> merged = new HashMap<>(context.transientHeaders);
+                propagated.forEach(merged::putIfAbsent);
+                threadLocal.set(
+                    new ThreadContextStruct(
+                        context.requestHeaders,
+                        context.responseHeaders,
+                        merged,
+                        context.persistentHeaders,
+                        context.isSystemContext,
+                        context.warningHeadersSize
+                    )
+                );
+            }
         };
     }
 
