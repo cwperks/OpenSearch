@@ -785,6 +785,15 @@ public abstract class AbstractScopedSettings {
     }
 
     /**
+     * Returns <code>true</code> if the setting for the given key is intrinsic to the cluster where it is configured and should not be
+     * replicated to another cluster. Otherwise <code>false</code>.
+     */
+    public boolean isIntrinsicSetting(String key) {
+        final Setting<?> setting = get(key);
+        return setting != null && setting.isIntrinsic();
+    }
+
+    /**
      * Returns a settings object that contains all settings that are not
      * already set in the given source. The diff contains either the default value for each
      * setting or the settings value in the given default settings.
