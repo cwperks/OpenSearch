@@ -178,9 +178,11 @@ import org.opensearch.action.admin.indices.get.GetIndexAction;
 import org.opensearch.action.admin.indices.get.TransportGetIndexAction;
 import org.opensearch.action.admin.indices.mapping.get.GetFieldMappingsAction;
 import org.opensearch.action.admin.indices.mapping.get.GetMappingsAction;
+import org.opensearch.action.admin.indices.mapping.get.ListMappingsAction;
 import org.opensearch.action.admin.indices.mapping.get.TransportGetFieldMappingsAction;
 import org.opensearch.action.admin.indices.mapping.get.TransportGetFieldMappingsIndexAction;
 import org.opensearch.action.admin.indices.mapping.get.TransportGetMappingsAction;
+import org.opensearch.action.admin.indices.mapping.get.TransportListMappingsAction;
 import org.opensearch.action.admin.indices.mapping.put.AutoPutMappingAction;
 import org.opensearch.action.admin.indices.mapping.put.PutMappingAction;
 import org.opensearch.action.admin.indices.mapping.put.PutMappingRequest;
@@ -435,6 +437,7 @@ import org.opensearch.rest.action.admin.indices.RestIndicesAliasesAction;
 import org.opensearch.rest.action.admin.indices.RestIndicesSegmentsAction;
 import org.opensearch.rest.action.admin.indices.RestIndicesShardStoresAction;
 import org.opensearch.rest.action.admin.indices.RestIndicesStatsAction;
+import org.opensearch.rest.action.admin.indices.RestListMappingsAction;
 import org.opensearch.rest.action.admin.indices.RestModifyDataStreamsAction;
 import org.opensearch.rest.action.admin.indices.RestOpenIndexAction;
 import org.opensearch.rest.action.admin.indices.RestPauseIngestionAction;
@@ -731,6 +734,7 @@ public class ActionModule extends AbstractModule {
         actions.register(IndicesExistsAction.INSTANCE, TransportIndicesExistsAction.class);
         actions.register(AddIndexBlockAction.INSTANCE, TransportAddIndexBlockAction.class);
         actions.register(GetMappingsAction.INSTANCE, TransportGetMappingsAction.class);
+        actions.register(ListMappingsAction.INSTANCE, TransportListMappingsAction.class);
         actions.register(
             GetFieldMappingsAction.INSTANCE,
             TransportGetFieldMappingsAction.class,
@@ -973,6 +977,7 @@ public class ActionModule extends AbstractModule {
 
         registerHandler.accept(new RestPutMappingAction());
         registerHandler.accept(new RestGetMappingAction(threadPool));
+        registerHandler.accept(new RestListMappingsAction());
         registerHandler.accept(new RestGetFieldMappingAction());
 
         registerHandler.accept(new RestRefreshAction());
