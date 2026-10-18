@@ -47,6 +47,7 @@ import org.opensearch.action.termvectors.MultiTermVectorsResponse;
 import org.opensearch.action.termvectors.TermVectorsRequest;
 import org.opensearch.action.termvectors.TermVectorsResponse;
 import org.opensearch.common.Nullable;
+import org.opensearch.common.SetOnce;
 import org.opensearch.common.lucene.search.MoreLikeThisQuery;
 import org.opensearch.common.lucene.search.XMoreLikeThis;
 import org.opensearch.common.lucene.uid.Versions;
@@ -82,6 +83,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Supplier;
 
 import static org.opensearch.common.xcontent.XContentFactory.jsonBuilder;
 
@@ -160,6 +162,12 @@ public class MoreLikeThisQueryBuilder extends AbstractQueryBuilder<MoreLikeThisQ
 
     // other parameters
     private boolean failOnUnsupportedField = DEFAULT_FAIL_ON_UNSUPPORTED_FIELDS;
+
+    // Internal rewrite state. Older nodes omit it and retain the synchronous fallback in doToQuery.
+    private MultiTermVectorsResponse likeItemsResponse;
+    private MultiTermVectorsResponse unlikeItemsResponse;
+    private transient Supplier<MultiTermVectorsResponse> likeItemsResponseSupplier;
+    private transient Supplier<MultiTermVectorsResponse> unlikeItemsResponseSupplier;
 
     /**
      * A single item to be used for a {@link MoreLikeThisQueryBuilder}.
@@ -349,6 +357,10 @@ public class MoreLikeThisQueryBuilder extends AbstractQueryBuilder<MoreLikeThisQ
          * Convert this to a {@link TermVectorsRequest} for fetching the terms of the document.
          */
         TermVectorsRequest toTermVectorsRequest() {
+            return toTermVectorsRequest(true);
+        }
+
+        private TermVectorsRequest toTermVectorsRequest(boolean updateArtificialDocId) {
             TermVectorsRequest termVectorsRequest = new TermVectorsRequest(index, id).selectedFields(fields)
                 .routing(routing)
                 .version(version)
@@ -362,7 +374,9 @@ public class MoreLikeThisQueryBuilder extends AbstractQueryBuilder<MoreLikeThisQ
             // for artificial docs to make sure that the id has changed in the item too
             if (doc != null) {
                 termVectorsRequest.doc(doc, true, mediaType);
-                this.id = termVectorsRequest.id();
+                if (updateArtificialDocId) {
+                    this.id = termVectorsRequest.id();
+                }
             }
             return termVectorsRequest;
         }
@@ -534,6 +548,10 @@ public class MoreLikeThisQueryBuilder extends AbstractQueryBuilder<MoreLikeThisQ
         boostTerms = (Float) in.readGenericValue();
         include = in.readBoolean();
         failOnUnsupportedField = in.readBoolean();
+        if (in.getVersion().onOrAfter(Version.V_3_9_0)) {
+            likeItemsResponse = in.readOptionalWriteable(MultiTermVectorsResponse::new);
+            unlikeItemsResponse = in.readOptionalWriteable(MultiTermVectorsResponse::new);
+        }
     }
 
     @Override
@@ -555,6 +573,10 @@ public class MoreLikeThisQueryBuilder extends AbstractQueryBuilder<MoreLikeThisQ
         out.writeGenericValue(boostTerms);
         out.writeBoolean(include);
         out.writeBoolean(failOnUnsupportedField);
+        if (out.getVersion().onOrAfter(Version.V_3_9_0)) {
+            out.writeOptionalWriteable(likeItemsResponse);
+            out.writeOptionalWriteable(unlikeItemsResponse);
+        }
     }
 
     public String[] fields() {
@@ -998,31 +1020,8 @@ public class MoreLikeThisQueryBuilder extends AbstractQueryBuilder<MoreLikeThisQ
         mltQuery.setAnalyzer(analyzerObj);
 
         // set like text fields
-        boolean useDefaultField = (fields == null);
-        List<String> moreLikeFields = new ArrayList<>();
-        if (useDefaultField) {
-            moreLikeFields = context.defaultFields();
-            if (moreLikeFields.size() == 1 && moreLikeFields.get(0).equals("*") && (likeTexts.length > 0 || unlikeTexts.length > 0)) {
-                throw new IllegalArgumentException(
-                    "[more_like_this] query cannot infer the field to analyze the free text, "
-                        + "you should update the [index.query.default_field] index setting to a field that exists in the mapping or "
-                        + "set the [fields] option in the query."
-                );
-            }
-        } else {
-            for (String field : fields) {
-                MappedFieldType fieldType = context.fieldMapper(field);
-                if (fieldType != null && SUPPORTED_FIELD_TYPES.contains(fieldType.getClass()) == false) {
-                    if (failOnUnsupportedField) {
-                        throw new IllegalArgumentException("more_like_this only supports text/keyword fields: [" + field + "]");
-                    } else {
-                        // skip
-                        continue;
-                    }
-                }
-                moreLikeFields.add(fieldType == null ? field : fieldType.name());
-            }
-        }
+        boolean useDefaultField = fields == null;
+        List<String> moreLikeFields = resolveMoreLikeFields(context);
 
         if (moreLikeFields.isEmpty()) {
             return null;
@@ -1039,7 +1038,17 @@ public class MoreLikeThisQueryBuilder extends AbstractQueryBuilder<MoreLikeThisQ
 
         // handle items
         if (likeItems.length > 0) {
-            return handleItems(context, mltQuery, likeItems, unlikeItems, include, moreLikeFields, useDefaultField);
+            return handleItems(
+                context,
+                mltQuery,
+                likeItems,
+                unlikeItems,
+                include,
+                moreLikeFields,
+                useDefaultField,
+                likeItemsResponse,
+                unlikeItemsResponse
+            );
         } else {
             return mltQuery;
         }
@@ -1052,7 +1061,9 @@ public class MoreLikeThisQueryBuilder extends AbstractQueryBuilder<MoreLikeThisQ
         Item[] unlikeItems,
         boolean include,
         List<String> moreLikeFields,
-        boolean useDefaultField
+        boolean useDefaultField,
+        MultiTermVectorsResponse prefetchedLikeItemsResponse,
+        MultiTermVectorsResponse prefetchedUnlikeItemsResponse
     ) throws IOException {
         // set default index, type and fields if not specified
         for (Item item : likeItems) {
@@ -1062,14 +1073,19 @@ public class MoreLikeThisQueryBuilder extends AbstractQueryBuilder<MoreLikeThisQ
             setDefaultIndexTypeFields(context, item, moreLikeFields, useDefaultField);
         }
 
+        Client client = context.getClient();
         // fetching the items with multi-termvectors API
-        MultiTermVectorsResponse likeItemsResponse = fetchResponse(context.getClient(), likeItems);
+        MultiTermVectorsResponse likeItemsResponse = prefetchedLikeItemsResponse == null
+            ? fetchResponse(client, likeItems)
+            : prefetchedLikeItemsResponse;
         // getting the Fields for liked items
         mltQuery.setLikeFields(getFieldsFor(likeItemsResponse));
 
         // getting the Fields for unliked items
         if (unlikeItems.length > 0) {
-            MultiTermVectorsResponse unlikeItemsResponse = fetchResponse(context.getClient(), unlikeItems);
+            MultiTermVectorsResponse unlikeItemsResponse = prefetchedUnlikeItemsResponse == null
+                ? fetchResponse(client, unlikeItems)
+                : prefetchedUnlikeItemsResponse;
             org.apache.lucene.index.Fields[] unlikeFields = getFieldsFor(unlikeItemsResponse);
             if (unlikeFields.length > 0) {
                 mltQuery.setUnlikeFields(unlikeFields);
@@ -1106,12 +1122,15 @@ public class MoreLikeThisQueryBuilder extends AbstractQueryBuilder<MoreLikeThisQ
     }
 
     private MultiTermVectorsResponse fetchResponse(Client client, Item[] items) throws IOException {
+        return client.multiTermVectors(createMultiTermVectorsRequest(items, true)).actionGet();
+    }
+
+    private static MultiTermVectorsRequest createMultiTermVectorsRequest(Item[] items, boolean updateArtificialDocIds) {
         MultiTermVectorsRequest request = new MultiTermVectorsRequest();
         for (Item item : items) {
-            request.add(item.toTermVectorsRequest());
+            request.add(item.toTermVectorsRequest(updateArtificialDocIds));
         }
-
-        return client.multiTermVectors(request).actionGet();
+        return request;
     }
 
     private static Fields[] getFieldsFor(MultiTermVectorsResponse responses) throws IOException {
@@ -1204,7 +1223,137 @@ public class MoreLikeThisQueryBuilder extends AbstractQueryBuilder<MoreLikeThisQ
 
     @Override
     protected QueryBuilder doRewrite(QueryRewriteContext queryRewriteContext) {
-        // TODO this needs heavy cleanups before we can rewrite it
-        return this;
+        if (likeItemsResponseSupplier != null) {
+            MultiTermVectorsResponse rewrittenLikeItemsResponse = likeItemsResponseSupplier.get();
+            MultiTermVectorsResponse rewrittenUnlikeItemsResponse = unlikeItemsResponseSupplier == null
+                ? null
+                : unlikeItemsResponseSupplier.get();
+            if (rewrittenLikeItemsResponse == null || (unlikeItems.length > 0 && rewrittenUnlikeItemsResponse == null)) {
+                return this;
+            }
+            MoreLikeThisQueryBuilder rewritten = copy();
+            rewritten.likeItemsResponse = rewrittenLikeItemsResponse;
+            rewritten.unlikeItemsResponse = rewrittenUnlikeItemsResponse;
+            return rewritten;
+        }
+        if (likeItems.length == 0 || likeItemsResponse != null) {
+            return this;
+        }
+
+        QueryShardContext context = queryRewriteContext.convertToShardContext();
+        if (context == null) {
+            return this;
+        }
+
+        Item[] rewrittenLikeItems = copyItems(likeItems);
+        Item[] rewrittenUnlikeItems = copyItems(unlikeItems);
+        List<String> moreLikeFields = resolveMoreLikeFields(context);
+        boolean useDefaultField = fields == null;
+        for (Item item : rewrittenLikeItems) {
+            setDefaultIndexTypeFields(context, item, moreLikeFields, useDefaultField);
+        }
+        for (Item item : rewrittenUnlikeItems) {
+            setDefaultIndexTypeFields(context, item, moreLikeFields, useDefaultField);
+        }
+
+        SetOnce<MultiTermVectorsResponse> rewrittenLikeItemsResponse = new SetOnce<>();
+        registerAsyncTermVectorsFetch(
+            queryRewriteContext,
+            createMultiTermVectorsRequest(rewrittenLikeItems, false),
+            rewrittenLikeItemsResponse
+        );
+        SetOnce<MultiTermVectorsResponse> rewrittenUnlikeItemsResponse = null;
+        if (rewrittenUnlikeItems.length > 0) {
+            rewrittenUnlikeItemsResponse = new SetOnce<>();
+            registerAsyncTermVectorsFetch(
+                queryRewriteContext,
+                createMultiTermVectorsRequest(rewrittenUnlikeItems, false),
+                rewrittenUnlikeItemsResponse
+            );
+        }
+
+        MoreLikeThisQueryBuilder rewritten = copy(rewrittenLikeItems, rewrittenUnlikeItems);
+        rewritten.likeItemsResponseSupplier = rewrittenLikeItemsResponse::get;
+        if (rewrittenUnlikeItemsResponse != null) {
+            rewritten.unlikeItemsResponseSupplier = rewrittenUnlikeItemsResponse::get;
+        }
+        return rewritten;
+    }
+
+    private static void registerAsyncTermVectorsFetch(
+        QueryRewriteContext context,
+        MultiTermVectorsRequest request,
+        SetOnce<MultiTermVectorsResponse> response
+    ) {
+        context.registerAsyncAction((client, listener) -> client.multiTermVectorsAsync(request).whenComplete((result, error) -> {
+            if (error == null) {
+                response.set(result);
+                listener.onResponse(null);
+            } else if (error instanceof Exception) {
+                listener.onFailure((Exception) error);
+            } else {
+                listener.onFailure(new RuntimeException(error));
+            }
+        }));
+    }
+
+    private List<String> resolveMoreLikeFields(QueryShardContext context) {
+        if (fields == null) {
+            List<String> defaultFields = context.defaultFields();
+            if (defaultFields.size() == 1 && defaultFields.get(0).equals("*") && (likeTexts.length > 0 || unlikeTexts.length > 0)) {
+                throw new IllegalArgumentException(
+                    "[more_like_this] query cannot infer the field to analyze the free text, "
+                        + "you should update the [index.query.default_field] index setting to a field that exists in the mapping or "
+                        + "set the [fields] option in the query."
+                );
+            }
+            return defaultFields;
+        }
+
+        List<String> moreLikeFields = new ArrayList<>();
+        for (String field : fields) {
+            MappedFieldType fieldType = context.fieldMapper(field);
+            if (fieldType != null && SUPPORTED_FIELD_TYPES.contains(fieldType.getClass()) == false) {
+                if (failOnUnsupportedField) {
+                    throw new IllegalArgumentException("more_like_this only supports text/keyword fields: [" + field + "]");
+                }
+                continue;
+            }
+            moreLikeFields.add(fieldType == null ? field : fieldType.name());
+        }
+        return moreLikeFields;
+    }
+
+    private MoreLikeThisQueryBuilder copy() {
+        return copy(likeItems, unlikeItems);
+    }
+
+    private MoreLikeThisQueryBuilder copy(Item[] copiedLikeItems, Item[] copiedUnlikeItems) {
+        MoreLikeThisQueryBuilder copy = new MoreLikeThisQueryBuilder(fields, likeTexts, copiedLikeItems);
+        copy.unlikeTexts = unlikeTexts;
+        copy.unlikeItems = copiedUnlikeItems;
+        copy.maxQueryTerms = maxQueryTerms;
+        copy.minTermFreq = minTermFreq;
+        copy.minDocFreq = minDocFreq;
+        copy.maxDocFreq = maxDocFreq;
+        copy.minWordLength = minWordLength;
+        copy.maxWordLength = maxWordLength;
+        copy.stopWords = stopWords;
+        copy.analyzer = analyzer;
+        copy.minimumShouldMatch = minimumShouldMatch;
+        copy.boostTerms = boostTerms;
+        copy.include = include;
+        copy.failOnUnsupportedField = failOnUnsupportedField;
+        copy.boost(boost());
+        copy.queryName(queryName());
+        return copy;
+    }
+
+    private static Item[] copyItems(Item[] items) {
+        Item[] copies = new Item[items.length];
+        for (int i = 0; i < items.length; i++) {
+            copies[i] = new Item(items[i]);
+        }
+        return copies;
     }
 }

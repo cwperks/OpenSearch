@@ -39,6 +39,7 @@ import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.Query;
 import org.opensearch.OpenSearchException;
+import org.opensearch.Version;
 import org.opensearch.action.termvectors.MultiTermVectorsItemResponse;
 import org.opensearch.action.termvectors.MultiTermVectorsRequest;
 import org.opensearch.action.termvectors.MultiTermVectorsResponse;
@@ -85,9 +86,11 @@ public class MoreLikeThisQueryBuilderTests extends AbstractQueryTestCase<MoreLik
     private static Item[] randomUnlikeItems;
 
     private Set<String> assertedWarnings = new HashSet<>();
+    private int multiTermVectorsRequests;
 
     @Before
     public void setup() {
+        multiTermVectorsRequests = 0;
         // MLT only supports string fields, unsupported fields are tested below
         randomFields = randomStringFields();
         // we also preset the item requests
@@ -235,6 +238,7 @@ public class MoreLikeThisQueryBuilderTests extends AbstractQueryTestCase<MoreLik
 
     @Override
     protected MultiTermVectorsResponse executeMultiTermVectors(MultiTermVectorsRequest mtvRequest) {
+        multiTermVectorsRequests++;
         try {
             MultiTermVectorsItemResponse[] responses = new MultiTermVectorsItemResponse[mtvRequest.size()];
             int i = 0;
@@ -255,6 +259,25 @@ public class MoreLikeThisQueryBuilderTests extends AbstractQueryTestCase<MoreLik
         } catch (IOException ex) {
             throw new OpenSearchException("boom", ex);
         }
+    }
+
+    public void testFetchesItemsDuringRewrite() throws IOException {
+        MoreLikeThisQueryBuilder queryBuilder = new MoreLikeThisQueryBuilder(
+            new String[] { TEXT_FIELD_NAME },
+            null,
+            new Item[] { new Item("index", "like") }
+        ).unlike(new Item[] { new Item("index", "unlike") });
+        QueryShardContext context = createShardContext();
+
+        QueryBuilder rewritten = rewriteQuery(queryBuilder, new QueryShardContext(context));
+        assertEquals(2, multiTermVectorsRequests);
+
+        assertNotNull(rewritten.toQuery(context));
+        assertEquals(2, multiTermVectorsRequests);
+
+        QueryBuilder oldVersionCopy = assertSerialization(rewritten, Version.V_3_8_1);
+        assertNotNull(oldVersionCopy.toQuery(context));
+        assertEquals(4, multiTermVectorsRequests);
     }
 
     /**
