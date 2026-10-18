@@ -175,9 +175,14 @@ pipeline {
                     archiveArtifacts artifacts: '**/build/heapdump/*.hprof', allowEmptyArchive: true
                 }
                 always {
-                    sh ("cp -v `find search/build/reports/jacoco/ -name '*.xml' | head -n 1` codeCoverage.xml || echo")
+                    // For a full "check" run the aggregate jacoco report lives under
+                    // search/build/reports/jacoco/. For a scoped run (e.g. a single
+                    // plugin via :plugins:<name>:check) that path is not produced, so
+                    // search the whole tree for any jacoco xml report and use the first
+                    // one found. If none exists the copy is a no-op.
+                    sh ("cp -v `find search -path '*/reports/jacoco/*.xml' | head -n 1` codeCoverage.xml || echo")
                     junit allowEmptyResults: true, testResults: '**/build/test-results/**/*.xml'
-                    archiveArtifacts artifacts: 'codeCoverage.xml', onlyIfSuccessful: true
+                    archiveArtifacts artifacts: 'codeCoverage.xml', onlyIfSuccessful: true, allowEmptyArchive: true
                     script {
                         def invokedBy
                         def pullRequest
