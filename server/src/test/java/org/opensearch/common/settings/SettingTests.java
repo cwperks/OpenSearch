@@ -1821,4 +1821,20 @@ public class SettingTests extends OpenSearchTestCase {
             mockLogAppender.assertAllExpectationsMatched();
         }
     }
+
+    public void testIntrinsicProperty() {
+        Setting<String> intrinsicSetting = Setting.simpleString("foo.bar", Property.IndexScope, Property.Intrinsic);
+        assertTrue(intrinsicSetting.isIntrinsic());
+
+        Setting<String> normalSetting = Setting.simpleString("foo.baz", Property.IndexScope);
+        assertFalse(normalSetting.isIntrinsic());
+    }
+
+    public void testIndexUuidIsIntrinsic() {
+        assertTrue(IndexMetadata.INDEX_UUID_SETTING.isIntrinsic());
+    }
+
+    public void testIndexCreationDateIsIntrinsic() {
+        assertTrue(IndexMetadata.SETTING_INDEX_CREATION_DATE.isIntrinsic());
+    }
 }
