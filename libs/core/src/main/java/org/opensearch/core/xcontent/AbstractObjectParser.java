@@ -291,6 +291,11 @@ public abstract class AbstractObjectParser<Value, Context> {
         declareField(consumer, XContentParser::text, field, ValueType.STRING);
     }
 
+    public void declareRequiredString(BiConsumer<Value, String> consumer, ParseField field) {
+        declareString(consumer, field);
+        declareRequiredFieldSet(field.getPreferredName());
+    }
+
     /**
      * Declare a field of type {@code T} parsed from string and converted to {@code T} using provided function.
      * Throws if the next token is not a string.
@@ -310,6 +315,21 @@ public abstract class AbstractObjectParser<Value, Context> {
 
     public void declareBoolean(BiConsumer<Value, Boolean> consumer, ParseField field) {
         declareField(consumer, XContentParser::booleanValue, field, ValueType.BOOLEAN);
+    }
+
+    public void declareRequiredBoolean(BiConsumer<Value, Boolean> consumer, ParseField field) {
+        declareBoolean(consumer, field);
+        declareRequiredFieldSet(field.getPreferredName());
+    }
+
+    public <T> void declareRequiredField(
+        BiConsumer<Value, T> consumer,
+        ContextParser<Context, T> parser,
+        ParseField field,
+        ValueType type
+    ) {
+        declareField(consumer, parser, field, type);
+        declareRequiredFieldSet(field.getPreferredName());
     }
 
     public <T> void declareObjectArray(BiConsumer<Value, List<T>> consumer, ContextParser<Context, T> objectParser, ParseField field) {
