@@ -60,6 +60,23 @@ public interface QueryBuilder extends NamedWriteable, ToXContentObject, Rewritea
     QueryBuilder filter(QueryBuilder filter);
 
     /**
+     * Indicates whether {@link #filter(QueryBuilder)} can apply a mandatory filter without changing this builder's
+     * top-level query type.
+     * <p>
+     * Implementations that return {@code true} must apply the filter to every query branch that can produce a match
+     * and return a builder whose top-level query type is unchanged. This allows consumers to preserve query types that
+     * have top-level execution requirements instead of wrapping them in another query. Consumers should fail closed if
+     * the returned builder does not preserve the expected top-level type.
+     * <p>
+     * This capability does not imply that query wrappers can be reordered. Queries must explicitly opt in.
+     *
+     * @return {@code true} if this builder safely supports top-level filter application
+     */
+    default boolean supportsTopLevelFilter() {
+        return false;
+    }
+
+    /**
      * Converts this QueryBuilder to a lucene {@link Query}.
      * Returns {@code null} if this query should be ignored in the context of
      * parent queries.
