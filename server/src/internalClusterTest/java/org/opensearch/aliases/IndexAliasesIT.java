@@ -36,6 +36,7 @@ import org.opensearch.action.admin.indices.alias.Alias;
 import org.opensearch.action.admin.indices.alias.IndicesAliasesRequest.AliasActions;
 import org.opensearch.action.admin.indices.alias.get.GetAliasesResponse;
 import org.opensearch.action.admin.indices.create.CreateIndexRequestBuilder;
+import org.opensearch.action.bulk.BulkResponse;
 import org.opensearch.action.delete.DeleteResponse;
 import org.opensearch.action.index.IndexResponse;
 import org.opensearch.action.search.SearchResponse;
@@ -75,6 +76,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import static org.opensearch.action.bulk.TransportBulkAction.FILTERED_ALIAS_WRITES_ENABLED_SETTING;
 import static org.opensearch.cluster.metadata.IndexMetadata.INDEX_METADATA_BLOCK;
 import static org.opensearch.cluster.metadata.IndexMetadata.INDEX_READ_ONLY_BLOCK;
 import static org.opensearch.cluster.metadata.IndexMetadata.SETTING_BLOCKS_METADATA;
@@ -201,6 +203,66 @@ public class IndexAliasesIT extends OpenSearchIntegTestCase {
         logger.info("--> indexing against [alias1], should work against [test_x]");
         indexResponse = client().index(indexRequest("alias1").id("1").source(source("1", "test"), MediaTypeRegistry.JSON)).actionGet();
         assertThat(indexResponse.getIndex(), equalTo("test_x"));
+    }
+
+    public void testFilteredAliasWritesCanBeDisabledDynamically() throws Exception {
+        createIndex("test");
+        assertAcked(
+            admin().indices()
+                .prepareAliases()
+                .addAliasAction(AliasActions.add().index("test").alias("filtered-alias").filter(termQuery("visibility", "public")))
+                .addAliasAction(AliasActions.add().index("test").alias("unfiltered-alias"))
+        );
+
+        client().index(indexRequest("filtered-alias").id("1").source("visibility", "private")).actionGet();
+
+        assertAcked(
+            client().admin()
+                .cluster()
+                .prepareUpdateSettings()
+                .setTransientSettings(Settings.builder().put(FILTERED_ALIAS_WRITES_ENABLED_SETTING.getKey(), false))
+        );
+        try {
+            IllegalArgumentException indexException = expectThrows(
+                IllegalArgumentException.class,
+                () -> client().index(indexRequest("filtered-alias").id("2").source("visibility", "public")).actionGet()
+            );
+            assertThat(indexException.getMessage(), containsString("writes to filtered alias [filtered-alias] are disabled"));
+
+            IllegalArgumentException updateException = expectThrows(
+                IllegalArgumentException.class,
+                () -> client().prepareUpdate("filtered-alias", "1").setDoc("visibility", "public").get()
+            );
+            assertThat(updateException.getMessage(), containsString("writes to filtered alias [filtered-alias] are disabled"));
+
+            IllegalArgumentException deleteException = expectThrows(
+                IllegalArgumentException.class,
+                () -> client().delete(deleteRequest("filtered-alias").id("1")).actionGet()
+            );
+            assertThat(deleteException.getMessage(), containsString("writes to filtered alias [filtered-alias] are disabled"));
+
+            client().index(indexRequest("test").id("2").source("visibility", "public")).actionGet();
+
+            BulkResponse bulkResponse = client().prepareBulk()
+                .add(indexRequest("filtered-alias").id("3").source("visibility", "public"))
+                .add(indexRequest("unfiltered-alias").id("4").source("visibility", "public"))
+                .get();
+            assertTrue(bulkResponse.getItems()[0].isFailed());
+            assertThat(
+                bulkResponse.getItems()[0].getFailureMessage(),
+                containsString("writes to filtered alias [filtered-alias] are disabled")
+            );
+            assertFalse(bulkResponse.getItems()[1].isFailed());
+        } finally {
+            assertAcked(
+                client().admin()
+                    .cluster()
+                    .prepareUpdateSettings()
+                    .setTransientSettings(Settings.builder().putNull(FILTERED_ALIAS_WRITES_ENABLED_SETTING.getKey()))
+            );
+        }
+
+        client().index(indexRequest("filtered-alias").id("5").source("visibility", "public")).actionGet();
     }
 
     public void testFailedFilter() throws Exception {
