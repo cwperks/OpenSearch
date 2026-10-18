@@ -37,6 +37,7 @@ import org.opensearch.OpenSearchException;
 import org.opensearch.Version;
 import org.opensearch.action.IndicesRequest;
 import org.opensearch.action.support.ActionFilters;
+import org.opensearch.action.support.LocalAllIndicesRequest;
 import org.opensearch.action.support.PlainActionFuture;
 import org.opensearch.action.support.broadcast.BroadcastRequest;
 import org.opensearch.action.support.broadcast.BroadcastResponse;
@@ -128,6 +129,24 @@ public class TransportBroadcastByNodeActionTests extends OpenSearchTestCase {
 
         public Request(String... indices) {
             super(indices);
+        }
+    }
+
+    public static class MarkedRequest extends Request implements LocalAllIndicesRequest {
+        private boolean derivedFromLocalAllIndices;
+
+        public MarkedRequest(String... indices) {
+            super(indices);
+        }
+
+        @Override
+        public void markAsDerivedFromLocalAllIndices() {
+            derivedFromLocalAllIndices = true;
+        }
+
+        @Override
+        public boolean isDerivedFromLocalAllIndices() {
+            return derivedFromLocalAllIndices;
         }
     }
 
@@ -783,6 +802,20 @@ public class TransportBroadcastByNodeActionTests extends OpenSearchTestCase {
             handler.messageReceived(nodeReq, channel, null);
         }
         assertEquals("nodeOperation should run once per target node", captured.size(), action.getNodeOperationCount());
+    }
+
+    public void testNodeRequestPropagatesLocalAllIndicesMarker() {
+        MarkedRequest request = new MarkedRequest(TEST_INDEX);
+        TransportBroadcastByNodeAction<Request, Response, TransportBroadcastByNodeAction.EmptyResult>.NodeRequest nodeRequest = action.new NodeRequest(
+            "node",
+            request,
+            List.of()
+        );
+
+        assertFalse(nodeRequest.isDerivedFromLocalAllIndices());
+        nodeRequest.markAsDerivedFromLocalAllIndices();
+        assertTrue(nodeRequest.isDerivedFromLocalAllIndices());
+        assertTrue(request.isDerivedFromLocalAllIndices());
     }
 
     public void testResultAggregation() throws ExecutionException, InterruptedException {
