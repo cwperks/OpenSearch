@@ -131,7 +131,7 @@ public class Netty4Http3ServerTransport extends AbstractHttpServerTransport {
     public static final Setting<Long> SETTING_H3_MAX_STREAMS = Setting.longSetting("h3.max_streams", 100L, Property.NodeScope);
 
     private final ByteSizeValue maxInitialLineLength;
-    private final ByteSizeValue maxHeaderSize;
+    private volatile ByteSizeValue maxHeaderSize;
     private final ByteSizeValue maxChunkSize;
 
     private final SharedGroupFactory sharedGroupFactory;
@@ -182,6 +182,7 @@ public class Netty4Http3ServerTransport extends AbstractHttpServerTransport {
 
         this.maxChunkSize = SETTING_HTTP_MAX_CHUNK_SIZE.get(settings);
         this.maxHeaderSize = SETTING_HTTP_MAX_HEADER_SIZE.get(settings);
+        clusterSettings.addSettingsUpdateConsumer(SETTING_HTTP_MAX_HEADER_SIZE, value -> maxHeaderSize = value);
         this.maxInitialLineLength = SETTING_HTTP_MAX_INITIAL_LINE_LENGTH.get(settings);
         this.pipeliningMaxEvents = SETTING_PIPELINING_MAX_EVENTS.get(settings);
 
@@ -326,9 +327,6 @@ public class Netty4Http3ServerTransport extends AbstractHttpServerTransport {
                     io.netty.handler.codec.http3.Http3.supportedApplicationProtocols()
                 ).build();
 
-                final Http3Settings http3Settings = new Http3Settings();
-                http3Settings.maxFieldSectionSize(maxHeaderSize.getBytes());
-
                 ch.pipeline().addLast(Http3.newQuicServerCodecBuilder().sslEngineProvider(q -> {
                     final QuicSslEngine engine = sslContext.newEngine(q.alloc());
                     q.attr(HTTP_SERVER_ENGINE_KEY).set(engine);
@@ -344,6 +342,8 @@ public class Netty4Http3ServerTransport extends AbstractHttpServerTransport {
                         @Override
                         protected void initChannel(QuicChannel ch) {
                             // Called for each connection
+                            final Http3Settings http3Settings = new Http3Settings();
+                            http3Settings.maxFieldSectionSize(maxHeaderSize.getBytes());
                             ch.pipeline()
                                 .addLast(
                                     new Http3ServerConnectionHandler(

@@ -294,6 +294,12 @@ public class ReactorNetty4HttpServerTransport extends AbstractHttpServerTranspor
         this.maxCompositeBufferComponents = SETTING_HTTP_NETTY_MAX_COMPOSITE_BUFFER_COMPONENTS.get(settings);
         this.maxChunkSize = SETTING_HTTP_MAX_CHUNK_SIZE.get(settings);
         this.maxHeaderSize = SETTING_HTTP_MAX_HEADER_SIZE.get(settings);
+        // Reactor captures decoder settings when the server binds, rather than for each connection.
+        clusterSettings.addSettingsUpdateConsumer(SETTING_HTTP_MAX_HEADER_SIZE, value -> {}, value -> {
+            if (value.equals(maxHeaderSize) == false) {
+                throw new IllegalArgumentException("http.max_header_size requires a restart with the Reactor Netty HTTP transport");
+            }
+        });
         this.h2cMaxContentLength = SETTING_H2C_MAX_CONTENT_LENGTH.get(settings);
         this.h2MaxConcurrentStreams = SETTING_H2_MAX_CONCURRENT_STREAMS.get(settings);
         this.maxInitialLineLength = SETTING_HTTP_MAX_INITIAL_LINE_LENGTH.get(settings);

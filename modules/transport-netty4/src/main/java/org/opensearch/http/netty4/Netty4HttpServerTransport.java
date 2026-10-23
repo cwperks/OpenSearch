@@ -197,7 +197,7 @@ public class Netty4HttpServerTransport extends AbstractHttpServerTransport {
     );
 
     private final ByteSizeValue maxInitialLineLength;
-    private final ByteSizeValue maxHeaderSize;
+    private volatile ByteSizeValue maxHeaderSize;
     private final ByteSizeValue maxChunkSize;
 
     private final int pipeliningMaxEvents;
@@ -241,6 +241,7 @@ public class Netty4HttpServerTransport extends AbstractHttpServerTransport {
 
         this.maxChunkSize = SETTING_HTTP_MAX_CHUNK_SIZE.get(settings);
         this.maxHeaderSize = SETTING_HTTP_MAX_HEADER_SIZE.get(settings);
+        clusterSettings.addSettingsUpdateConsumer(SETTING_HTTP_MAX_HEADER_SIZE, value -> maxHeaderSize = value);
         this.maxInitialLineLength = SETTING_HTTP_MAX_INITIAL_LINE_LENGTH.get(settings);
         this.pipeliningMaxEvents = SETTING_PIPELINING_MAX_EVENTS.get(settings);
         this.pipelineMaxDepth = SETTING_HTTP_PIPELINE_DEPTH.get(settings);
@@ -375,6 +376,7 @@ public class Netty4HttpServerTransport extends AbstractHttpServerTransport {
     }
 
     public static final AttributeKey<Netty4HttpChannel> HTTP_CHANNEL_KEY = AttributeKey.newInstance("opensearch-http-channel");
+    private static final AttributeKey<Integer> MAX_HEADER_SIZE_KEY = AttributeKey.newInstance("opensearch-http-max-header-size");
     protected static final AttributeKey<Netty4HttpServerChannel> HTTP_SERVER_CHANNEL_KEY = AttributeKey.newInstance(
         "opensearch-http-server-channel"
     );
@@ -411,6 +413,8 @@ public class Netty4HttpServerTransport extends AbstractHttpServerTransport {
 
         @Override
         protected void initChannel(Channel ch) throws Exception {
+            // Keep this connection's limit across TLS negotiation and HTTP/2 upgrades.
+            ch.attr(MAX_HEADER_SIZE_KEY).set(transport.maxHeaderSize.bytesAsInt());
             Netty4HttpChannel nettyHttpChannel = new Netty4HttpChannel(ch);
             ch.attr(HTTP_CHANNEL_KEY).set(nettyHttpChannel);
             ch.pipeline().addLast("byte_buf_sizer", byteBufSizer);
@@ -432,7 +436,7 @@ public class Netty4HttpServerTransport extends AbstractHttpServerTransport {
                 public UpgradeCodec newUpgradeCodec(CharSequence protocol) {
                     if (AsciiString.contentEquals(Http2CodecUtil.HTTP_UPGRADE_PROTOCOL_NAME, protocol)) {
                         return new Http2ServerUpgradeCodec(
-                            createHttp2FrameCodec(),
+                            createHttp2FrameCodec(ch),
                             new Http2MultiplexHandler(createHttp2ChannelInitializer(ch.pipeline()))
                         );
                     } else {
@@ -443,7 +447,7 @@ public class Netty4HttpServerTransport extends AbstractHttpServerTransport {
 
             final HttpDecoderConfig config = new HttpDecoderConfig();
             config.setMaxInitialLineLength(handlingSettings.getMaxInitialLineLength());
-            config.setMaxHeaderSize(handlingSettings.getMaxHeaderSize());
+            config.setMaxHeaderSize(ch.attr(MAX_HEADER_SIZE_KEY).get());
             config.setMaxChunkSize(handlingSettings.getMaxChunkSize());
 
             final HttpServerCodec sourceCodec = new HttpServerCodec(config, transport.pipelineMaxDepth);
@@ -493,7 +497,7 @@ public class Netty4HttpServerTransport extends AbstractHttpServerTransport {
         protected void configureDefaultHttpPipeline(ChannelPipeline pipeline) {
             final HttpRequestDecoder decoder = new HttpRequestDecoder(
                 handlingSettings.getMaxInitialLineLength(),
-                handlingSettings.getMaxHeaderSize(),
+                pipeline.channel().attr(MAX_HEADER_SIZE_KEY).get(),
                 handlingSettings.getMaxChunkSize()
             );
             decoder.setCumulator(ByteToMessageDecoder.COMPOSITE_CUMULATOR);
@@ -521,16 +525,17 @@ public class Netty4HttpServerTransport extends AbstractHttpServerTransport {
         }
 
         protected void configureDefaultHttp2Pipeline(ChannelPipeline pipeline) {
-            pipeline.addLast(createHttp2FrameCodec()).addLast(new Http2MultiplexHandler(createHttp2ChannelInitializer(pipeline)));
+            pipeline.addLast(createHttp2FrameCodec(pipeline.channel()))
+                .addLast(new Http2MultiplexHandler(createHttp2ChannelInitializer(pipeline)));
         }
 
         /**
          * Advertises {@code http.max_header_size} as SETTINGS_MAX_HEADER_LIST_SIZE, otherwise Netty's 8kb default
          * caps HTTP/2 request headers regardless of the configured value.
          */
-        private Http2FrameCodec createHttp2FrameCodec() {
+        private Http2FrameCodec createHttp2FrameCodec(Channel channel) {
             return Http2FrameCodecBuilder.forServer()
-                .initialSettings(Http2Settings.defaultSettings().maxHeaderListSize(handlingSettings.getMaxHeaderSize()))
+                .initialSettings(Http2Settings.defaultSettings().maxHeaderListSize(channel.attr(MAX_HEADER_SIZE_KEY).get()))
                 .build();
         }
 
