@@ -149,10 +149,19 @@ public final class HttpTransportSettings {
         new ByteSizeValue(8, ByteSizeUnit.KB),
         Property.NodeScope
     );
+    /**
+     * Maximum request header size. Netty HTTP transports apply updates to new connections only;
+     * existing connections retain their original decoder limit. Reactor Netty requires a restart.
+     * Runtime updates are supported only when all HTTP transports in the cluster support them.
+     * The task manager also uses this setting to bound copied headers, applying updates to newly registered tasks.
+     */
     public static final Setting<ByteSizeValue> SETTING_HTTP_MAX_HEADER_SIZE = Setting.byteSizeSetting(
         "http.max_header_size",
         new ByteSizeValue(16, ByteSizeUnit.KB),
-        Property.NodeScope
+        new ByteSizeValue(1, ByteSizeUnit.BYTES),
+        new ByteSizeValue(Integer.MAX_VALUE, ByteSizeUnit.BYTES),
+        Property.NodeScope,
+        Property.Dynamic
     );
     public static final Setting<Integer> SETTING_HTTP_MAX_WARNING_HEADER_COUNT = intSetting(
         "http.max_warning_header_count",

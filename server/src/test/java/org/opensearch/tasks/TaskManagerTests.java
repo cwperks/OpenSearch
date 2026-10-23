@@ -35,11 +35,13 @@ package org.opensearch.tasks;
 import org.opensearch.action.admin.cluster.node.tasks.TransportTasksActionTests;
 import org.opensearch.common.lease.Releasable;
 import org.opensearch.common.lease.Releasables;
+import org.opensearch.common.settings.ClusterSettings;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.common.unit.TimeValue;
 import org.opensearch.common.util.concurrent.ConcurrentCollections;
 import org.opensearch.core.action.ActionListener;
 import org.opensearch.core.tasks.TaskId;
+import org.opensearch.http.HttpTransportSettings;
 import org.opensearch.test.OpenSearchTestCase;
 import org.opensearch.threadpool.RunnableTaskExecutionListener;
 import org.opensearch.threadpool.TestThreadPool;
@@ -94,6 +96,23 @@ public class TaskManagerTests extends OpenSearchTestCase {
             total += times.next().millis();
         }
         assertEquals(600000L, total);
+    }
+
+    public void testDynamicTaskHeaderSize() {
+        String key = HttpTransportSettings.SETTING_HTTP_MAX_HEADER_SIZE.getKey();
+        Settings settings = Settings.builder().put(key, "1kb").build();
+        ClusterSettings clusterSettings = new ClusterSettings(settings, ClusterSettings.BUILT_IN_CLUSTER_SETTINGS);
+        TaskManager taskManager = TaskManager.createTaskManagerWithClusterSettings(settings, clusterSettings, threadPool, Set.of("test"));
+        threadPool.getThreadContext().putHeader("test", "a".repeat(1024));
+        TransportRequest request = new TransportRequest() {
+        };
+        expectThrows(IllegalArgumentException.class, () -> taskManager.register("test", "test", request));
+        clusterSettings.applySettings(Settings.builder().put(key, "4kb").build());
+        Task task = taskManager.register("test", "test", request);
+        assertEquals("a".repeat(1024), task.getHeader("test"));
+        taskManager.unregister(task);
+        clusterSettings.applySettings(Settings.EMPTY);
+        expectThrows(IllegalArgumentException.class, () -> taskManager.register("test", "test", request));
     }
 
     public void testTrackingChannelTask() throws Exception {

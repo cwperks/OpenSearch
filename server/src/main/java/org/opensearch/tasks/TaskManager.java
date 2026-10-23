@@ -124,7 +124,7 @@ public class TaskManager implements ClusterStateApplier {
 
     private volatile DiscoveryNodes lastDiscoveryNodes = DiscoveryNodes.EMPTY_NODES;
 
-    private final ByteSizeValue maxHeaderSize;
+    private volatile ByteSizeValue maxHeaderSize;
     private final Map<TcpChannel, ChannelPendingTaskTracker> channelPendingTaskTrackers = ConcurrentCollections.newConcurrentMap();
     private final SetOnce<TaskCancellationService> cancellationService = new SetOnce<>();
 
@@ -140,6 +140,7 @@ public class TaskManager implements ClusterStateApplier {
     ) {
         final TaskManager taskManager = new TaskManager(settings, threadPool, taskHeaders);
         clusterSettings.addSettingsUpdateConsumer(TASK_RESOURCE_CONSUMERS_ENABLED, taskManager::setTaskResourceConsumersEnabled);
+        clusterSettings.addSettingsUpdateConsumer(SETTING_HTTP_MAX_HEADER_SIZE, value -> taskManager.maxHeaderSize = value);
         return taskManager;
     }
 

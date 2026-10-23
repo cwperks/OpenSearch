@@ -483,6 +483,43 @@ public class Netty4Http3ServerTransportTests extends OpenSearchTestCase {
         }
     }
 
+    public void testDynamicHeaderSize() throws InterruptedException {
+        assumeThat("HTTP/3 is not available on this arch/platform", Http3Utils.isHttp3Available(), is(true));
+        String key = HttpTransportSettings.SETTING_HTTP_MAX_HEADER_SIZE.getKey();
+        Settings settings = createBuilderWithPort().put(key, "1kb").build();
+        clusterSettings = new ClusterSettings(settings, ClusterSettings.BUILT_IN_CLUSTER_SETTINGS);
+        HttpServerTransport.Dispatcher dispatcher = dispatcherBuilderWithDefaults().withDispatchRequest(
+            (request, channel, threadContext) -> channel.sendResponse(new BytesRestResponse(OK, "done"))
+        ).build();
+        try (
+            Netty4Http3ServerTransport transport = new Netty4Http3ServerTransport(
+                settings,
+                networkService,
+                bigArrays,
+                threadPool,
+                xContentRegistry(),
+                dispatcher,
+                clusterSettings,
+                new SharedGroupFactory(settings),
+                secureHttpTransportSettingsProvider,
+                NoopTracer.INSTANCE
+            )
+        ) {
+            transport.start();
+            clusterSettings.applySettings(Settings.builder().put(key, "4kb").build());
+            try (Netty4HttpClient client = Netty4HttpClient.http3()) {
+                FullHttpRequest request = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, "/");
+                request.headers().add("x-large-header", "a".repeat(2048));
+                FullHttpResponse response = client.send(transport.boundAddress().boundAddresses()[0].address(), request);
+                try {
+                    assertThat(response.status(), equalTo(HttpResponseStatus.OK));
+                } finally {
+                    response.release();
+                }
+            }
+        }
+    }
+
     private Settings createSettings() {
         return createBuilderWithPort().build();
     }

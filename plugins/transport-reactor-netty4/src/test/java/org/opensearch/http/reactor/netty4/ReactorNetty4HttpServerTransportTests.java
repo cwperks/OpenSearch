@@ -97,6 +97,7 @@ import static org.opensearch.core.rest.RestStatus.OK;
 import static org.opensearch.http.HttpTransportSettings.SETTING_CORS_ALLOW_ORIGIN;
 import static org.opensearch.http.HttpTransportSettings.SETTING_CORS_ENABLED;
 import static org.opensearch.http.TestDispatcherBuilder.dispatcherBuilderWithDefaults;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 
@@ -550,6 +551,31 @@ public class ReactorNetty4HttpServerTransportTests extends OpenSearchTestCase {
 
     private Settings createSettings() {
         return createBuilderWithPort().build();
+    }
+
+    public void testRejectsDynamicHeaderSizeUpdate() {
+        Settings settings = createBuilderWithPort().build();
+        try (
+            ReactorNetty4HttpServerTransport transport = new ReactorNetty4HttpServerTransport(
+                settings,
+                networkService,
+                bigArrays,
+                threadPool,
+                xContentRegistry(),
+                new NullDispatcher(),
+                clusterSettings,
+                new SharedGroupFactory(settings),
+                NoopTracer.INSTANCE
+            )
+        ) {
+            IllegalArgumentException exception = expectThrows(
+                IllegalArgumentException.class,
+                () -> clusterSettings.applySettings(
+                    Settings.builder().put(HttpTransportSettings.SETTING_HTTP_MAX_HEADER_SIZE.getKey(), "32kb").build()
+                )
+            );
+            assertThat(exception.getCause().getMessage(), containsString("requires a restart"));
+        }
     }
 
     private Settings.Builder createBuilderWithPort() {

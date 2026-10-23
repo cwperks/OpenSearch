@@ -51,6 +51,7 @@ import org.opensearch.http.HttpServerTransport;
 import org.opensearch.http.HttpTransportSettings;
 import org.opensearch.http.NullDispatcher;
 import org.opensearch.rest.BytesRestResponse;
+import org.opensearch.secure_sm.AccessController;
 import org.opensearch.telemetry.tracing.noop.NoopTracer;
 import org.opensearch.test.OpenSearchTestCase;
 import org.opensearch.threadpool.TestThreadPool;
@@ -60,7 +61,10 @@ import org.opensearch.transport.SharedGroupFactory;
 import org.junit.After;
 import org.junit.Before;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.Socket;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
@@ -490,8 +494,92 @@ public class Netty4HttpServerTransportTests extends OpenSearchTestCase {
         }
     }
 
+    public void testDynamicHeaderSizeForNewConnections() throws Exception {
+        String key = HttpTransportSettings.SETTING_HTTP_MAX_HEADER_SIZE.getKey();
+        Settings settings = createBuilderWithPort().put(key, "1kb").build();
+        clusterSettings = new ClusterSettings(settings, ClusterSettings.BUILT_IN_CLUSTER_SETTINGS);
+        expectThrows(
+            IllegalArgumentException.class,
+            () -> HttpTransportSettings.SETTING_HTTP_MAX_HEADER_SIZE.get(Settings.builder().put(key, "0b").build())
+        );
+        expectThrows(
+            IllegalArgumentException.class,
+            () -> HttpTransportSettings.SETTING_HTTP_MAX_HEADER_SIZE.get(Settings.builder().put(key, "2gb").build())
+        );
+        HttpServerTransport.Dispatcher dispatcher = dispatcherBuilderWithDefaults().withDispatchRequest(
+            (request, channel, threadContext) -> channel.sendResponse(new BytesRestResponse(OK, "done"))
+        ).withDispatchBadRequest((channel, threadContext, cause) -> {
+            assertThat(cause, instanceOf(io.netty.handler.codec.http.TooLongHttpHeaderException.class));
+            channel.sendResponse(new BytesRestResponse(org.opensearch.core.rest.RestStatus.BAD_REQUEST, "headers too large"));
+        }).build();
+        try (
+            Netty4HttpServerTransport transport = new Netty4HttpServerTransport(
+                settings,
+                networkService,
+                bigArrays,
+                threadPool,
+                xContentRegistry(),
+                dispatcher,
+                clusterSettings,
+                new SharedGroupFactory(settings),
+                NoopTracer.INSTANCE
+            )
+        ) {
+            transport.start();
+            var address = transport.boundAddress().boundAddresses()[0].address();
+            try (Socket original = AccessController.doPrivilegedChecked(() -> new Socket(address.getAddress(), address.getPort()))) {
+                assertHeaderResponse(original, 32, 200);
+                clusterSettings.applySettings(Settings.builder().put(key, "4kb").build());
+                try (Socket larger = AccessController.doPrivilegedChecked(() -> new Socket(address.getAddress(), address.getPort()))) {
+                    assertHeaderResponse(larger, 2048, 200);
+                    assertHeaderResponse(original, 2048, 400);
+                    clusterSettings.applySettings(Settings.EMPTY);
+                    assertHeaderResponse(larger, 2048, 200);
+                    try (Socket reset = AccessController.doPrivilegedChecked(() -> new Socket(address.getAddress(), address.getPort()))) {
+                        assertHeaderResponse(reset, 2048, 400);
+                    }
+                }
+            }
+        }
+    }
+
+    private void assertHeaderResponse(Socket socket, int headerLength, int status) throws IOException {
+        socket.setSoTimeout(10000);
+        socket.getOutputStream()
+            .write(
+                ("GET / HTTP/1.1\r\nHost: localhost\r\nX-Test: " + "a".repeat(headerLength) + "\r\n\r\n").getBytes(
+                    StandardCharsets.US_ASCII
+                )
+            );
+        socket.getOutputStream().flush();
+        BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
+        assertThat(reader.readLine(), containsString(" " + status + " "));
+        int contentLength = -1;
+        String line;
+        while ((line = reader.readLine()) != null && line.isEmpty() == false) {
+            if (line.regionMatches(true, 0, "content-length:", 0, 15)) {
+                contentLength = Integer.parseInt(line.substring(15).trim());
+            }
+        }
+        assertTrue(contentLength >= 0);
+        for (int i = 0; i < contentLength; i++) {
+            assertNotEquals(-1, reader.read());
+        }
+    }
+
     public void testLargeHeaderHttp2() throws InterruptedException {
-        final Settings settings = createBuilderWithPort().put(HttpTransportSettings.SETTING_HTTP_MAX_HEADER_SIZE.getKey(), "32kb").build();
+        assertLargeHeaderHttp2(false);
+    }
+
+    public void testDynamicHeaderSizeHttp2() throws InterruptedException {
+        assertLargeHeaderHttp2(true);
+    }
+
+    private void assertLargeHeaderHttp2(boolean updateLimit) throws InterruptedException {
+        final Settings settings = createBuilderWithPort().put(
+            HttpTransportSettings.SETTING_HTTP_MAX_HEADER_SIZE.getKey(),
+            updateLimit ? "8kb" : "32kb"
+        ).build();
         final String url = "/thing";
         final HttpServerTransport.Dispatcher dispatcher = dispatcherBuilderWithDefaults().withDispatchRequest(
             (request, channel, threadContext) -> channel.sendResponse(new BytesRestResponse(OK, "done"))
@@ -513,6 +601,11 @@ public class Netty4HttpServerTransportTests extends OpenSearchTestCase {
             transport.start();
             final TransportAddress remoteAddress = randomFrom(transport.boundAddress().boundAddresses());
 
+            if (updateLimit) {
+                clusterSettings.applySettings(
+                    Settings.builder().put(HttpTransportSettings.SETTING_HTTP_MAX_HEADER_SIZE.getKey(), "32kb").build()
+                );
+            }
             try (Netty4HttpClient client = Netty4HttpClient.http2()) {
                 final FullHttpRequest request = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, url);
                 // Exceeds Netty's 8kb default for SETTINGS_MAX_HEADER_LIST_SIZE, but fits within http.max_header_size
