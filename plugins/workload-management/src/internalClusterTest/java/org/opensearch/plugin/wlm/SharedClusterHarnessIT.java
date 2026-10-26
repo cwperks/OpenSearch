@@ -17,8 +17,8 @@ import org.opensearch.common.settings.Settings;
 import org.opensearch.plugins.Plugin;
 import org.opensearch.plugins.PluginInfo;
 import org.opensearch.rule.RuleFrameworkPlugin;
-import org.opensearch.test.LocalTestCluster;
 import org.opensearch.test.OpenSearchTestCase;
+import org.opensearch.test.cluster.LocalTestCluster;
 import org.opensearch.transport.Netty4ModulePlugin;
 
 import java.util.List;
@@ -37,11 +37,20 @@ public class SharedClusterHarnessIT extends OpenSearchTestCase {
             .put("node.processors", 1)
             .put("wlm.workload_group.mode", "enabled")
             .build();
-        try (LocalTestCluster cluster = new LocalTestCluster(createTempDir(), settings, plugins)) {
-            expectThrows(IllegalStateException.class, cluster::httpAddress);
+        try (
+            LocalTestCluster cluster = new LocalTestCluster(
+                "wlm-shared-harness",
+                List.of(new LocalTestCluster.NodeSpec(List.of("cluster_manager", "data"), plugins)),
+                ignored -> settings,
+                null
+            )
+        ) {
             cluster.start();
             expectThrows(IllegalStateException.class, cluster::start);
-            try (RestClient client = RestClient.builder(new HttpHost("http", "127.0.0.1", cluster.httpAddress().getPort())).build()) {
+            try (
+                RestClient client = RestClient.builder(new HttpHost("http", "127.0.0.1", cluster.clientNode().getHttpAddress().getPort()))
+                    .build()
+            ) {
                 Request create = new Request("PUT", "/_wlm/workload_group");
                 create.setJsonEntity("""
                     {"name":"shared-harness","resiliency_mode":"monitor","resource_limits":{"cpu":0.4,"memory":0.4}}
@@ -51,7 +60,7 @@ public class SharedClusterHarnessIT extends OpenSearchTestCase {
                 assertTrue(groups, groups.contains("shared-harness"));
             }
             cluster.close();
-            expectThrows(IllegalStateException.class, cluster::client);
+            assertFalse(cluster.isStarted());
         }
     }
 

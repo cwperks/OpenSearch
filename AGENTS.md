@@ -35,6 +35,10 @@ JDK 21 is the minimum supported. `JAVA_HOME` must be set.
 - Base class: `OpenSearchTestCase`
 
 ### Internal Cluster Tests
+
+- `org.opensearch.test.cluster.LocalTestCluster` is a composable multi-node fixture
+  shared with plugin repositories. Consumers supply plugin descriptors, roles and
+  settings; plugin-specific configuration and authenticated clients stay with consumers.
 - Defined in `<component>/src/internalClusterTest` directory
 - Test class names must end with "IT"
 - Base classes: `OpenSearchSingleNodeTestCase` (single node), `OpenSearchIntegTestCase` (multi-node)
