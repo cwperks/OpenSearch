@@ -840,6 +840,7 @@ public class RestHighLevelClientTests extends OpenSearchTestCase {
     public void testApiNamingConventions() throws Exception {
         // this list should be empty once the high-level client is feature complete
         String[] notYetSupportedApi = new String[] {
+            "snapshot.get_metadata",
             "create",
             "get_script_context",
             "get_script_languages",
