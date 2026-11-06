@@ -784,6 +784,52 @@ public class ThreadContextTests extends OpenSearchTestCase {
         assertEquals("1", threadContext.getHeader("default"));
     }
 
+    public void testPropagatedTransientsSurviveRestore() {
+        // Reproduces the scenario from opensearch-project/security#6000:
+        // the security plugin calls storedContext.restore() after writing security headers,
+        // which previously wiped any propagator-declared transients (e.g. CURRENT_SPAN)
+        // that were set after the stash point.
+        ThreadContext threadContext = new ThreadContext(Settings.EMPTY);
+
+        final String PROPAGATED_KEY = "test_propagated_transient";
+        final Object PROPAGATED_VALUE = new Object();
+
+        // Register a propagator that declares PROPAGATED_KEY as a transient to carry across stashes.
+        threadContext.registerThreadContextStatePropagator(new ThreadContextStatePropagator() {
+            @Override
+            @SuppressWarnings("removal")
+            public Map<String, Object> transients(Map<String, Object> source) {
+                if (source.containsKey(PROPAGATED_KEY)) {
+                    return Collections.singletonMap(PROPAGATED_KEY, source.get(PROPAGATED_KEY));
+                }
+                return Collections.emptyMap();
+            }
+
+            @Override
+            @SuppressWarnings("removal")
+            public Map<String, String> headers(Map<String, Object> source) {
+                return Collections.emptyMap();
+            }
+        });
+
+        // Simulate the tracing infrastructure writing CURRENT_SPAN into the stashed context.
+        threadContext.putTransient(PROPAGATED_KEY, PROPAGATED_VALUE);
+
+        ThreadContext.StoredContext storedContext = threadContext.stashContext();
+
+        assertSame(PROPAGATED_VALUE, threadContext.getTransient(PROPAGATED_KEY));
+
+        // Simulate the security plugin calling restore() after populating security headers.
+        storedContext.restore();
+
+        // The propagated transient must still be visible after restore.
+        assertSame(
+            "propagator-declared transient must survive storedContext.restore()",
+            PROPAGATED_VALUE,
+            threadContext.getTransient(PROPAGATED_KEY)
+        );
+    }
+
     public void testSerializeSystemContext() throws IOException {
         Settings build = Settings.builder().put("request.headers.default", "1").build();
         Map<String, Object> transientHeaderMap = Collections.singletonMap("test_transient_propagation_key", "test");
