@@ -40,6 +40,8 @@ import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.message.ParameterizedMessage;
 import org.apache.logging.log4j.util.Supplier;
 import org.opensearch.SpecialPermission;
+import org.opensearch.common.settings.Setting;
+import org.opensearch.common.settings.Settings;
 import org.opensearch.script.GeneralScriptException;
 import org.opensearch.script.Script;
 import org.opensearch.script.ScriptContext;
@@ -50,7 +52,6 @@ import org.opensearch.secure_sm.AccessController;
 
 import java.io.Reader;
 import java.io.StringReader;
-import java.io.StringWriter;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
@@ -67,6 +68,34 @@ public final class MustacheScriptEngine implements ScriptEngine {
     private static final Logger logger = LogManager.getLogger(MustacheScriptEngine.class);
 
     public static final String NAME = "mustache";
+
+    /** Maximum rendered template length, measured in UTF-16 code units. */
+    public static final Setting<Integer> MAX_OUTPUT_CHARS = Setting.intSetting(
+        "script.mustache.max_output_chars",
+        100_000,
+        1,
+        Setting.Property.NodeScope,
+        Setting.Property.Dynamic
+    )
+        .withDescription(
+            "Maximum rendered Mustache template length in UTF-16 code units. Applies to each new execution, including cached templates."
+        );
+
+    private volatile int maxOutputChars;
+
+    /** Creates an engine with default settings. */
+    public MustacheScriptEngine() {
+        this(Settings.EMPTY);
+    }
+
+    /** Creates an engine with the configured output limit. */
+    public MustacheScriptEngine(Settings settings) {
+        maxOutputChars = MAX_OUTPUT_CHARS.get(settings);
+    }
+
+    void setMaxOutputChars(int maxOutputChars) {
+        this.maxOutputChars = maxOutputChars;
+    }
 
     /**
      * Compile a template string to (in this case) a Mustache object than can
@@ -129,7 +158,7 @@ public final class MustacheScriptEngine implements ScriptEngine {
 
         @Override
         public String execute() {
-            final StringWriter writer = new StringWriter();
+            final BoundedWriter writer = new BoundedWriter(maxOutputChars);
             try {
                 // crazy reflection here
                 SpecialPermission.check();
