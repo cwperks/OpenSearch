@@ -256,7 +256,7 @@ public class SearchAsYouTypeFieldMapper extends ParametrizedFieldMapper {
                     shingleSearchWrapper,
                     shingleSearchQuoteWrapper
                 );
-                final ShingleFieldType shingleFieldType = new ShingleFieldType(fieldName, shingleSize, textSearchInfo);
+                final ShingleFieldType shingleFieldType = new ShingleFieldType(fieldName, fullName, shingleSize, textSearchInfo);
                 shingleFieldType.setIndexAnalyzer(new NamedAnalyzer(indexAnalyzer.name(), AnalyzerScope.INDEX, shingleIndexWrapper));
                 shingleFieldType.setPrefixFieldType(prefixFieldType);
                 shingleFieldTypes[i] = shingleFieldType;
@@ -427,6 +427,11 @@ public class SearchAsYouTypeFieldMapper extends ParametrizedFieldMapper {
         }
 
         @Override
+        public String generatedFieldOwner() {
+            return parentField;
+        }
+
+        @Override
         public Query prefixQuery(String value, MultiTermQuery.RewriteMethod method, boolean caseInsensitive, QueryShardContext context) {
             if (value.length() >= minChars) {
                 if (caseInsensitive) {
@@ -546,15 +551,22 @@ public class SearchAsYouTypeFieldMapper extends ParametrizedFieldMapper {
      */
     static class ShingleFieldType extends StringFieldType {
         final int shingleSize;
+        private final String parentField;
         PrefixFieldType prefixFieldType;
 
-        ShingleFieldType(String name, int shingleSize, TextSearchInfo textSearchInfo) {
+        ShingleFieldType(String name, String parentField, int shingleSize, TextSearchInfo textSearchInfo) {
             super(name, true, false, false, textSearchInfo, Collections.emptyMap());
             this.shingleSize = shingleSize;
+            this.parentField = parentField;
         }
 
         void setPrefixFieldType(PrefixFieldType prefixFieldType) {
             this.prefixFieldType = prefixFieldType;
+        }
+
+        @Override
+        public String generatedFieldOwner() {
+            return parentField;
         }
 
         @Override

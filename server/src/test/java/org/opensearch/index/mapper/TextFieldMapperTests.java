@@ -403,6 +403,42 @@ public class TextFieldMapperTests extends MapperTestCase {
         }
     }
 
+    public void testGeneratedFieldOwners() throws IOException {
+        MapperService mapperService = createMapperService(mapping(b -> {
+            b.startObject("details").startObject("properties");
+            b.startObject("title")
+                .field("type", "text")
+                .startObject("index_prefixes")
+                .endObject()
+                .field("index_phrases", true)
+                .field("copy_to", "copied")
+                .startObject("fields")
+                .startObject("raw")
+                .field("type", "keyword")
+                .endObject()
+                .endObject()
+                .endObject();
+            b.endObject().endObject();
+            b.startObject("copied").field("type", "keyword").endObject();
+            b.startObject("ordinary")
+                .field("type", "text")
+                .startObject("fields")
+                .startObject("_index_prefix")
+                .field("type", "keyword")
+                .endObject()
+                .endObject()
+                .endObject();
+        }));
+        assertEquals("details.title", mapperService.fieldType("details.title._index_prefix").generatedFieldOwner());
+        assertEquals("details.title", mapperService.generatedFieldOwner("details.title._index_prefix"));
+        assertNull(mapperService.generatedFieldOwner("ordinary._index_prefix"));
+        assertEquals("details.title", mapperService.fieldType("details.title._index_phrase").generatedFieldOwner());
+        assertNull(mapperService.fieldType("details.title").generatedFieldOwner());
+        assertNull(mapperService.fieldType("details.title.raw").generatedFieldOwner());
+        assertNull(mapperService.fieldType("copied").generatedFieldOwner());
+        assertNull(mapperService.fieldType("ordinary._index_prefix").generatedFieldOwner());
+    }
+
     public void testPositionIncrementGapOnIndexPrefixField() throws IOException {
         // test default position_increment_gap
         MapperService mapperService = createMapperService(

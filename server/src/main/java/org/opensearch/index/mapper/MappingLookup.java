@@ -34,6 +34,8 @@ package org.opensearch.index.mapper;
 
 import org.apache.lucene.analysis.Analyzer;
 import org.opensearch.cluster.metadata.DataStream;
+import org.opensearch.common.Nullable;
+import org.opensearch.common.annotation.ExperimentalApi;
 import org.opensearch.common.annotation.PublicApi;
 import org.opensearch.index.IndexSettings;
 import org.opensearch.index.analysis.FieldNameAnalyzer;
@@ -42,9 +44,11 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Stream;
 
 /**
@@ -63,6 +67,7 @@ public final class MappingLookup implements Iterable<Mapper> {
     private final FieldTypeLookup fieldTypeLookup;
     private final int metadataFieldCount;
     private final FieldNameAnalyzer indexAnalyzer;
+    private final Map<String, String> generatedObjectOwners;
 
     private static void put(Map<String, Analyzer> analyzers, String key, Analyzer value, Analyzer defaultValue) {
         if (value == null) {
@@ -189,6 +194,73 @@ public final class MappingLookup implements Iterable<Mapper> {
         this.fieldMappers = Collections.unmodifiableMap(fieldMappers);
         this.indexAnalyzer = new FieldNameAnalyzer(indexAnalyzers);
         this.objectMappers = Collections.unmodifiableMap(objects);
+        Map<String, String> owners = new HashMap<>();
+        for (FieldMapper mapper : mappers) {
+            for (String path : mapper.fieldType().generatedObjectPaths()) {
+                if (objects.containsKey(path) == false) {
+                    throw new MapperParsingException("Generated object [" + path + "] declared by [" + mapper.name() + "] does not exist");
+                }
+                String previous = owners.putIfAbsent(path, mapper.name());
+                if (previous != null && previous.equals(mapper.name()) == false) {
+                    throw new MapperParsingException("Generated object [" + path + "] has multiple owners");
+                }
+            }
+        }
+        this.generatedObjectOwners = Map.copyOf(owners);
+        for (FieldMapper mapper : mappers) {
+            String field = generatedFieldOwner(mapper.name());
+            if (field == null) {
+                continue;
+            }
+            Set<String> visited = new HashSet<>();
+            visited.add(mapper.name());
+            while (field != null) {
+                if (visited.add(field) == false) {
+                    throw new MapperParsingException("Generated-field ownership cycle involving [" + field + "]");
+                }
+                field = generatedFieldOwner(field);
+            }
+        }
+    }
+
+    /**
+     * Returns the immediate generating field for an internal field, generated object, or descendant,
+     * or {@code null} when no owner is declared. Aliases resolve through their concrete field.
+     * Descendants present only in {@code _source} are covered by generated object declarations too.
+     * <p>
+     * An explicitly owned internal field takes precedence over object ancestry; otherwise the nearest
+     * generated object supplies the owner. Ownership may be chained: a generated prefix field belongs
+     * to its text field, which may itself belong to the field that generated its containing object.
+     * Consumers applying restrictions must consider the requested field and every owner in that chain.
+     * This metadata does not itself grant or deny access.
+     *
+     * @param fullName fully qualified field or source path
+     * @return the immediate owner's fully qualified name, or {@code null}
+     */
+    @ExperimentalApi
+    @Nullable
+    public String generatedFieldOwner(String fullName) {
+        MappedFieldType fieldType = fieldTypeLookup.get(fullName);
+        if (fieldType != null) {
+            if (fieldType.generatedFieldOwner() != null) {
+                return fieldType.generatedFieldOwner();
+            }
+            fullName = fieldType.name();
+        }
+        if (generatedObjectOwners.isEmpty()) {
+            return null;
+        }
+        while (true) {
+            String owner = generatedObjectOwners.get(fullName);
+            if (owner != null) {
+                return owner;
+            }
+            int dot = fullName.lastIndexOf('.');
+            if (dot < 0) {
+                return null;
+            }
+            fullName = fullName.substring(0, dot);
+        }
     }
 
     /**

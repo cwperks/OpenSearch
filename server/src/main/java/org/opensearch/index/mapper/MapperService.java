@@ -39,6 +39,7 @@ import org.opensearch.Version;
 import org.opensearch.cluster.metadata.IndexMetadata;
 import org.opensearch.cluster.metadata.MappingMetadata;
 import org.opensearch.common.Nullable;
+import org.opensearch.common.annotation.ExperimentalApi;
 import org.opensearch.common.annotation.PublicApi;
 import org.opensearch.common.compress.CompressedXContent;
 import org.opensearch.common.logging.DeprecationLogger;
@@ -713,6 +714,24 @@ public class MapperService extends AbstractIndexComponent implements Closeable {
      */
     public MappedFieldType fieldType(String fullName) {
         return this.mapper == null ? null : this.mapper.fieldTypes().get(fullName);
+    }
+
+    /**
+     * Resolves the immediate generating field for a field or source path in the current mapping.
+     * Includes internal query fields and descendants of declared generated objects, even when their
+     * names do not share a prefix with the owner. Returns {@code null} if no owner is declared.
+     * <p>
+     * This describes mapping structure, not authorization. Consumers applying restrictions must check
+     * the requested field and follow the owner chain as described by {@link MappingLookup#generatedFieldOwner(String)}.
+     *
+     * @param fullName fully qualified field or source path
+     * @return the immediate owner's fully qualified name, or {@code null}
+     */
+    @ExperimentalApi
+    @Nullable
+    public String generatedFieldOwner(String fullName) {
+        DocumentMapper currentMapper = this.mapper;
+        return currentMapper == null ? null : currentMapper.mappers().generatedFieldOwner(fullName);
     }
 
     /**
