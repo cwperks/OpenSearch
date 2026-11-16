@@ -180,6 +180,31 @@ public class SearchAsYouTypeFieldMapperTests extends MapperTestCase {
         }
     }
 
+    public void testGeneratedFieldOwners() throws IOException {
+        for (int maxShingleSize = 2; maxShingleSize <= 4; maxShingleSize++) {
+            final int size = maxShingleSize;
+            MapperService mapperService = createMapperService(mapping(b -> {
+                b.startObject("details").startObject("properties");
+                b.startObject("title")
+                    .field("type", "search_as_you_type")
+                    .field("max_shingle_size", size)
+                    .startObject("fields")
+                    .startObject("raw")
+                    .field("type", "keyword")
+                    .endObject()
+                    .endObject()
+                    .endObject();
+                b.endObject().endObject();
+            }));
+            assertNull(mapperService.fieldType("details.title").generatedFieldOwner());
+            assertNull(mapperService.fieldType("details.title.raw").generatedFieldOwner());
+            assertEquals("details.title", mapperService.fieldType("details.title._index_prefix").generatedFieldOwner());
+            for (int shingleSize = 2; shingleSize <= maxShingleSize; shingleSize++) {
+                assertEquals("details.title", mapperService.fieldType("details.title._" + shingleSize + "gram").generatedFieldOwner());
+            }
+        }
+    }
+
     public void testDefaultConfiguration() throws IOException {
         DocumentMapper defaultMapper = createDocumentMapper(fieldMapping(this::minimalMapping));
         SearchAsYouTypeFieldMapper rootMapper = getRootFieldMapper(defaultMapper, "field");
@@ -280,6 +305,8 @@ public class SearchAsYouTypeFieldMapperTests extends MapperTestCase {
         assertThat(fieldType, instanceOf(PrefixFieldType.class));
         PrefixFieldType prefixFieldType = (PrefixFieldType) fieldType;
         assertEquals(path, prefixFieldType.parentField);
+        assertEquals(path, prefixFieldType.generatedFieldOwner());
+        assertNull(mapperService.fieldType(path).generatedFieldOwner());
         for (int i = 2; i < shingleSize; i++) {
             String name = path + "._" + i + "gram";
             fields.add(name);
@@ -288,6 +315,7 @@ public class SearchAsYouTypeFieldMapperTests extends MapperTestCase {
             ShingleFieldType ft = (ShingleFieldType) fieldType;
             assertEquals(i, ft.shingleSize);
             assertSame(prefixFieldType, ft.prefixFieldType);
+            assertEquals(path, ft.generatedFieldOwner());
         }
 
         ParsedDocument doc = mapperService.documentMapper().parse(source(b -> b.field("field", "new york city")));

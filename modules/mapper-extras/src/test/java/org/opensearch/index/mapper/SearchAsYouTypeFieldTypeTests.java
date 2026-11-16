@@ -80,7 +80,9 @@ public class SearchAsYouTypeFieldTypeTests extends FieldTypeTestCase {
             Collections.emptyMap()
         );
         fieldType.setPrefixField(new PrefixFieldType(NAME, TextSearchInfo.SIMPLE_MATCH_ONLY, Defaults.MIN_GRAM, Defaults.MAX_GRAM));
-        fieldType.setShingleFields(new ShingleFieldType[] { new ShingleFieldType(fieldType.name(), 2, TextSearchInfo.SIMPLE_MATCH_ONLY) });
+        fieldType.setShingleFields(
+            new ShingleFieldType[] { new ShingleFieldType(fieldType.name(), fieldType.name(), 2, TextSearchInfo.SIMPLE_MATCH_ONLY) }
+        );
         return fieldType;
     }
 
@@ -173,6 +175,7 @@ public class SearchAsYouTypeFieldTypeTests extends FieldTypeTestCase {
         assertEquals(List.of("true"), fetchSourceValue(prefixFieldType, true));
 
         SearchAsYouTypeFieldMapper.ShingleFieldType shingleFieldType = new SearchAsYouTypeFieldMapper.ShingleFieldType(
+            fieldType.name(),
             fieldType.name(),
             5,
             fieldType.getTextSearchInfo()

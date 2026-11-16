@@ -598,6 +598,11 @@ public class TextFieldMapper extends ParametrizedFieldMapper {
         }
 
         @Override
+        public String generatedFieldOwner() {
+            return parent.name();
+        }
+
+        @Override
         public String typeName() {
             return "phrase";
         }
@@ -636,6 +641,11 @@ public class TextFieldMapper extends ParametrizedFieldMapper {
             this.maxChars = maxChars;
             this.parent = parent;
             setAnalyzer(parent.indexAnalyzer());
+        }
+
+        @Override
+        public String generatedFieldOwner() {
+            return parent.name();
         }
 
         @Override

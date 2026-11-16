@@ -161,6 +161,24 @@ public abstract class MappedFieldType {
     /** Returns the name of this type, as would be specified in mapping properties */
     public abstract String typeName();
 
+    /**
+     * Returns the fully qualified name of the mapped field that generates this internal field, or {@code null}
+     * if this field does not declare a generated-field owner. For example, an internal prefix field generated
+     * for {@code title} returns {@code title}.
+     * <p>
+     * Mappers should override this for internal query-optimization fields derived from a mapped field.
+     * Ordinary user-defined multi-fields and {@code copy_to} destinations do not declare an owner merely
+     * because they share source values. This describes mapping structure, not an authorization decision;
+     * consumers decide how restrictions on the owner apply to the generated field.
+     *
+     * @return the generating field's full name, or {@code null} when no owner is declared
+     */
+    @ExperimentalApi
+    @Nullable
+    public String generatedFieldOwner() {
+        return null;
+    }
+
     /** Returns the field family type, as used in field capabilities */
     public String familyTypeName() {
         return typeName();
