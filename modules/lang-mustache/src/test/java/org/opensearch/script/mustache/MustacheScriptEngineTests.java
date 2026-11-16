@@ -33,8 +33,10 @@ package org.opensearch.script.mustache;
 
 import com.github.mustachejava.MustacheFactory;
 
+import org.opensearch.common.settings.Settings;
 import org.opensearch.common.xcontent.json.JsonXContent;
 import org.opensearch.core.xcontent.XContentParser;
+import org.opensearch.script.GeneralScriptException;
 import org.opensearch.script.Script;
 import org.opensearch.script.TemplateScript;
 import org.opensearch.test.OpenSearchTestCase;
@@ -44,6 +46,7 @@ import java.io.IOException;
 import java.io.StringWriter;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.hamcrest.Matchers.equalTo;
@@ -52,6 +55,25 @@ import static org.hamcrest.Matchers.equalTo;
  * Mustache based templating test
  */
 public class MustacheScriptEngineTests extends OpenSearchTestCase {
+    public void testRenderedOutputLimit() {
+        var engine = new MustacheScriptEngine(Settings.builder().put(MustacheScriptEngine.MAX_OUTPUT_CHARS.getKey(), 4).build());
+        for (String template : List.of("{{{value}}}", "{{#values}}{{.}}{{/values}}", "1234")) {
+            var script = engine.compile("limit", template, TemplateScript.CONTEXT, Map.of())
+                .newInstance(Map.of("value", "1234", "values", List.of("12", "34")));
+            assertEquals("1234", script.execute());
+            engine.setMaxOutputChars(3);
+            expectThrows(GeneralScriptException.class, script::execute);
+            engine.setMaxOutputChars(4);
+            assertEquals("1234", script.execute());
+        }
+        var escaped = engine.compile("escaped", "{{value}}", TemplateScript.CONTEXT, Map.of()).newInstance(Map.of("value", "\"\"\""));
+        expectThrows(GeneralScriptException.class, escaped::execute);
+        var unicode = engine.compile("unicode", "{{{value}}}", TemplateScript.CONTEXT, Map.of()).newInstance(Map.of("value", "😀😀"));
+        assertEquals("😀😀", unicode.execute());
+        engine.setMaxOutputChars(3);
+        expectThrows(GeneralScriptException.class, unicode::execute);
+    }
+
     private MustacheScriptEngine qe;
     private MustacheFactory factory;
 
