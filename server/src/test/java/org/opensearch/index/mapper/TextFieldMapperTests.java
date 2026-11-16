@@ -430,6 +430,8 @@ public class TextFieldMapperTests extends MapperTestCase {
                 .endObject();
         }));
         assertEquals("details.title", mapperService.fieldType("details.title._index_prefix").generatedFieldOwner());
+        assertEquals("details.title", mapperService.generatedFieldOwner("details.title._index_prefix"));
+        assertNull(mapperService.generatedFieldOwner("ordinary._index_prefix"));
         assertEquals("details.title", mapperService.fieldType("details.title._index_phrase").generatedFieldOwner());
         assertNull(mapperService.fieldType("details.title").generatedFieldOwner());
         assertNull(mapperService.fieldType("details.title.raw").generatedFieldOwner());
