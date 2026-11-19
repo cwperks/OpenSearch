@@ -379,6 +379,9 @@ public class Netty4HttpServerTransport extends AbstractHttpServerTransport {
         "opensearch-http-server-channel"
     );
 
+    /** Adds secure transport response headers after the protocol codec and before request processing. */
+    protected void configureResponseHeaders(ChannelPipeline pipeline) {}
+
     protected static class HttpChannelHandler extends ChannelInitializer<Channel> {
 
         private final Netty4HttpServerTransport transport;
@@ -498,9 +501,10 @@ public class Netty4HttpServerTransport extends AbstractHttpServerTransport {
             );
             decoder.setCumulator(ByteToMessageDecoder.COMPOSITE_CUMULATOR);
             pipeline.addLast("decoder", decoder);
+            pipeline.addLast("encoder", new HttpResponseEncoder());
+            transport.configureResponseHeaders(pipeline);
             pipeline.addLast("header_verifier", transport.createHeaderVerifier());
             pipeline.addLast("decoder_compress", transport.createDecompressor());
-            pipeline.addLast("encoder", new HttpResponseEncoder());
             final HttpObjectAggregator aggregator = new HttpObjectAggregator(handlingSettings.getMaxContentLength());
             aggregator.setMaxCumulationBufferComponents(transport.maxCompositeBufferComponents);
             pipeline.addLast("aggregator", aggregator);
@@ -558,7 +562,9 @@ public class Netty4HttpServerTransport extends AbstractHttpServerTransport {
                     aggregator.setMaxCumulationBufferComponents(transport.maxCompositeBufferComponents);
                     childChannel.pipeline()
                         .addLast(new LoggingHandler(LogLevel.DEBUG))
-                        .addLast(new Http2StreamFrameToHttpObjectCodec(true))
+                        .addLast(new Http2StreamFrameToHttpObjectCodec(true));
+                    transport.configureResponseHeaders(childChannel.pipeline());
+                    childChannel.pipeline()
                         .addLast("byte_buf_sizer", byteBufSizer)
                         .addLast("read_timeout", new ReadTimeoutHandler(transport.readTimeoutMillis, TimeUnit.MILLISECONDS))
                         .addLast("header_verifier", transport.createHeaderVerifier())

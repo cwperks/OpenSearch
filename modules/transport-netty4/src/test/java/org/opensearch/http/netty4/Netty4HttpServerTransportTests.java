@@ -326,7 +326,7 @@ public class Netty4HttpServerTransportTests extends OpenSearchTestCase {
     }
 
     public void testLargeCompressedResponse() throws InterruptedException {
-        final Settings settings = createSettings();
+        final Settings settings = Settings.builder().put(createSettings()).put("http.hsts.enabled", true).build();
         final String responseString = randomAlphaOfLength(4 * 1024 * 1024);
         final String url = "/thing";
         final HttpServerTransport.Dispatcher dispatcher = dispatcherBuilderWithDefaults().withDispatchRequest(
@@ -365,6 +365,7 @@ public class Netty4HttpServerTransportTests extends OpenSearchTestCase {
                 final FullHttpResponse response = client.send(remoteAddress.address(), request);
                 try {
                     assertThat(getHugeAllocationCount(), equalTo(numOfHugeAllocations));
+                    assertNull(response.headers().get("Strict-Transport-Security"));
                     assertThat(response.status(), equalTo(HttpResponseStatus.OK));
                     byte[] bytes = new byte[response.content().readableBytes()];
                     response.content().readBytes(bytes);

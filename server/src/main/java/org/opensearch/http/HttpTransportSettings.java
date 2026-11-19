@@ -276,5 +276,19 @@ public final class HttpTransportSettings {
         Property.NodeScope
     );
 
+    public static final Setting<Boolean> SETTING_HTTP_HSTS_ENABLED = Setting.boolSetting("http.hsts.enabled", false, Property.NodeScope)
+        .withDescription("Adds Strict-Transport-Security headers to responses from supported HTTPS transports.");
+    public static final Setting<TimeValue> SETTING_HTTP_HSTS_MAX_AGE = Setting.timeSetting(
+        "http.hsts.max_age",
+        TimeValue.timeValueDays(365),
+        TimeValue.ZERO,
+        Property.NodeScope
+    ).withDescription("How long clients remember the HSTS policy. Zero clears an existing policy; used only when HSTS is enabled.");
+    public static final Setting<Boolean> SETTING_HTTP_HSTS_INCLUDE_SUBDOMAINS = Setting.boolSetting(
+        "http.hsts.include_subdomains",
+        false,
+        Property.NodeScope
+    ).withDescription("Extends the HSTS policy to subdomains of the requested hostname.");
+
     private HttpTransportSettings() {}
 }
