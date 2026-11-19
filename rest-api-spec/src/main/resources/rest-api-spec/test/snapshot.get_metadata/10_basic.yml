@@ -1,0 +1,61 @@
+---
+"Inspect captured metadata without restoring it":
+  - skip:
+      version: " - 3.9.99"
+      reason: "Snapshot metadata inspection was added in 3.10.0"
+  - do:
+      snapshot.create_repository:
+        repository: metadata_repo
+        body:
+          type: fs
+          settings:
+            location: metadata_repo
+  - do:
+      indices.put_template:
+        name: saved_template
+        body:
+          index_patterns: ["saved-*"]
+  - do:
+      snapshot.create:
+        repository: metadata_repo
+        snapshot: with_state
+        wait_for_completion: true
+        body:
+          include_global_state: true
+  - do:
+      indices.delete_template:
+        name: saved_template
+  - do:
+      snapshot.get_metadata:
+        repository: metadata_repo
+        snapshot: with_state
+  - match: {repository: metadata_repo}
+  - match: {snapshot: with_state}
+  - match: {include_global_state: true}
+  - match: {global_metadata.legacy_index_templates: [saved_template]}
+  - do:
+      catch: missing
+      indices.get_template:
+        name: saved_template
+  - do:
+      snapshot.create:
+        repository: metadata_repo
+        snapshot: without_state
+        wait_for_completion: true
+        body:
+          include_global_state: false
+  - do:
+      snapshot.get_metadata:
+        repository: metadata_repo
+        snapshot: without_state
+  - match: {include_global_state: false}
+  - match: {global_metadata: null}
+  - do:
+      catch: missing
+      snapshot.get_metadata:
+        repository: metadata_repo
+        snapshot: nonexistent
+  - do:
+      snapshot.delete:
+        repository: metadata_repo
+        snapshot: with_state,without_state

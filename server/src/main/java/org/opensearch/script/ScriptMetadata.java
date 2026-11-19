@@ -52,6 +52,7 @@ import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * {@link ScriptMetadata} is used to store user-defined scripts
@@ -387,6 +388,11 @@ public final class ScriptMetadata implements Metadata.Custom, Writeable, ToXCont
     @Override
     public EnumSet<Metadata.XContentContext> context() {
         return Metadata.ALL_CONTEXTS;
+    }
+
+    /** Returns stored script identifiers without exposing their source or options. */
+    public Set<String> getStoredScriptIds() {
+        return Set.copyOf(scripts.keySet());
     }
 
     /**
