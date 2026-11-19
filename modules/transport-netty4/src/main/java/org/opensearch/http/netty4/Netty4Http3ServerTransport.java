@@ -421,6 +421,7 @@ public class Netty4Http3ServerTransport extends AbstractHttpServerTransport {
 
         protected void configurePipeline(Channel ch) {
             ch.pipeline().addLast(new Http3FrameToHttpObjectCodec(true));
+            Netty4HstsHandler.configure(ch.pipeline(), transport.settings);
             ch.pipeline().addLast("header_verifier", transport.createHeaderVerifier());
             ch.pipeline().addLast("decoder_compress", transport.createDecompressor());
             final HttpObjectAggregator aggregator = new HttpObjectAggregator(handlingSettings.getMaxContentLength());

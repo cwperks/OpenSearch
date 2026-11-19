@@ -21,6 +21,7 @@ import org.opensearch.core.common.bytes.BytesArray;
 import org.opensearch.core.common.transport.TransportAddress;
 import org.opensearch.core.common.unit.ByteSizeValue;
 import org.opensearch.core.indices.breaker.NoneCircuitBreakerService;
+import org.opensearch.core.rest.RestStatus;
 import org.opensearch.fips.FipsAwareSslProvider;
 import org.opensearch.http.BindHttpException;
 import org.opensearch.http.CorsHandler;
@@ -74,6 +75,7 @@ import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.codec.http.HttpVersion;
+import io.netty.handler.ssl.ApplicationProtocolConfig;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
@@ -126,6 +128,15 @@ public class SecureNetty4HttpServerTransportTests extends OpenSearchTestCase {
 
                         cachedServerSslContext = SslContextBuilder.forServer(keyManagerFactory)
                             .trustManager(InsecureTrustManagerFactory.INSTANCE)
+                            .applicationProtocolConfig(
+                                new ApplicationProtocolConfig(
+                                    ApplicationProtocolConfig.Protocol.ALPN,
+                                    ApplicationProtocolConfig.SelectorFailureBehavior.NO_ADVERTISE,
+                                    ApplicationProtocolConfig.SelectedListenerFailureBehavior.ACCEPT,
+                                    "h2",
+                                    "http/1.1"
+                                )
+                            )
                             .build();
                     } catch (Exception ex) {
                         throw new RuntimeException(ex);
@@ -244,6 +255,10 @@ public class SecureNetty4HttpServerTransportTests extends OpenSearchTestCase {
                 final FullHttpResponse response = client.send(remoteAddress.address(), request);
                 try {
                     assertThat(response.status(), equalTo(expectedStatus));
+                    assertEquals(
+                        HttpTransportSettings.SETTING_HTTP_HSTS_ENABLED.get(settings) ? "max-age=31536000" : null,
+                        response.headers().get("Strict-Transport-Security")
+                    );
                     if (expectedStatus.equals(HttpResponseStatus.CONTINUE)) {
                         final FullHttpRequest continuationRequest = new DefaultFullHttpRequest(
                             HttpVersion.HTTP_1_1,
@@ -522,6 +537,61 @@ public class SecureNetty4HttpServerTransportTests extends OpenSearchTestCase {
         } finally {
             group.shutdownGracefully().await();
         }
+    }
+
+    public void testHstsOnHttpsResponses() throws InterruptedException {
+        assertHstsOnHttpsResponses(false);
+        assertHstsOnHttpsResponses(true);
+    }
+
+    private void assertHstsOnHttpsResponses(boolean http2) throws InterruptedException {
+        for (boolean enabled : new boolean[] { false, true }) {
+            Settings settings = createBuilderWithPort().put("http.hsts.enabled", enabled).build();
+            HttpServerTransport.Dispatcher dispatcher = dispatcherBuilderWithDefaults().withDispatchRequest(
+                (request, channel, context) -> channel.sendResponse(
+                    new BytesRestResponse(RestStatus.fromCode(Integer.parseInt(request.uri().substring(1))), "response")
+                )
+            ).build();
+            try (
+                SecureNetty4HttpServerTransport transport = new SecureNetty4HttpServerTransport(
+                    settings,
+                    networkService,
+                    bigArrays,
+                    threadPool,
+                    xContentRegistry(),
+                    dispatcher,
+                    clusterSettings,
+                    new SharedGroupFactory(settings),
+                    secureHttpTransportSettingsProvider,
+                    NoopTracer.INSTANCE
+                )
+            ) {
+                transport.start();
+                try (Netty4HttpClient client = http2 ? Netty4HttpClient.https2() : Netty4HttpClient.https()) {
+                    for (int status : new int[] { 200, 401, 403, 500 }) {
+                        FullHttpResponse response = client.send(
+                            randomFrom(transport.boundAddress().boundAddresses()).address(),
+                            new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, "/" + status)
+                        );
+                        try {
+                            assertEquals(status, response.status().code());
+                            assertEquals(enabled ? "max-age=31536000" : null, response.headers().get("Strict-Transport-Security"));
+                        } finally {
+                            response.release();
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    public void testHstsOnEarlyOversizedRequestResponse() throws InterruptedException {
+        runExpectHeaderTest(
+            createBuilderWithPort().put("http.hsts.enabled", true).put("http.max_content_length", "8b").build(),
+            "100-continue",
+            9,
+            HttpResponseStatus.REQUEST_ENTITY_TOO_LARGE
+        );
     }
 
     private Settings createSettings() {

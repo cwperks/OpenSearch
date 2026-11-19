@@ -39,6 +39,7 @@ import org.opensearch.http.HttpChannel;
 import org.opensearch.http.HttpHandlingSettings;
 import org.opensearch.http.HttpServerTransport;
 import org.opensearch.http.netty4.HttpResponseHeadersFactories;
+import org.opensearch.http.netty4.Netty4HstsHandler;
 import org.opensearch.http.netty4.Netty4HttpChannel;
 import org.opensearch.http.netty4.Netty4HttpServerTransport;
 import org.opensearch.plugins.SecureHttpTransportSettingsProvider;
@@ -59,6 +60,7 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
+import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.DecoderException;
 import io.netty.handler.ssl.ApplicationProtocolNames;
 import io.netty.handler.ssl.ApplicationProtocolNegotiationHandler;
@@ -215,6 +217,11 @@ public class SecureNetty4HttpServerTransport extends Netty4HttpServerTransport {
         protected void configurePipeline(Channel ch) {
             ch.pipeline().addLast(new Http2OrHttpHandler());
         }
+    }
+
+    @Override
+    protected void configureResponseHeaders(ChannelPipeline pipeline) {
+        Netty4HstsHandler.configure(pipeline, settings);
     }
 
     protected ChannelInboundHandlerAdapter createHeaderVerifier() {

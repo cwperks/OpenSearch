@@ -101,6 +101,7 @@ import io.netty.handler.codec.quic.QuicChannel;
 import io.netty.handler.codec.quic.QuicSslContext;
 import io.netty.handler.codec.quic.QuicSslContextBuilder;
 import io.netty.handler.codec.quic.QuicStreamChannel;
+import io.netty.handler.ssl.ApplicationProtocolConfig;
 import io.netty.handler.ssl.ClientAuth;
 import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.ssl.SslHandler;
@@ -177,6 +178,16 @@ public class Netty4HttpClient implements Closeable {
                 .group(new NioEventLoopGroup(1)),
             CountDownLatchHandlerHttp2::new,
             false
+        );
+    }
+
+    public static Netty4HttpClient https2() {
+        return new Netty4HttpClient(
+            new Bootstrap().channel(NettyAllocator.getChannelType())
+                .option(ChannelOption.ALLOCATOR, NettyAllocator.getAllocator())
+                .group(new NioEventLoopGroup(1)),
+            CountDownLatchHandlerHttp2::new,
+            true
         );
     }
 
@@ -378,14 +389,16 @@ public class Netty4HttpClient implements Closeable {
         private final CountDownLatch latch;
         private final Collection<FullHttpResponse> content;
         private Http2SettingsHandler settingsHandler;
+        private final boolean secure;
 
         CountDownLatchHandlerHttp2(final CountDownLatch latch, final Collection<FullHttpResponse> content, final boolean secure) {
+            this.secure = secure;
             this.latch = latch;
             this.content = content;
         }
 
         @Override
-        protected void initChannel(SocketChannel ch) {
+        protected void initChannel(SocketChannel ch) throws Exception {
             final int maxContentLength = new ByteSizeValue(100, ByteSizeUnit.MB).bytesAsInt();
             final Http2Connection connection = new DefaultHttp2Connection(false);
             settingsHandler = new Http2SettingsHandler(ch.newPromise());
@@ -422,6 +435,26 @@ public class Netty4HttpClient implements Closeable {
                     )
                 )
                 .build();
+
+            if (secure) {
+                ch.pipeline()
+                    .addLast(
+                        SslContextBuilder.forClient()
+                            .trustManager(InsecureTrustManagerFactory.INSTANCE)
+                            .applicationProtocolConfig(
+                                new ApplicationProtocolConfig(
+                                    ApplicationProtocolConfig.Protocol.ALPN,
+                                    ApplicationProtocolConfig.SelectorFailureBehavior.NO_ADVERTISE,
+                                    ApplicationProtocolConfig.SelectedListenerFailureBehavior.ACCEPT,
+                                    "h2"
+                                )
+                            )
+                            .build()
+                            .newHandler(ch.alloc())
+                    );
+                ch.pipeline().addLast(connectionHandler, settingsHandler, responseHandler);
+                return;
+            }
 
             final HttpClientCodec sourceCodec = new HttpClientCodec();
             final Http2ClientUpgradeCodec upgradeCodec = new Http2ClientUpgradeCodec(connectionHandler);

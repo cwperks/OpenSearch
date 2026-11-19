@@ -379,7 +379,7 @@ public class Netty4Http3ServerTransportTests extends OpenSearchTestCase {
     public void testLargeCompressedResponse() throws InterruptedException {
         assumeThat("HTTP/3 is not available on this arch/platform", Http3Utils.isHttp3Available(), is(true));
 
-        final Settings settings = createSettings();
+        final Settings settings = Settings.builder().put(createSettings()).put("http.hsts.enabled", true).build();
         final String responseString = randomAlphaOfLength(4 * 1024 * 1024);
         final String url = "/thing";
         final HttpServerTransport.Dispatcher dispatcher = dispatcherBuilderWithDefaults().withDispatchRequest(
@@ -415,6 +415,7 @@ public class Netty4Http3ServerTransportTests extends OpenSearchTestCase {
                 request.headers().add(HttpHeaderNames.ACCEPT_ENCODING, randomFrom("deflate", "gzip"));
                 final FullHttpResponse response = client.send(remoteAddress.address(), request);
                 try {
+                    assertEquals("max-age=31536000", response.headers().get("Strict-Transport-Security"));
                     assertThat(response.status(), equalTo(HttpResponseStatus.OK));
                     byte[] bytes = new byte[response.content().readableBytes()];
                     response.content().readBytes(bytes);
