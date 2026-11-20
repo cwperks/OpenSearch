@@ -54,6 +54,7 @@ import org.junit.Before;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.BiFunction;
@@ -198,6 +199,59 @@ public class ScriptServiceTests extends OpenSearchTestCase {
         FieldScript script2 = leafFactory.newInstance(null);
 
         assertThat(script1.getLeafLookup().source(), sameInstance(script2.getLeafLookup().source()));
+    }
+
+    public void testCallerLanguageRestriction() throws IOException {
+        buildScriptService(Settings.EMPTY);
+        Script script = new Script(ScriptType.INLINE, "painless", "script", Collections.emptyMap());
+        // Populate the cache through an unrestricted caller first.
+        scriptService.compile(script, FieldScript.CONTEXT);
+        scriptService.compile(script, FieldScript.CONTEXT, Set.of("painless"));
+        for (Set<String> languages : List.of(Set.of("test"), Set.<String>of())) {
+            IllegalArgumentException error = expectThrows(
+                IllegalArgumentException.class,
+                () -> scriptService.compile(script, FieldScript.CONTEXT, languages)
+            );
+            assertEquals("script language [painless] is not permitted by this caller", error.getMessage());
+        }
+        // A restricted caller does not change the policy for other callers.
+        scriptService.compile(script, FieldScript.CONTEXT);
+    }
+
+    public void testCallerLanguageRestrictionResolvesStoredScripts() throws IOException {
+        buildScriptService(Settings.EMPTY);
+        Script script = new Script(ScriptType.STORED, null, "script", Collections.emptyMap());
+        // The test service resolves stored scripts to the "test" language.
+        scriptService.compile(script, FieldScript.CONTEXT, Set.of("test"));
+        IllegalArgumentException error = expectThrows(
+            IllegalArgumentException.class,
+            () -> scriptService.compile(script, FieldScript.CONTEXT, Set.of("painless"))
+        );
+        assertEquals("script language [test] is not permitted by this caller", error.getMessage());
+    }
+
+    public void testCallerLanguagesDoNotOverrideTypeRestriction() throws IOException {
+        buildScriptService(Settings.builder().putList("script.allowed_types", "stored").build());
+        expectThrows(
+            IllegalArgumentException.class,
+            () -> scriptService.compile(
+                new Script(ScriptType.INLINE, "painless", "script", Collections.emptyMap()),
+                FieldScript.CONTEXT,
+                Set.of("painless")
+            )
+        );
+    }
+
+    public void testCallerLanguagesDoNotOverrideContextRestriction() throws IOException {
+        buildScriptService(Settings.builder().putList("script.allowed_contexts", "none").build());
+        expectThrows(
+            IllegalArgumentException.class,
+            () -> scriptService.compile(
+                new Script(ScriptType.INLINE, "painless", "script", Collections.emptyMap()),
+                FieldScript.CONTEXT,
+                Set.of("painless")
+            )
+        );
     }
 
     public void testAllowAllScriptTypeSettings() throws IOException {

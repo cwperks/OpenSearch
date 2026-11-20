@@ -466,6 +466,21 @@ public class ScriptService implements Closeable, ClusterStateApplier {
      * @return a compiled script which may be used to construct instances of a script for the given context
      */
     public <FactoryType> FactoryType compile(Script script, ScriptContext<FactoryType> context) {
+        return compile(script, context, engines.keySet());
+    }
+
+    /**
+     * Compiles a script only if its language is accepted by the caller. For stored scripts, the check applies to
+     * the resolved source used for this compilation. Node-level type and context restrictions still apply.
+     *
+     * @param script the inline script or stored script reference
+     * @param context the compilation context
+     * @param allowedLanguages languages accepted by this caller; an empty set rejects every language
+     * @param <FactoryType> the script factory type
+     * @return the compiled script factory
+     */
+    public <FactoryType> FactoryType compile(Script script, ScriptContext<FactoryType> context, Set<String> allowedLanguages) {
+        Objects.requireNonNull(allowedLanguages);
         Objects.requireNonNull(script);
         Objects.requireNonNull(context);
 
@@ -489,6 +504,9 @@ public class ScriptService implements Closeable, ClusterStateApplier {
         }
 
         ScriptEngine scriptEngine = getEngine(lang);
+        if (allowedLanguages.contains(lang) == false) {
+            throw new IllegalArgumentException("script language [" + lang + "] is not permitted by this caller");
+        }
 
         if (isTypeEnabled(type) == false) {
             throw new IllegalArgumentException("cannot execute [" + type + "] scripts");
