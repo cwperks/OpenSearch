@@ -176,17 +176,6 @@ public class ScriptService implements Closeable, ClusterStateApplier {
         Setting.Property.NodeScope
     );
 
-    public static final Setting<List<String>> LANGUAGES_ALLOWED_SETTING = Setting.listSetting(
-        "script.allowed_languages",
-        Collections.emptyList(),
-        Function.identity(),
-        Setting.Property.NodeScope
-    )
-        .withDescription(
-            "Script languages permitted for inline and stored scripts. Unset allows all registered languages; none disables all."
-        );
-
-    private final Set<String> languagesAllowed;
     private final Set<String> typesAllowed;
     private final Set<String> contextsAllowed;
 
@@ -211,31 +200,6 @@ public class ScriptService implements Closeable, ClusterStateApplier {
                     + "fine-grained script settings. \n Dynamic scripts can be enabled for all languages and all operations not "
                     + "using `script.disable_dynamic: false` in opensearch.yml"
             );
-        }
-
-        this.languagesAllowed = LANGUAGES_ALLOWED_SETTING.exists(settings) ? new HashSet<>(LANGUAGES_ALLOWED_SETTING.get(settings)) : null;
-        if (languagesAllowed != null) {
-            if (languagesAllowed.isEmpty()) {
-                throw new IllegalArgumentException(
-                    "must specify at least one script language or none for setting [script.allowed_languages]."
-                );
-            }
-            if (languagesAllowed.contains(ALLOW_NONE)) {
-                if (languagesAllowed.size() != 1) {
-                    throw new IllegalArgumentException(
-                        "cannot specify both [none] and other script languages for setting [script.allowed_languages]."
-                    );
-                }
-                languagesAllowed.clear();
-            } else {
-                for (String language : languagesAllowed) {
-                    if (engines.containsKey(language) == false) {
-                        throw new IllegalArgumentException(
-                            "unknown script language [" + language + "] found in setting [script.allowed_languages]."
-                        );
-                    }
-                }
-            }
         }
 
         this.typesAllowed = TYPES_ALLOWED_SETTING.exists(settings) ? new HashSet<>() : null;
@@ -441,14 +405,7 @@ public class ScriptService implements Closeable, ClusterStateApplier {
         if (scriptEngine == null) {
             throw new IllegalArgumentException("script_lang not supported [" + lang + "]");
         }
-        if (isLanguageEnabled(lang) == false) {
-            throw new IllegalArgumentException("cannot execute scripts using [" + lang + "] language");
-        }
         return scriptEngine;
-    }
-
-    private boolean isLanguageEnabled(String lang) {
-        return languagesAllowed == null || languagesAllowed.contains(lang);
     }
 
     /**
@@ -509,6 +466,21 @@ public class ScriptService implements Closeable, ClusterStateApplier {
      * @return a compiled script which may be used to construct instances of a script for the given context
      */
     public <FactoryType> FactoryType compile(Script script, ScriptContext<FactoryType> context) {
+        return compile(script, context, engines.keySet());
+    }
+
+    /**
+     * Compiles a script only if its language is accepted by the caller. For stored scripts, the check applies to
+     * the resolved source used for this compilation. Node-level type and context restrictions still apply.
+     *
+     * @param script the inline script or stored script reference
+     * @param context the compilation context
+     * @param allowedLanguages languages accepted by this caller; an empty set rejects every language
+     * @param <FactoryType> the script factory type
+     * @return the compiled script factory
+     */
+    public <FactoryType> FactoryType compile(Script script, ScriptContext<FactoryType> context, Set<String> allowedLanguages) {
+        Objects.requireNonNull(allowedLanguages);
         Objects.requireNonNull(script);
         Objects.requireNonNull(context);
 
@@ -532,6 +504,9 @@ public class ScriptService implements Closeable, ClusterStateApplier {
         }
 
         ScriptEngine scriptEngine = getEngine(lang);
+        if (allowedLanguages.contains(lang) == false) {
+            throw new IllegalArgumentException("script language [" + lang + "] is not permitted by this caller");
+        }
 
         if (isTypeEnabled(type) == false) {
             throw new IllegalArgumentException("cannot execute [" + type + "] scripts");
@@ -749,14 +724,12 @@ public class ScriptService implements Closeable, ClusterStateApplier {
 
         final Set<String> contexts = contextsAllowed != null ? contextsAllowed : this.contexts.keySet();
         Map<String, Set<String>> languageContexts = new HashMap<>();
-        engines.forEach((key, value) -> {
-            if (isLanguageEnabled(key)) {
-                languageContexts.put(
-                    key,
-                    value.getSupportedContexts().stream().map(c -> c.name).filter(contexts::contains).collect(Collectors.toSet())
-                );
-            }
-        });
+        engines.forEach(
+            (key, value) -> languageContexts.put(
+                key,
+                value.getSupportedContexts().stream().map(c -> c.name).filter(contexts::contains).collect(Collectors.toSet())
+            )
+        );
         return new ScriptLanguagesInfo(types, languageContexts);
     }
 

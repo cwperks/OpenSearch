@@ -43,6 +43,7 @@ import org.opensearch.script.TemplateScript;
 import org.opensearch.test.OpenSearchTestCase;
 
 import java.util.Map;
+import java.util.Set;
 
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonMap;
@@ -55,29 +56,27 @@ import static org.hamcrest.Matchers.instanceOf;
 
 public class CustomMustacheFactoryTests extends OpenSearchTestCase {
 
-    public void testMustacheOnlyPolicy() throws Exception {
-        Settings settings = Settings.builder()
-            .putList("script.allowed_languages", "mustache")
-            .putList("script.allowed_types", "inline")
-            .putList("script.allowed_contexts", "template")
-            .build();
+    public void testCallerCanRequireMustacheWithoutDisablingOtherLanguages() throws Exception {
         try (
             ScriptService service = new ScriptService(
-                settings,
-                Map.of("mustache", new MustacheScriptEngine(), "painless", new MockScriptEngine("painless", emptyMap(), emptyMap())),
+                Settings.EMPTY,
+                Map.of(
+                    "mustache",
+                    new MustacheScriptEngine(),
+                    "painless",
+                    new MockScriptEngine("painless", Map.of("script", params -> "painless result"), emptyMap())
+                ),
                 Map.of(TemplateScript.CONTEXT.name, TemplateScript.CONTEXT)
             )
         ) {
-            TemplateScript.Factory template = service.compile(
-                new Script(ScriptType.INLINE, "mustache", "hello {{name}}", emptyMap()),
-                TemplateScript.CONTEXT
+            Script mustache = new Script(ScriptType.INLINE, "mustache", "hello {{name}}", emptyMap());
+            assertEquals(
+                "hello world",
+                service.compile(mustache, TemplateScript.CONTEXT, Set.of("mustache")).newInstance(Map.of("name", "world")).execute()
             );
-            assertEquals("hello world", template.newInstance(Map.of("name", "world")).execute());
-            IllegalArgumentException denied = expectThrows(
-                IllegalArgumentException.class,
-                () -> service.compile(new Script(ScriptType.INLINE, "painless", "return 'hello';", emptyMap()), TemplateScript.CONTEXT)
-            );
-            assertEquals("cannot execute scripts using [painless] language", denied.getMessage());
+            Script painless = new Script(ScriptType.INLINE, "painless", "script", emptyMap());
+            expectThrows(IllegalArgumentException.class, () -> service.compile(painless, TemplateScript.CONTEXT, Set.of("mustache")));
+            assertEquals("painless result", service.compile(painless, TemplateScript.CONTEXT).newInstance(emptyMap()).execute());
         }
     }
 
