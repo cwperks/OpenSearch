@@ -54,6 +54,7 @@ testClusters.all {
 }
 
 dependencies {
+  internalClusterTestCompileOnly project(':libs:agent-sm:bootstrap')
   api(libs.antlr4.runtime)
   api(libs.bundles.asm)
   api project('spi')
