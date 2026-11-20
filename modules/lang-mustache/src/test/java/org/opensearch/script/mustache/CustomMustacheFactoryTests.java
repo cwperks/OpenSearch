@@ -32,9 +32,13 @@
 
 package org.opensearch.script.mustache;
 
+import org.opensearch.common.settings.Settings;
+import org.opensearch.script.MockScriptEngine;
 import org.opensearch.script.Script;
 import org.opensearch.script.ScriptEngine;
 import org.opensearch.script.ScriptException;
+import org.opensearch.script.ScriptService;
+import org.opensearch.script.ScriptType;
 import org.opensearch.script.TemplateScript;
 import org.opensearch.test.OpenSearchTestCase;
 
@@ -50,6 +54,32 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
 
 public class CustomMustacheFactoryTests extends OpenSearchTestCase {
+
+    public void testMustacheOnlyPolicy() throws Exception {
+        Settings settings = Settings.builder()
+            .putList("script.allowed_languages", "mustache")
+            .putList("script.allowed_types", "inline")
+            .putList("script.allowed_contexts", "template")
+            .build();
+        try (
+            ScriptService service = new ScriptService(
+                settings,
+                Map.of("mustache", new MustacheScriptEngine(), "painless", new MockScriptEngine("painless", emptyMap(), emptyMap())),
+                Map.of(TemplateScript.CONTEXT.name, TemplateScript.CONTEXT)
+            )
+        ) {
+            TemplateScript.Factory template = service.compile(
+                new Script(ScriptType.INLINE, "mustache", "hello {{name}}", emptyMap()),
+                TemplateScript.CONTEXT
+            );
+            assertEquals("hello world", template.newInstance(Map.of("name", "world")).execute());
+            IllegalArgumentException denied = expectThrows(
+                IllegalArgumentException.class,
+                () -> service.compile(new Script(ScriptType.INLINE, "painless", "return 'hello';", emptyMap()), TemplateScript.CONTEXT)
+            );
+            assertEquals("cannot execute scripts using [painless] language", denied.getMessage());
+        }
+    }
 
     public void testCreateEncoder() {
         IllegalArgumentException e = expectThrows(IllegalArgumentException.class, () -> CustomMustacheFactory.createEncoder(null));

@@ -200,6 +200,85 @@ public class ScriptServiceTests extends OpenSearchTestCase {
         assertThat(script1.getLeafLookup().source(), sameInstance(script2.getLeafLookup().source()));
     }
 
+    public void testLanguagePolicyAllowsRegisteredLanguagesByDefault() throws IOException {
+        buildScriptService(Settings.EMPTY);
+        assertCompileAccepted("painless", "script", ScriptType.INLINE, FieldScript.CONTEXT);
+        assertCompileAccepted("test", "script", ScriptType.INLINE, FieldScript.CONTEXT);
+        assertCompileAccepted(null, "script", ScriptType.STORED, FieldScript.CONTEXT);
+        assertEquals(Set.of("painless", "test"), scriptService.getScriptLanguages().languageContexts.keySet());
+    }
+
+    public void testLanguagePolicyRestrictsInlineAndStoredExecution() throws IOException {
+        buildScriptService(Settings.builder().putList("script.allowed_languages", "painless").build());
+        assertCompileAccepted("painless", "script", ScriptType.INLINE, FieldScript.CONTEXT);
+        IllegalArgumentException inline = expectThrows(
+            IllegalArgumentException.class,
+            () -> scriptService.compile(new Script(ScriptType.INLINE, "test", "script", Collections.emptyMap()), FieldScript.CONTEXT)
+        );
+        assertEquals("cannot execute scripts using [test] language", inline.getMessage());
+        // The stored script resolves to the disallowed "test" language even though the request does not specify a language.
+        IllegalArgumentException stored = expectThrows(
+            IllegalArgumentException.class,
+            () -> scriptService.compile(new Script(ScriptType.STORED, null, "script", Collections.emptyMap()), FieldScript.CONTEXT)
+        );
+        assertEquals(inline.getMessage(), stored.getMessage());
+        assertTrue(scriptService.isLangSupported("test"));
+        assertEquals(Set.of("painless"), scriptService.getScriptLanguages().languageContexts.keySet());
+    }
+
+    public void testLanguagePolicyAllowsStoredExecution() throws IOException {
+        buildScriptService(Settings.builder().putList("script.allowed_languages", "test").build());
+        assertCompileAccepted(null, "script", ScriptType.STORED, FieldScript.CONTEXT);
+    }
+
+    public void testLanguagePolicyRejectsStoredScriptCreation() throws IOException {
+        buildScriptService(Settings.builder().putList("script.allowed_languages", "painless").build());
+        for (String context : new String[] { null, FieldScript.CONTEXT.name }) {
+            var request = new org.opensearch.action.admin.cluster.storedscripts.PutStoredScriptRequest(
+                "id",
+                context,
+                new BytesArray("{}"),
+                MediaTypeRegistry.JSON,
+                new StoredScriptSource("test", "script", Collections.emptyMap())
+            );
+            IllegalArgumentException error = expectThrows(
+                IllegalArgumentException.class,
+                () -> scriptService.putStoredScript(null, request, null, null)
+            );
+            assertEquals("cannot execute scripts using [test] language", error.getCause().getMessage());
+        }
+    }
+
+    public void testLanguagePolicyCanDisableAllLanguages() throws IOException {
+        buildScriptService(Settings.builder().putList("script.allowed_languages", "none").build());
+        expectThrows(
+            IllegalArgumentException.class,
+            () -> scriptService.compile(new Script(ScriptType.INLINE, "painless", "script", Collections.emptyMap()), FieldScript.CONTEXT)
+        );
+        assertTrue(scriptService.getScriptLanguages().languageContexts.isEmpty());
+    }
+
+    public void testInvalidLanguagePolicy() {
+        for (String[] languages : new String[][] { {}, { "missing" }, { "none", "painless" } }) {
+            IllegalArgumentException error = expectThrows(
+                IllegalArgumentException.class,
+                () -> buildScriptService(Settings.builder().putList("script.allowed_languages", languages).build())
+            );
+            assertThat(error.getMessage(), containsString("script.allowed_languages"));
+        }
+    }
+
+    public void testLanguagePolicyDoesNotOverrideTypeOrContextPolicy() throws IOException {
+        buildScriptService(
+            Settings.builder().putList("script.allowed_languages", "painless").putList("script.allowed_types", "stored").build()
+        );
+        assertCompileRejected("painless", "script", ScriptType.INLINE, FieldScript.CONTEXT);
+        buildScriptService(
+            Settings.builder().putList("script.allowed_languages", "painless").putList("script.allowed_contexts", "none").build()
+        );
+        assertCompileRejected("painless", "script", ScriptType.INLINE, FieldScript.CONTEXT);
+    }
+
     public void testAllowAllScriptTypeSettings() throws IOException {
         buildScriptService(Settings.EMPTY);
 
