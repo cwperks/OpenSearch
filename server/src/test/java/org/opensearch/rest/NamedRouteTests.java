@@ -98,16 +98,36 @@ public class NamedRouteTests extends OpenSearchTestCase {
         }
     }
 
-    public void testNamedRouteWithInvalidLegacyActionNames() {
-        try {
-            NamedRoute r = new NamedRoute.Builder().method(GET)
-                .path("foo/bar")
-                .uniqueName("foo:bar")
-                .legacyActionNames(Set.of("foo:bar-legacy"))
-                .build();
-            fail("Did not expect NamedRoute to pass with an invalid legacy action name");
-        } catch (OpenSearchException e) {
-            assertTrue(e.getMessage().contains("Invalid action name [foo:bar-legacy]. It must start with one of:"));
+    public void testNamedRouteWithClusterPermissions() {
+        Set<String> permissions = Set.of("cluster:admin/reports/get", "cluster:monitor/health");
+        NamedRoute route = new NamedRoute.Builder().method(GET)
+            .path("foo/bar")
+            .uniqueName("foo:bar")
+            .legacyActionNames(permissions)
+            .build();
+        assertEquals(permissions, route.actionNames());
+    }
+
+    public void testNamedRouteRejectsNonClusterPermissions() {
+        for (String permission : new String[] {
+            "indices:data/read/search",
+            "internal:test",
+            "report_instance:get",
+            "cluster_extra:get",
+            "cluster:",
+            "foo:bar-legacy" }) {
+            OpenSearchException e = expectThrows(
+                OpenSearchException.class,
+                () -> new NamedRoute.Builder().method(GET)
+                    .path("foo/bar")
+                    .uniqueName("foo:bar")
+                    .legacyActionNames(Set.of("cluster:admin/reports/get", permission))
+                    .build()
+            );
+            assertEquals(
+                "Invalid REST permission [" + permission + "]. Expected a cluster action name starting with [cluster:]",
+                e.getMessage()
+            );
         }
     }
 
