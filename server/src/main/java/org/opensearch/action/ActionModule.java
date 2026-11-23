@@ -353,7 +353,6 @@ import org.opensearch.rest.NamedRoute;
 import org.opensearch.rest.RestController;
 import org.opensearch.rest.RestHandler;
 import org.opensearch.rest.RestHeaderDefinition;
-import org.opensearch.rest.RestPermissionAuthorizer;
 import org.opensearch.rest.action.RestFieldCapabilitiesAction;
 import org.opensearch.rest.action.RestMainAction;
 import org.opensearch.rest.action.admin.cluster.RestAddVotingConfigExclusionAction;
@@ -632,15 +631,7 @@ public class ActionModule extends AbstractModule {
             )
         ).collect(Collectors.toSet());
         UnaryOperator<RestHandler> restWrapper = null;
-        RestPermissionAuthorizer restAuthorizer = null;
         for (ActionPlugin plugin : actionPlugins) {
-            RestPermissionAuthorizer candidate = plugin.getRestPermissionAuthorizer(threadPool.getThreadContext());
-            if (candidate != null) {
-                if (restAuthorizer != null) {
-                    throw new IllegalArgumentException("Cannot have more than one REST permission authorizer");
-                }
-                restAuthorizer = candidate;
-            }
             UnaryOperator<RestHandler> newRestWrapper = plugin.getRestHandlerWrapper(threadPool.getThreadContext(), headers);
             if (newRestWrapper != null) {
                 logger.debug("Using REST wrapper from plugin " + plugin.getClass().getName());
@@ -657,7 +648,7 @@ public class ActionModule extends AbstractModule {
             actionPlugins.stream().flatMap(p -> p.indicesAliasesRequestValidators().stream()).collect(Collectors.toList())
         );
 
-        restController = new RestController(headers, restWrapper, nodeClient, circuitBreakerService, usageService, restAuthorizer);
+        restController = new RestController(headers, restWrapper, nodeClient, circuitBreakerService, usageService);
         restController.setRequestIdMaxLength(HttpTransportSettings.SETTING_HTTP_REQUEST_ID_MAX_LENGTH.get(settings));
         clusterSettings.addSettingsUpdateConsumer(
             HttpTransportSettings.SETTING_HTTP_REQUEST_ID_MAX_LENGTH,

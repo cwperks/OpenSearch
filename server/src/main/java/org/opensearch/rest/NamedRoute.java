@@ -30,7 +30,6 @@ public class NamedRoute extends RestHandler.Route {
     static final int MAX_LENGTH_OF_ACTION_NAME = 250;
 
     private final String uniqueName;
-    private final boolean authorizationRequired;
     private final Set<String> actionNames;
 
     private Function<RestRequest, RestResponse> handler;
@@ -42,7 +41,6 @@ public class NamedRoute extends RestHandler.Route {
         private RestRequest.Method method;
         private String path;
         private String uniqueName;
-        private boolean authorizationRequired;
         private final Set<String> legacyActionNames = new HashSet<>();
         private final Set<Property> properties = new HashSet<>();
         private Function<RestRequest, RestResponse> handler;
@@ -80,17 +78,6 @@ public class NamedRoute extends RestHandler.Route {
         public Builder uniqueName(String name) {
             requireNonNull(name, "REST route name must not be null.");
             this.uniqueName = name;
-            return this;
-        }
-
-        /**
-         * Requires core to authorize the unique cluster permission before invoking this route's handler.
-         * An authorizer must be installed; legacy permission aliases cannot be used with this gate.
-         *
-         * @return this builder
-         */
-        public Builder requireAuthorization() {
-            this.authorizationRequired = true;
             return this;
         }
 
@@ -174,22 +161,9 @@ public class NamedRoute extends RestHandler.Route {
                     + " characters"
             );
         }
-        if (builder.authorizationRequired
-            && (builder.uniqueName.startsWith("cluster:") == false
-                || builder.uniqueName.length() == "cluster:".length()
-                || builder.uniqueName.contains("*")
-                || builder.legacyActionNames.isEmpty() == false)) {
-            throw new IllegalArgumentException("An authorized route requires a concrete cluster: name and no legacy aliases");
-        }
-        this.authorizationRequired = builder.authorizationRequired;
         this.uniqueName = builder.uniqueName;
         this.actionNames = Set.copyOf(builder.legacyActionNames);
         this.handler = builder.handler;
-    }
-
-    /** Returns whether core must authorize this route before invoking its handler. */
-    public boolean requiresAuthorization() {
-        return authorizationRequired;
     }
 
     public boolean isValidRouteName(String routeName) {

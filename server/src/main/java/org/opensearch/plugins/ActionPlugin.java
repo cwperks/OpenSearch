@@ -52,7 +52,6 @@ import org.opensearch.core.common.Strings;
 import org.opensearch.rest.RestController;
 import org.opensearch.rest.RestHandler;
 import org.opensearch.rest.RestHeaderDefinition;
-import org.opensearch.rest.RestPermissionAuthorizer;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -113,18 +112,6 @@ public interface ActionPlugin {
         Supplier<DiscoveryNodes> nodesInCluster
     ) {
         return Collections.emptyList();
-    }
-
-    /**
-     * Supplies authorization for routes that explicitly require a permission gate.
-     * At most one plugin may supply an authorizer. Authentication must happen before the
-     * REST wrapper forwards the request; the authorizer must reject a missing identity.
-     *
-     * @param threadContext the request context
-     * @return an authorizer, or null when this plugin does not provide one
-     */
-    default RestPermissionAuthorizer getRestPermissionAuthorizer(ThreadContext threadContext) {
-        return null;
     }
 
     /**

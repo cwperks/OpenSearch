@@ -125,7 +125,6 @@ public class RestController implements HttpServerTransport.Dispatcher {
     /** Rest headers that are copied to internal requests made during a rest request. */
     private final Set<RestHeaderDefinition> headersToCopy;
     private final UsageService usageService;
-    private final RestPermissionAuthorizer permissionAuthorizer;
 
     public RestController(
         Set<RestHeaderDefinition> headersToCopy,
@@ -134,19 +133,6 @@ public class RestController implements HttpServerTransport.Dispatcher {
         CircuitBreakerService circuitBreakerService,
         UsageService usageService
     ) {
-        this(headersToCopy, handlerWrapper, client, circuitBreakerService, usageService, null);
-    }
-
-    /** Creates a controller with an explicit authorizer for permission-gated routes. */
-    public RestController(
-        Set<RestHeaderDefinition> headersToCopy,
-        UnaryOperator<RestHandler> handlerWrapper,
-        NodeClient client,
-        CircuitBreakerService circuitBreakerService,
-        UsageService usageService,
-        RestPermissionAuthorizer permissionAuthorizer
-    ) {
-        this.permissionAuthorizer = permissionAuthorizer;
         this.headersToCopy = headersToCopy;
         this.usageService = usageService;
         if (handlerWrapper == null) {
@@ -247,32 +233,6 @@ public class RestController implements HttpServerTransport.Dispatcher {
     protected void registerHandler(RestRequest.Method method, String path, RestHandler handler) {
         if (handler instanceof BaseRestHandler baseRestHandler) {
             usageService.addRestHandler(baseRestHandler);
-        }
-        RestHandler original = handler;
-        boolean hasPermissionGate = handler.routes()
-            .stream()
-            .anyMatch(route -> route instanceof NamedRoute namedRoute && namedRoute.requiresAuthorization());
-        if (hasPermissionGate) {
-            if (handler.deprecatedRoutes().isEmpty() == false || handler.replacedRoutes().isEmpty() == false) {
-                throw new IllegalArgumentException("Permission-gated handlers must declare each URL as an explicit named route");
-            }
-            RestHandler.Route route = handler.routes()
-                .stream()
-                .filter(candidate -> candidate.getMethod() == method && candidate.getPath().equals(path))
-                .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("Permission-gated handler registered at an undeclared route"));
-            if (route instanceof NamedRoute namedRoute && namedRoute.requiresAuthorization()) {
-                if (permissionAuthorizer == null) {
-                    throw new IllegalStateException("No REST permission authorizer for route [" + namedRoute.name() + "]");
-                }
-                handler = new RestHandler.Wrapper(original) {
-                    @Override
-                    public void handleRequest(RestRequest request, RestChannel channel, NodeClient client) throws Exception {
-                        permissionAuthorizer.authorize(request, namedRoute.name());
-                        super.handleRequest(request, channel, client);
-                    }
-                };
-            }
         }
         registerHandlerNoWrap(method, path, handlerWrapper.apply(handler));
     }

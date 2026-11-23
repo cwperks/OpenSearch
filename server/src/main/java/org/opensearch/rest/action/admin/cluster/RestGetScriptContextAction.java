@@ -34,15 +34,10 @@ package org.opensearch.rest.action.admin.cluster;
 
 import org.opensearch.action.admin.cluster.storedscripts.GetScriptContextAction;
 import org.opensearch.action.admin.cluster.storedscripts.GetScriptContextRequest;
-import org.opensearch.rest.BaseRestHandler;
+import org.opensearch.action.admin.cluster.storedscripts.GetScriptContextResponse;
+import org.opensearch.rest.BaseRestActionHandler;
 import org.opensearch.rest.RestRequest;
-import org.opensearch.rest.action.RestToXContentListener;
-import org.opensearch.transport.client.node.NodeClient;
 
-import java.io.IOException;
-import java.util.List;
-
-import static java.util.Collections.singletonList;
 import static org.opensearch.rest.RestRequest.Method.GET;
 
 /**
@@ -50,11 +45,10 @@ import static org.opensearch.rest.RestRequest.Method.GET;
  *
  * @opensearch.api
  */
-public class RestGetScriptContextAction extends BaseRestHandler {
+public class RestGetScriptContextAction extends BaseRestActionHandler<GetScriptContextRequest, GetScriptContextResponse> {
 
-    @Override
-    public List<Route> routes() {
-        return singletonList(new Route(GET, "/_script_context"));
+    public RestGetScriptContextAction() {
+        super(GetScriptContextAction.INSTANCE, new Route(GET, "/_script_context"));
     }
 
     @Override
@@ -63,11 +57,7 @@ public class RestGetScriptContextAction extends BaseRestHandler {
     }
 
     @Override
-    protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
-        return channel -> client.execute(
-            GetScriptContextAction.INSTANCE,
-            new GetScriptContextRequest(),
-            new RestToXContentListener<>(channel)
-        );
+    protected GetScriptContextRequest parseRequest(RestRequest request) {
+        return new GetScriptContextRequest();
     }
 }
