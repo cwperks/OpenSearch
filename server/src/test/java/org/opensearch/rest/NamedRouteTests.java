@@ -111,6 +111,32 @@ public class NamedRouteTests extends OpenSearchTestCase {
         }
     }
 
+    public void testPermissionGateRequiresConcreteClusterName() {
+        for (String name : new String[] { "resource:get", "indices:data/read/search", "cluster:", "cluster:*" }) {
+            expectThrows(
+                IllegalArgumentException.class,
+                () -> new NamedRoute.Builder().method(GET).path("/gated").uniqueName(name).requireAuthorization().build()
+            );
+        }
+        expectThrows(
+            IllegalArgumentException.class,
+            () -> new NamedRoute.Builder().method(GET)
+                .path("/gated")
+                .uniqueName("cluster:monitor/example")
+                .legacyActionNames(Set.of("cluster:monitor/old"))
+                .requireAuthorization()
+                .build()
+        );
+        assertTrue(
+            new NamedRoute.Builder().method(GET)
+                .path("/gated")
+                .uniqueName("cluster:monitor/example")
+                .requireAuthorization()
+                .build()
+                .requiresAuthorization()
+        );
+    }
+
     public void testNamedRouteWithHandler() {
         Function<RestRequest, RestResponse> fooHandler = restRequest -> null;
         try {
