@@ -48,7 +48,7 @@ dependencies {
 
     // External plugins are versioned as <opensearch_version>.0-SNAPSHOT and pulled from
     // OpenSearch Snapshots (no local build). Derive the version from core's
-    // buildSrc/version.properties (via VersionProperties) so this stays in lockstep with
+    // Gradle version catalog (via the generated VersionProperties resource) so this stays in lockstep with
     // the current OpenSearch version instead of pinning to a stale release. Strip any
     // -SNAPSHOT so the "<x.y.z>.0-SNAPSHOT" plugin coordinate is well-formed.
     def externalPluginVersion = "${VersionProperties.getOpenSearch().replace('-SNAPSHOT', '')}.0-SNAPSHOT"
