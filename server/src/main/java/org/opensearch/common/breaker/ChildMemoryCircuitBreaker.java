@@ -101,6 +101,7 @@ public class ChildMemoryCircuitBreaker implements CircuitBreaker {
             + new ByteSizeValue(memoryBytesLimit)
             + "]";
         logger.debug(() -> new ParameterizedMessage("{}", message));
+        parent.getTripNotifier().notifyTrip(name, fieldName, bytesNeeded, memoryBytesLimit, durability == null ? null : durability.name());
         throw new CircuitBreakingException(message, bytesNeeded, memoryBytesLimit, durability);
     }
 

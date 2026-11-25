@@ -87,6 +87,7 @@ public class HierarchyCircuitBreakerService extends CircuitBreakerService {
 
     private final Map<String, CircuitBreaker> breakers;
     private final Map<String, Supplier<CircuitBreakerStats>> statsSuppliers;
+    private final CircuitBreakerTripNotifier tripNotifier = new CircuitBreakerTripNotifier();
 
     public static final Setting<Boolean> USE_REAL_MEMORY_USAGE_SETTING = Setting.boolSetting(
         "indices.breaker.total.use_real_memory",
@@ -327,6 +328,10 @@ public class HierarchyCircuitBreakerService extends CircuitBreakerService {
         return this.breakers.get(name);
     }
 
+    public CircuitBreakerTripNotifier getTripNotifier() {
+        return tripNotifier;
+    }
+
     @Override
     public AllCircuitBreakerStats stats() {
         List<CircuitBreakerStats> allStats = new ArrayList<>(this.breakers.size());
@@ -468,6 +473,7 @@ public class HierarchyCircuitBreakerService extends CircuitBreakerService {
                 ? CircuitBreaker.Durability.TRANSIENT
                 : CircuitBreaker.Durability.PERMANENT;
             logger.debug(() -> new ParameterizedMessage("{}", message.toString()));
+            tripNotifier.notifyTrip(CircuitBreaker.PARENT, label, memoryUsed.totalUsage, parentLimit, durability.name());
             throw new CircuitBreakingException(message.toString(), memoryUsed.totalUsage, parentLimit, durability);
         }
     }

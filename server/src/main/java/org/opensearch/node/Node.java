@@ -1214,6 +1214,9 @@ public class Node implements Closeable {
             final DefaultPluginComponentRegistry pluginComponentRegistry = new DefaultPluginComponentRegistry();
             pluginComponentRegistry.register(new FieldFilterProvider(indicesService.getFieldFilter()));
             pluginComponentRegistry.register(dataFormatRegistry);
+            if (circuitBreakerService instanceof HierarchyCircuitBreakerService hierarchyCircuitBreakerService) {
+                pluginComponentRegistry.register(hierarchyCircuitBreakerService.getTripNotifier());
+            }
             final List<Object> pluginComponents = new ArrayList<>();
             for (Plugin p : pluginsService.filterPlugins(Plugin.class)) {
                 Collection<Object> components = p.createComponents(

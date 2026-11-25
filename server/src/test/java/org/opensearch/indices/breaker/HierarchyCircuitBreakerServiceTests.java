@@ -75,6 +75,65 @@ import static org.hamcrest.Matchers.sameInstance;
 
 public class HierarchyCircuitBreakerServiceTests extends OpenSearchTestCase {
 
+    public void testChildTripNotificationAndListenerRemoval() {
+        Settings settings = Settings.builder()
+            .put(HierarchyCircuitBreakerService.USE_REAL_MEMORY_USAGE_SETTING.getKey(), false)
+            .put(HierarchyCircuitBreakerService.TOTAL_CIRCUIT_BREAKER_LIMIT_SETTING.getKey(), "100b")
+            .put(HierarchyCircuitBreakerService.REQUEST_CIRCUIT_BREAKER_LIMIT_SETTING.getKey(), "10b")
+            .build();
+        HierarchyCircuitBreakerService service = new HierarchyCircuitBreakerService(
+            settings,
+            Collections.emptyList(),
+            new ClusterSettings(settings, ClusterSettings.BUILT_IN_CLUSTER_SETTINGS)
+        );
+        List<CircuitBreakerTripNotifier.Trip> trips = new ArrayList<>();
+        Consumer<CircuitBreakerTripNotifier.Trip> listener = trips::add;
+        service.getTripNotifier().addListener(listener);
+        CircuitBreaker breaker = service.getBreaker(CircuitBreaker.REQUEST);
+
+        expectThrows(CircuitBreakingException.class, () -> breaker.addEstimateBytesAndMaybeBreak(11, "test-child"));
+        assertEquals(1, trips.size());
+        assertEquals(CircuitBreaker.REQUEST, trips.get(0).breaker());
+        assertEquals("test-child", trips.get(0).label());
+        assertEquals(11, trips.get(0).bytesWanted());
+        assertEquals(10, trips.get(0).bytesLimit());
+        assertEquals(CircuitBreaker.Durability.TRANSIENT.name(), trips.get(0).durability());
+        assertEquals(0, breaker.getUsed());
+        assertEquals(1, breaker.getTrippedCount());
+
+        service.getTripNotifier().removeListener(listener);
+        expectThrows(CircuitBreakingException.class, () -> breaker.addEstimateBytesAndMaybeBreak(11, "test-child"));
+        assertEquals(1, trips.size());
+        assertEquals(2, breaker.getTrippedCount());
+    }
+
+    public void testParentTripNotificationAndListenerFailure() {
+        Settings settings = Settings.builder()
+            .put(HierarchyCircuitBreakerService.USE_REAL_MEMORY_USAGE_SETTING.getKey(), false)
+            .put(HierarchyCircuitBreakerService.TOTAL_CIRCUIT_BREAKER_LIMIT_SETTING.getKey(), "100b")
+            .put(HierarchyCircuitBreakerService.REQUEST_CIRCUIT_BREAKER_LIMIT_SETTING.getKey(), "200b")
+            .build();
+        HierarchyCircuitBreakerService service = new HierarchyCircuitBreakerService(
+            settings,
+            Collections.emptyList(),
+            new ClusterSettings(settings, ClusterSettings.BUILT_IN_CLUSTER_SETTINGS)
+        );
+        List<CircuitBreakerTripNotifier.Trip> trips = new ArrayList<>();
+        service.getTripNotifier().addListener(trip -> { throw new IllegalStateException("listener failed"); });
+        service.getTripNotifier().addListener(trips::add);
+        CircuitBreaker breaker = service.getBreaker(CircuitBreaker.REQUEST);
+
+        expectThrows(CircuitBreakingException.class, () -> breaker.addEstimateBytesAndMaybeBreak(101, "test-parent"));
+        assertEquals(1, trips.size());
+        assertEquals(CircuitBreaker.PARENT, trips.get(0).breaker());
+        assertEquals("test-parent", trips.get(0).label());
+        assertEquals(101, trips.get(0).bytesWanted());
+        assertEquals(100, trips.get(0).bytesLimit());
+        assertEquals(0, breaker.getUsed());
+        assertEquals(0, breaker.getTrippedCount());
+        assertEquals(1, service.stats().getStats(CircuitBreaker.PARENT).getTrippedCount());
+    }
+
     public void testThreadedUpdatesToChildBreaker() throws Exception {
         final int NUM_THREADS = scaledRandomIntBetween(3, 15);
         final int BYTES_PER_THREAD = scaledRandomIntBetween(500, 4500);
