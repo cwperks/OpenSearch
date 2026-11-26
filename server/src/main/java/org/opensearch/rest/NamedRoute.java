@@ -10,7 +10,6 @@ package org.opensearch.rest;
 
 import org.opensearch.OpenSearchException;
 import org.opensearch.common.annotation.PublicApi;
-import org.opensearch.transport.TransportService;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -82,7 +81,8 @@ public class NamedRoute extends RestHandler.Route {
         }
 
         /**
-         * Sets the legacy action names for the route.
+         * Sets the legacy cluster action names for the route's all-or-nothing permission check.
+         * Index and resource permissions must be checked against their targets during action execution.
          *
          * @param legacyActionNames the legacy action names for the route
          * @return the builder instance
@@ -140,9 +140,9 @@ public class NamedRoute extends RestHandler.Route {
                 return new HashSet<>();
             }
             for (String actionName : legacyActionNames) {
-                if (!TransportService.isValidActionName(actionName)) {
+                if (actionName == null || actionName.startsWith("cluster:") == false || actionName.length() == "cluster:".length()) {
                     throw new OpenSearchException(
-                        "Invalid action name [" + actionName + "]. It must start with one of: " + TransportService.VALID_ACTION_PREFIXES
+                        "Invalid REST permission [" + actionName + "]. Expected a cluster action name starting with [cluster:]"
                     );
                 }
             }
